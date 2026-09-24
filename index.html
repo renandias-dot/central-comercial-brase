@@ -1545,7 +1545,7 @@ function viewConfig(){
     </div></section>`;
   } else if (UI.cfgTab === 'webhook'){
     body = `<div class="g2"><section class="panel"><div class="panel-h"><h2>Webhook de entrada de leads</h2><span class="status-pill">${HOST ? 'No ar' : 'Aguardando configuração'}</span></div><div class="panel-b" style="display:grid;gap:12px">
-      ${HOST ? `<p class="muted">Envie os leads (Inlead, formulários, landing pages) por POST para o endereço abaixo, trocando o final pela chave do webhook. Cada lead que chegar entra em <b>Lead Novo</b> com a cadência de toques já programada.</p><pre class="code">${esc(HOST.functions)}/crm-lead-webhook?token=CHAVE_DO_WEBHOOK</pre>` : '<p class="muted">O endereço do webhook será criado quando configurarmos o servidor de integração (formulários, Meta Lead Ads, landing pages). Cada lead que chegar entra em <b>Lead Novo</b> com a cadência de toques já programada.</p>'}
+      ${HOST ? `<p class="muted">Envie os leads (Inlead, formulários, landing pages) por POST, em JSON, para o endereço abaixo, com a chave do webhook como token Bearer (na Inlead, campo TOKEN). Sem campo de token, use <code>?token=CHAVE</code> no fim do endereço. Cada lead que chegar entra em <b>Lead Novo</b> com a cadência de toques já programada.</p><pre class="code">${esc(HOST.functions)}/crm-lead-webhook</pre>` : '<p class="muted">O endereço do webhook será criado quando configurarmos o servidor de integração (formulários, Meta Lead Ads, landing pages). Cada lead que chegar entra em <b>Lead Novo</b> com a cadência de toques já programada.</p>'}
       <div class="eyebrow">Formato esperado</div>
       <pre class="code">{
   "empresa": "Pizzaria Exemplo",
@@ -1562,6 +1562,7 @@ function viewConfig(){
 }</pre>
       <p class="hint">UTMs no formato <code>nome|id</code> (parâmetros dinâmicos da Meta) ligam cada lead ao criativo e ao investimento na aba Tráfego. Telefone repetido não entra de novo. Sem <code>responsavel</code>, o lead vai para o SDR com menos leads em aberto (rodízio).</p>
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="autoAssign" ${c.autoAssign ? 'checked' : ''}> Distribuir automaticamente leads sem responsável</label>
+      ${HOST ? `<label class="f">Reenviar cada lead também para (opcional)<input class="in" type="url" data-c="cfg-url" data-k="webhookForward" id="cfg-fwd" placeholder="https://…" value="${attr(c.webhookForward || '')}"></label><p class="hint">Use quando o formulário só aceita um webhook e outra ferramenta (ex.: o NicoChat) também precisa receber o lead. O CRM repassa os dados exatamente como chegaram.</p>` : ''}
     </div></section>
     <section class="panel"><div class="panel-h"><h2>Importar leads agora</h2></div><div class="panel-b" style="display:grid;gap:10px">
       <p class="muted">Cole um lead ou uma lista de leads no formato ao lado para testar o mapeamento ou importar uma base.</p>
@@ -1709,6 +1710,7 @@ const CHG = {
   'seller-f': t => { const s = S.sellers[t.dataset.id]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value; if (k === 'goalMeetings' || k === 'goalSales') v = v === '' ? null : Math.max(0, Number(v)); if (k === 'name' && !String(v).trim()) return; put('sellers', t.dataset.id, {...clone(s), [k]: v}) },
   'cfg-com': t => { const v = Number(t.value); if (!isFinite(v) || v < 0) return; saveCfg({commission: {...cfg().commission, [t.dataset.k]: v}}) },
   'cfg-bool': t => saveCfg({[t.dataset.k]: t.checked}),
+  'cfg-url': t => { const v = t.value.trim(); if (v && !/^https:\/\/\S+$/.test(v)){ toast('Use um endereço que comece com https://', 'err'); return } saveCfg({[t.dataset.k]: v}); toast(v ? 'Reenvio salvo' : 'Reenvio desligado') },
   'wa-rule': t => saveCfg({waRules: {...cfg().waRules, [t.dataset.k]: t.checked}}),
   dist: t => { UI.dist[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value; render() },
   'cu-csv': t => { const f = t.files && t.files[0]; if (!f) return; importClickupCSV(f, {create: !!($('#cu-create') || {}).checked, status: !!($('#cu-status') || {}).checked}); t.value = '' },
