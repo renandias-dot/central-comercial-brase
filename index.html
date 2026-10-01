@@ -514,6 +514,7 @@ const UI = {
 UI.owner = UI.me;
 let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
+let HOSTCALL = null, HOSTMETA = false;
 
 const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
@@ -1163,7 +1164,23 @@ function mcpMsg(e){
   if (e && e.retryable) return 'A Meta não respondeu agora. Tente de novo em alguns segundos.';
   return 'Não foi possível buscar o investimento (' + (c || 'erro desconhecido') + ').';
 }
+// Versão hospedada: o servidor busca na Meta com o token guardado nele (segredo META_ACCESS_TOKEN).
+async function refreshSpendHosted(btn){
+  const ids = new Set(((S.meta.spend && S.meta.spend.rows) || []).map(r => r.campaignId).filter(Boolean));
+  leadsArr().forEach(l => { if (l.utm && l.utm.campaignId) ids.add(l.utm.campaignId) });
+  if (!ids.size){ toast('Ainda não há campanhas conhecidas: faltam leads com UTM da Meta.', 'err'); return }
+  if (!HOSTMETA){ toast('Falta guardar o token da Meta no servidor (segredo META_ACCESS_TOKEN). Veja o README.', 'err'); return }
+  if (btn) btn.disabled = true; toast(`Buscando investimento de ${ids.size} campanha(s) na Meta…`);
+  try {
+    const r = await HOSTCALL({op: 'meta', campaigns: [...ids]});
+    if (!r.rows || !r.rows.length){ toast('A Meta não devolveu dados para essas campanhas.', 'err'); return }
+    await put('meta', 'spend', {updatedAt: iso(), account: r.account || (S.meta.spend && S.meta.spend.account) || '', rows: r.rows});
+    toast(`Investimento atualizado: ${ids.size} campanha(s), ${r.rows.length} linhas por mês e criativo`); render();
+  } catch (e){ toast('Não foi possível buscar o investimento: ' + ((e && e.message) || 'erro'), 'err') }
+  finally { if (btn) btn.disabled = false }
+}
 async function refreshSpend(btn){
+  if (HOST) return refreshSpendHosted(btn);
   if (!MCP || MCP.hosted) return;
   const ids = new Set(((S.meta.spend && S.meta.spend.rows) || []).map(r => r.campaignId).filter(Boolean));
   leadsArr().forEach(l => { if (l.utm && l.utm.campaignId) ids.add(l.utm.campaignId) });
@@ -1219,7 +1236,7 @@ function viewTrafego(){
   return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.',
     `<div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
      ${UI.trMode === 'month' ? `<div class="pager"><button class="btn sm ghost" data-a="tr-prev" aria-label="Mês anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="tr-next" ${UI.trOffset >= 0 ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>` : ''}
-     ${MCP && !MCP.hosted ? '<button class="btn" data-a="refresh-spend" title="Busca o investimento por criativo na Meta pelo seu conector Pipe">Atualizar investimento</button>' : ''}`)
+     ${(MCP && !MCP.hosted) || HOST ? '<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta">Atualizar investimento</button>' : ''}`)
   + `<div class="kpis">
       ${kpi('Investimento Meta', T.spend ? brl(T.spend) : '—', S.meta.spend ? `atualizado em ${fmtDM(localDay(S.meta.spend.updatedAt))}` : 'sem dados de investimento')}
       ${kpi('Leads no CRM', T.n, `${T.nMeta} com UTM da Meta · o pixel contou ${T.pixel}`)}
@@ -1831,6 +1848,7 @@ async function hostedDb(conf){
   };
   setInterval(poll, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll() });
+  HOSTCALL = call; HOSTMETA = !!first.meta;
   if (first.clickup) MCP = {hosted: true, callTool: async (server, tool, input) => ({payload: await call({op: 'clickup', tool, input})})};
   return {
     collection(col){ return { onSnapshot(next){
