@@ -421,7 +421,8 @@ const STAGE = Object.fromEntries(STAGES.map(s => [s.id, s]));
 const CLOSED = new Set(['fechado','perdido','desqualificado']);
 const ACTIVE = s => !CLOSED.has(s);
 const DEFAULT_CONFIG = {
-  commission: {base:1000, perMeeting:50, perSale:150},
+  commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
+  handoffOnDone: true,
   cadence: [
     {title:'Primeiro contato', gap:0},
     {title:'Follow-up', gap:2},
@@ -486,6 +487,11 @@ const fmtDM = s => { const d = parseYmd(s); return pad(d.getDate()) + '/' + pad(
 const wdOf = s => WD[parseYmd(s).getDay()];
 const monthShift = (mk, off) => { const [y,m] = mk.split('-').map(Number); const d = new Date(y, m-1+off, 1); return d.getFullYear() + '-' + pad(d.getMonth()+1) };
 const monthLabel = mk => { const [y,m] = mk.split('-').map(Number); return MONTHS[m-1] + ' ' + y };
+// Ciclo de comissão: vai do dia de corte (padrão 10) até o dia anterior ao corte do mês seguinte. A chave é o mês em que o ciclo começa.
+const cutDay = () => Math.min(28, Math.max(1, +(cfg().commission || {}).cutDay || 10));
+const cycleOf = day => { if (!day) return ''; const [y, m, d] = day.split('-').map(Number), mk = y + '-' + pad(m); return d >= cutDay() ? mk : monthShift(mk, -1) };
+const cycleRange = mk => { const cd = pad(cutDay()); return {from: mk + '-' + cd, to: addDays(monthShift(mk, 1) + '-' + cd, -1)} };
+const cycleLabel = mk => { const r = cycleRange(mk); return fmtDM(r.from) + ' – ' + fmtDM(r.to) };
 const brl = n => (n < 0 ? '−' : '') + 'R$ ' + Math.round(Math.abs(n)).toLocaleString('pt-BR');
 const pct = (n, d) => d ? (n / d * 100).toFixed(n / d * 100 < 10 && n > 0 ? 1 : 0).replace('.', ',') + '%' : '—';
 const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
@@ -503,8 +509,8 @@ const UI = {
   view: (() => { const h = (location.hash || '').slice(1); if (VIEW_IDS.includes(h)) return h; const v = ls.get('brase.view'); return VIEW_IDS.includes(v) ? v : 'hoje' })(),
   me: ls.get('brase.me') || '',
   owner: null, search: '', showSide: ls.get('brase.side') !== '0',
-  anMode: 'week', anOffset: 0, anOwner: '', anBase: 'cohort',
-  trMode: 'all', trOffset: 0, trDim: 'ad',
+  anMode: 'week', anOffset: 0, anOwner: '', anBase: 'cohort', anFrom: '', anTo: '',
+  trMode: 'all', trOffset: 0, trDim: 'ad', trFrom: '', trTo: '',
   dist: {from: 'frio+morno', owner: '*', minRev: '0', qty: 20, to: '', cadence: true, move: 'keep'},
   comSeller: '', comOffset: 0,
   docId: null, docEdit: false, docQ: '',
@@ -609,9 +615,13 @@ function moveLead(id, stage){
   l.stage = stage; l.stageAt = now; l.updatedAt = now;
   l.history = [...(l.history || []), {s: stage, at: now}].slice(-80);
   applyMilestones(l, stage, now);
+  let handed = false;
+  if (stage === 'feita' && cfg().handoffOnDone !== false) handed = applyHandoff(l, id);
+  else if (l.handoff && !STAGE[stage].side && STAGE[stage].funnel < 5) delete l.handoff;
   put('leads', id, l);
   const c = cfg().commission, counts = l.ownerId && !l.example;
   let msg = 'Movido para ' + STAGE[stage].name;
+  if (handed) msg += ` · processo passado para ${(manager().name || '').split(' ')[0]}`;
   let gain = 0;
   if (counts && l.meetingDoneAt && !cur.meetingDoneAt) gain += c.perMeeting;
   if (counts && l.closedAt && !cur.closedAt) gain += c.perSale;
@@ -620,6 +630,16 @@ function moveLead(id, stage){
   if ((stage === 'perdido' || stage === 'desqualificado') && !l.lostReason) openLead(id, 'loss');
   else if (stage === 'marcada' && !l.meetingAt) openLead(id, 'meeting');
   else render();
+}
+// Toques só valem enquanto o SDR conduz o lead: depois da Reunião Feita (ou de passar o processo) saem do Hoje e dos atrasados.
+const TOUCHABLE = l => ACTIVE(l.stage) && l.stage !== 'feita' && !l.handoff;
+const manager = () => sellersList().find(s => s.role === 'Gestor' && s.active !== false) || null;
+function applyHandoff(l, id){
+  const m = manager(); if (!m || l.handoff || l.example || l.ownerId === m.id) return false;
+  l.handoff = {to: m.id, at: iso()};
+  if (!l.sdrId && l.ownerId) l.sdrId = l.ownerId; // o crédito da reunião fica com quem conduziu
+  put('tasks', uid(), {title: 'Dar sequência: ' + (l.name || 'lead'), due: today(), ownerId: m.id, leadId: id, done: false, doneAt: null, createdAt: iso(), auto: 'handoff'});
+  return true;
 }
 function nextTouch(l){ return (l.touches || []).filter(t => !t.done).sort((a, b) => a.due.localeCompare(b.due))[0] || null }
 function toggleTouch(lid, tid, val){
@@ -631,9 +651,9 @@ function toggleTouch(lid, tid, val){
 }
 function commissionFor(sid, mk){
   const c = cfg().commission;
-  const L = leadsArr().filter(l => l.ownerId === sid && !l.example);
-  const meetingsLeads = L.filter(l => l.meetingDoneAt && (localDay(l.meetingDoneAt) || '').slice(0, 7) === mk);
-  const salesLeads = L.filter(l => l.closedAt && (localDay(l.closedAt) || '').slice(0, 7) === mk);
+  const L = leadsArr().filter(l => (l.sdrId || l.ownerId) === sid && !l.example);
+  const meetingsLeads = L.filter(l => l.meetingDoneAt && cycleOf(localDay(l.meetingDoneAt)) === mk);
+  const salesLeads = L.filter(l => l.closedAt && cycleOf(localDay(l.closedAt)) === mk);
   const adj = arr('adjustments').filter(a => a.sellerId === sid && a.month === mk);
   const adjM = sum(adj.filter(a => a.kind === 'meeting').map(a => a.qty));
   const adjS = sum(adj.filter(a => a.kind === 'sale').map(a => a.qty));
@@ -643,8 +663,8 @@ function commissionFor(sid, mk){
   return {c, base: c.base, meetings, sales, bonus, total, meetingsLeads, salesLeads, adj};
 }
 function bizDays(mk, upto){
-  const [y, m] = mk.split('-').map(Number); const last = new Date(y, m, 0).getDate(); let total = 0, elapsed = 0;
-  for (let d = 1; d <= last; d++){ const dt = new Date(y, m-1, d), w = dt.getDay(); if (w === 0 || w === 6) continue; total++; if (upto && ymd(dt) <= upto) elapsed++ }
+  const r = cycleRange(mk); let total = 0, elapsed = 0;
+  for (let d = r.from; d <= r.to; d = addDays(d, 1)){ const w = parseYmd(d).getDay(); if (w === 0 || w === 6) continue; total++; if (upto && d <= upto) elapsed++ }
   return {total, elapsed};
 }
 function routineDone(rid, sid, day){ return !!(S.routineLog[day.slice(0, 7) + '__' + sid]?.days?.[day]?.[rid]) }
@@ -656,7 +676,7 @@ function toggleRoutine(rid, sid){
 }
 function todayCount(own){
   const t0 = today(); let n = 0;
-  leadsArr().forEach(l => { if (own && l.ownerId !== own) return; if (!ACTIVE(l.stage)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
+  leadsArr().forEach(l => { if (own && l.ownerId !== own) return; if (!TOUCHABLE(l)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
   return n;
 }
 
@@ -698,7 +718,7 @@ function viewHoje(){
   const me = own ? S.sellers[own] : null;
   const leads = leadsArr().filter(l => !own || l.ownerId === own);
   const late = [], due = [], doneT = [];
-  leads.forEach(l => { if (!ACTIVE(l.stage)) return; (l.touches || []).forEach((t, i) => { const it = {l, t, i}; if (!t.done){ if (t.due < t0) late.push(it); else if (t.due === t0) due.push(it) } else if (localDay(t.doneAt) === t0) doneT.push(it) }) });
+  leads.forEach(l => { if (!TOUCHABLE(l)) return; (l.touches || []).forEach((t, i) => { const it = {l, t, i}; if (!t.done){ if (t.due < t0) late.push(it); else if (t.due === t0) due.push(it) } else if (localDay(t.doneAt) === t0) doneT.push(it) }) });
   late.sort((a, b) => a.t.due.localeCompare(b.t.due));
   const waiting = leads.filter(l => l.wa && l.wa.waitingSince && ACTIVE(l.stage)).sort((a, b) => a.wa.waitingSince.localeCompare(b.wa.waitingSince));
   const meetings = leads.filter(l => l.meetingAt && l.meetingAt.slice(0, 10) === t0).sort((a, b) => a.meetingAt.localeCompare(b.meetingAt));
@@ -793,10 +813,10 @@ function sortCol(items, sid){
   return items.sort((a, b) => { const x = nextTouch(a), y = nextTouch(b); return (x ? x.due : '9').localeCompare(y ? y.due : '9') || (b.createdAt || '').localeCompare(a.createdAt || '') });
 }
 function cardHTML(l){
-  const act = ACTIVE(l.stage), nt = act ? nextTouch(l) : null, ds = daysSince(l.stageAt);
+  const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = (act ? touchChip(l, nt) : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card" draggable="true" data-drag="${l.id}" data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -880,6 +900,10 @@ function drawerHTML(l, id){
       </div>
       <p class="hint" style="margin-top:8px">As datas são preenchidas sozinhas quando o card muda de etapa. Ajuste aqui se a reunião ou a venda foram em outro dia — é essa data que conta na comissão do mês.</p>
     </section>
+    ${(l.stage === 'feita' || l.handoff || l.stage === 'marcada') && manager() && l.ownerId !== manager().id ? `<section>
+      <h3>Processo</h3>
+      ${l.handoff ? `<p class="hint">Com ${esc((S.sellers[l.handoff.to] || {}).name || 'o gestor')} desde ${fmtDM(localDay(l.handoff.at))}. Não aparece no Hoje nem nos atrasados do SDR; a comissão dele continua contando.</p><div class="actions"><button class="btn sm ghost" data-a="unhand" data-id="${id}">Trazer de volta para o SDR</button></div>` : `<p class="hint">Passe o processo para o gestor depois da reunião. O card sai do Hoje e dos atrasados do SDR, e o gestor recebe uma tarefa.</p><div class="actions"><button class="btn sm" data-a="handoff" data-id="${id}">Passar o processo para ${esc(manager().name.split(' ')[0])}</button></div>`}
+    </section>` : ''}
     <section>
       <h3>Cadência de toques <span class="hint">${dn} de ${tt.length} feitos</span></h3>
       <div>${tt.map((t, i) => { const cls = t.done ? 'done' : t.due < t0 ? 'late' : t.due === t0 ? 'today' : ''; return `<div class="touch ${cls}">
@@ -951,7 +975,7 @@ function viewComissao(){
   const el = eligible();
   if (!el.length) return head('Comissão', 'Cadastre um vendedor em Configurações › Equipe para ver a comissão.');
   const pick = [UI.comSeller, validMe()].find(x => x && el.some(s => s.id === x)) || el[0].id;
-  const s = S.sellers[pick], cur = today().slice(0, 7), mk = monthShift(cur, UI.comOffset), isCur = mk === cur;
+  const s = S.sellers[pick], cur = cycleOf(today()), mk = monthShift(cur, UI.comOffset), isCur = mk === cur;
   const C = commissionFor(pick, mk), c = C.c;
   const vMeet = C.meetings * c.perMeeting, vSale = C.sales * c.perSale;
   const parts = [['Fixo', C.base, 'rgba(255,255,255,.34)'], ['Reuniões', vMeet, '#ff8a4c'], ['Vendas', vSale, '#3fcb6f'], ['Bônus', Math.max(0, C.bonus), '#f0b33a']].filter(p => p[1] > 0);
@@ -966,18 +990,18 @@ function viewComissao(){
   ].sort((a, b) => (b.d || '').localeCompare(a.d || ''));
   const ranking = el.map(x => ({x, C: commissionFor(x.id, mk)})).sort((a, b) => b.C.total - a.C.total);
   const maxT = Math.max(1, ...ranking.map(r => r.C.total));
-  const startMk = (s.createdAt || '').slice(0, 7);
+  const startMk = cycleOf(localDay(s.createdAt));
   const hist = []; for (let i = 5; i >= 0; i--){ const m = monthShift(mk, -i); if (!startMk || m >= startMk || i === 0) hist.push({m, v: commissionFor(pick, m).total}) }
   const maxH = Math.max(1, ...hist.map(h => h.v));
 
-  return head('Comissão', 'Fixo + reuniões realizadas + vendas, sempre do mês corrente. Atualiza sozinha quando os cards mudam de etapa.',
-    `<div class="pager"><button class="btn sm ghost" data-a="com-prev" aria-label="Mês anterior">‹</button><span class="lbl">${cap(monthLabel(mk))}</span><button class="btn sm ghost" data-a="com-next" ${isCur ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>`)
+  return head('Comissão', `Fixo + reuniões realizadas + vendas, no ciclo do dia ${cutDay()} de um mês até o dia ${cutDay() - 1} do seguinte (o dia ${cutDay()} já abre o ciclo novo). Atualiza sozinha quando os cards mudam de etapa.`,
+    `<div class="pager"><button class="btn sm ghost" data-a="com-prev" aria-label="Ciclo anterior">‹</button><span class="lbl">${cycleLabel(mk)}</span><button class="btn sm ghost" data-a="com-next" ${isCur ? 'disabled' : ''} aria-label="Próximo ciclo">›</button></div>`)
   + `<div class="people" style="margin-bottom:14px">${el.map(x => `<button class="person" data-a="com-seller" data-id="${x.id}" aria-pressed="${x.id === pick}">${avatar(x.id)}${esc(x.name)}</button>`).join('')}</div>
   <div class="g-hoje">
     <div class="stack">
       <section class="hero" aria-label="Comissão do mês">
         <div class="hero-who">${avatar(pick, 'lg')}<div>${esc(s.name)}<br><small>${esc(s.role || 'SDR')} · ${isCur ? 'acumulado até hoje' : 'fechamento'}</small></div></div>
-        <div><div class="eyebrow">Comissão de ${monthLabel(mk).split(' ')[0]}</div>
+        <div><div class="eyebrow">Comissão do ciclo ${cycleLabel(mk)}</div>
         <div class="hero-num"><span class="cur">R$</span>${Math.round(C.total).toLocaleString('pt-BR')}</div></div>
         <div class="comp" role="img" aria-label="Composição da comissão">${parts.map(p => `<i style="flex:${p[1]} 1 0;background:${p[2]}"></i>`).join('')}</div>
         <div class="comp-legend">
@@ -1004,30 +1028,39 @@ function viewComissao(){
       <section class="panel"><div class="panel-b" style="padding-top:16px;display:grid;gap:18px">
         <div class="goal"><div class="goal-top"><span class="eyebrow">Reuniões realizadas</span>${gM ? `<span class="hint">meta ${gM}</span>` : ''}</div><div class="goal-v">${C.meetings}${gM ? ` <small>/ ${gM}</small>` : ''}</div>${gM ? `<div class="bar" style="--c:#e8702a"><i style="width:${Math.min(100, C.meetings / gM * 100)}%"></i></div>` : ''}</div>
         <div class="goal"><div class="goal-top"><span class="eyebrow">Vendas</span>${gS ? `<span class="hint">meta ${gS}</span>` : ''}</div><div class="goal-v">${C.sales}${gS ? ` <small>/ ${gS}</small>` : ''}</div>${gS ? `<div class="bar" style="--c:var(--good)"><i style="width:${Math.min(100, C.sales / gS * 100)}%"></i></div>` : ''}</div>
-        ${isCur ? `<div class="goal" style="padding-top:14px;border-top:1px solid var(--line)"><span class="eyebrow">Projeção no ritmo atual</span><div class="goal-v">${proj != null ? brl(proj) : '—'}</div><p class="hint">${bd.elapsed} de ${bd.total} dias úteis passados · faltam ${remain}.${gM && needM && remain ? ` Para bater a meta: ${needM} reuniões, ~${(needM / remain).toFixed(1).replace('.', ',')} por dia útil.` : gM && !needM ? ' Meta de reuniões batida.' : ''}</p></div>` : ''}
+        ${isCur ? `<div class="goal" style="padding-top:14px;border-top:1px solid var(--line)"><span class="eyebrow">Projeção no ritmo atual</span><div class="goal-v">${proj != null ? brl(proj) : '—'}</div><p class="hint">${bd.elapsed} de ${bd.total} dias úteis do ciclo passados · faltam ${remain}.${gM && needM && remain ? ` Para bater a meta: ${needM} reuniões, ~${(needM / remain).toFixed(1).replace('.', ',')} por dia útil.` : gM && !needM ? ' Meta de reuniões batida.' : ''}</p></div>` : ''}
       </div></section>
-      <section class="panel"><div class="panel-h"><h2>Ranking de ${monthLabel(mk).split(' ')[0]}</h2></div><div class="panel-b">
+      <section class="panel"><div class="panel-h"><h2>Ranking do ciclo ${cycleLabel(mk)}</h2></div><div class="panel-b">
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Vendedor</th><th class="r">Reuniões</th><th class="r">Vendas</th><th class="r">Comissão</th></tr></thead><tbody>
         ${ranking.map(r => `<tr><td><div class="who">${avatar(r.x.id)}${esc(r.x.name)}</div><div class="bar" style="height:4px;margin-top:6px;--c:${sellerColor(r.x.id)}"><i style="width:${r.C.total / maxT * 100}%"></i></div></td><td class="r">${r.C.meetings}</td><td class="r">${r.C.sales}</td><td class="r"><b>${brl(r.C.total)}</b></td></tr>`).join('')}
         </tbody></table></div>
       </div></section>
-      <section class="panel"><div class="panel-h"><h2>Últimos meses</h2><span class="sub">${esc(s.name.split(' ')[0])}</span></div><div class="panel-b">
-        <div class="vbars">${hist.map(h => `<div class="vb ${h.m === mk ? 'cur' : ''}"><span class="val">${h.v >= 1000 ? (h.v / 1000).toFixed(1).replace('.', ',') + 'k' : h.v}</span><div class="col-bar" style="height:${h.v / maxH * 100}%" title="${attr(cap(monthLabel(h.m)) + ': ' + brl(h.v))}"></div><span class="m">${MON3[+h.m.slice(5) - 1]}</span></div>`).join('')}</div>
+      <section class="panel"><div class="panel-h"><h2>Últimos ciclos</h2><span class="sub">${esc(s.name.split(' ')[0])}</span></div><div class="panel-b">
+        <div class="vbars">${hist.map(h => `<div class="vb ${h.m === mk ? 'cur' : ''}"><span class="val">${h.v >= 1000 ? (h.v / 1000).toFixed(1).replace('.', ',') + 'k' : h.v}</span><div class="col-bar" style="height:${h.v / maxH * 100}%" title="${attr('Ciclo ' + cycleLabel(h.m) + ': ' + brl(h.v))}"></div><span class="m">${cycleLabel(h.m).slice(0, 5)}</span></div>`).join('')}</div>
       </div></section>
     </div>
   </div>`;
 }
 
 /* ---------- views: ANÁLISES ---------- */
+const rangeOf = (from, to) => { const t = today(); let f = from || addDays(t, -29), e = to || t; if (f > e) [f, e] = [e, f]; return {from: f, to: e, label: fmtDM(f) + ' – ' + fmtDM(e), name: 'no período', custom: true} };
+function presetRange(v){
+  const t = today();
+  if (v === 'cycle' || v === 'cycle-1'){ const r = cycleRange(monthShift(cycleOf(t), v === 'cycle' ? 0 : -1)); return {from: r.from, to: r.to > t ? t : r.to} }
+  const n = +v; return n ? {from: addDays(t, -(n - 1)), to: t} : null;
+}
+const rangeInputs = (pre, p) => `<div class="pager" style="gap:6px"><input class="in auto" type="date" data-c="${pre}-from" id="${pre}-from" value="${p.from}" max="${today()}" aria-label="De"><span class="lbl">até</span><input class="in auto" type="date" data-c="${pre}-to" id="${pre}-to" value="${p.to}" max="${today()}" aria-label="Até"></div>
+  <select class="in auto" data-c="${pre}-preset" aria-label="Atalhos de período"><option value="">Atalhos…</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option><option value="cycle">Ciclo da comissão (atual)</option><option value="cycle-1">Ciclo da comissão anterior</option></select>`;
 function period(){
   const t = today();
+  if (UI.anMode === 'custom') return rangeOf(UI.anFrom, UI.anTo);
   if (UI.anMode === 'week'){ const s = addDays(weekStart(t), 7 * UI.anOffset), e = addDays(s, 6); return {from: s, to: e, label: `${fmtDM(s)} – ${fmtDM(e)}`, name: UI.anOffset === 0 ? 'nesta semana' : 'na semana'} }
   const d = parseYmd(t), m = new Date(d.getFullYear(), d.getMonth() + UI.anOffset, 1);
   return {from: ymd(m), to: ymd(new Date(m.getFullYear(), m.getMonth() + 1, 0)), label: cap(MONTHS[m.getMonth()]) + ' ' + m.getFullYear(), name: UI.anOffset === 0 ? 'neste mês' : 'no mês'};
 }
 const inRange = (day, p) => !!day && day >= p.from && day <= p.to;
 function analytics(p, own){
-  const all = leadsArr().filter(l => !own || l.ownerId === own);
+  const all = leadsArr().filter(l => !own || (l.sdrId || l.ownerId) === own);
   const cohort = all.filter(l => inRange(localDay(l.createdAt), p));
   const n = cohort.length;
   const booked = cohort.filter(l => l.bookedAt).length, done = cohort.filter(l => l.meetingDoneAt).length, won = cohort.filter(l => l.closedAt).length;
@@ -1075,9 +1108,10 @@ function viewAnalises(){
   const counts = steps.map(([, k]) => A.cohort.filter(l => level(l) >= k).length);
   const funnel = steps.map(([n], i) => `${i ? `<div class="conv">↳ ${pct(counts[i], counts[i - 1])} da etapa anterior</div>` : ''}<div class="hb" style="--c:${ramp[i]}"><div class="hb-l">${n}</div><div class="hb-track"><div class="hb-fill" style="width:${counts[0] ? counts[i] / counts[0] * 100 : 0}%"></div></div><div class="hb-v"><b>${counts[i]}</b> · ${pct(counts[i], counts[0])}</div></div>`).join('');
   const buckets = [];
-  if (UI.anMode === 'week'){ for (let i = 7; i >= 0; i--){ const f = addDays(p.from, -7 * i), t = addDays(f, 6), pp = {from: f, to: t}; const X = analytics(pp, own); buckets.push({label: fmtDM(f), full: `Semana ${fmtDM(f)} – ${fmtDM(t)}`, a: X.n, b: X.actDone, c: X.actWon}) } }
+  if (UI.anMode === 'custom'){ const n = Math.min(16, Math.max(1, Math.ceil((daysBetween(p.from, p.to) + 1) / 7))); for (let i = n - 1; i >= 0; i--){ const t = addDays(p.to, -7 * i), f = addDays(t, -6), pp = {from: f < p.from ? p.from : f, to: t}; const X = analytics(pp, own); buckets.push({label: fmtDM(pp.from), full: `${fmtDM(pp.from)} – ${fmtDM(t)}`, a: X.n, b: X.actDone, c: X.actWon}) } }
+  else if (UI.anMode === 'week'){ for (let i = 7; i >= 0; i--){ const f = addDays(p.from, -7 * i), t = addDays(f, 6), pp = {from: f, to: t}; const X = analytics(pp, own); buckets.push({label: fmtDM(f), full: `Semana ${fmtDM(f)} – ${fmtDM(t)}`, a: X.n, b: X.actDone, c: X.actWon}) } }
   else { for (let i = 5; i >= 0; i--){ const d = parseYmd(p.from), m = new Date(d.getFullYear(), d.getMonth() - i, 1), pp = {from: ymd(m), to: ymd(new Date(m.getFullYear(), m.getMonth() + 1, 0))}; const X = analytics(pp, own); buckets.push({label: MON3[m.getMonth()], full: cap(MONTHS[m.getMonth()]) + ' ' + m.getFullYear(), a: X.n, b: X.actDone, c: X.actWon}) } }
-  const mk = p.from.slice(0, 7);
+  const mk = cycleOf(p.to > today() ? today() : p.to);
   const people = sellersList().filter(s => s.active !== false && (!own || s.id === own));
   const rows = people.map(s => { const X = analytics(p, s.id); return {name: s.name, id: s.id, X, com: s.role === 'Gestor' ? null : commissionFor(s.id, mk).total} });
   if (!own){ const un = leadsArr().filter(l => !l.ownerId || !S.sellers[l.ownerId]); if (un.length){ const X = analytics(p, '__none'); const cohortN = un.filter(l => inRange(localDay(l.createdAt), p)); X.n = cohortN.length; X.booked = cohortN.filter(l => l.bookedAt).length; X.done = cohortN.filter(l => l.meetingDoneAt).length; X.won = cohortN.filter(l => l.closedAt).length; X.actDone = un.filter(l => inRange(localDay(l.meetingDoneAt), p)).length; X.actWon = un.filter(l => inRange(localDay(l.closedAt), p)).length; rows.push({name: 'Sem responsável', id: '', X, com: null}) } }
@@ -1086,8 +1120,8 @@ function viewAnalises(){
   const rs = Object.entries(reasons).sort((a, b) => b[1] - a[1]), rmax = Math.max(1, ...rs.map(r => r[1]));
 
   return head('Análises', `Leads que entraram ${p.name} e o que aconteceu com eles. Atividade (reuniões e vendas) conta pela data em que aconteceu.`,
-    `<div class="seg" role="group" aria-label="Período"><button data-a="an-mode" data-v="week" aria-pressed="${UI.anMode === 'week'}">Semanal</button><button data-a="an-mode" data-v="month" aria-pressed="${UI.anMode === 'month'}">Mensal</button></div>
-     <div class="pager"><button class="btn sm ghost" data-a="an-prev" aria-label="Período anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="an-next" ${UI.anOffset >= 0 ? 'disabled' : ''} aria-label="Próximo período">›</button></div>
+    `<div class="seg" role="group" aria-label="Período"><button data-a="an-mode" data-v="week" aria-pressed="${UI.anMode === 'week'}">Semanal</button><button data-a="an-mode" data-v="month" aria-pressed="${UI.anMode === 'month'}">Mensal</button><button data-a="an-mode" data-v="custom" aria-pressed="${UI.anMode === 'custom'}">Calendário</button></div>
+     ${UI.anMode === 'custom' ? rangeInputs('an', p) : `<div class="pager"><button class="btn sm ghost" data-a="an-prev" aria-label="Período anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="an-next" ${UI.anOffset >= 0 ? 'disabled' : ''} aria-label="Próximo período">›</button></div>`}
      <select class="in auto" data-c="an-owner" aria-label="Vendedor">${ownerOptions(own, 'Toda a equipe')}</select>
      <button class="btn" data-a="copy-summary" title="Copia um resumo em texto para mandar no grupo do time">Copiar resumo</button>`)
   + (leadsArr().some(l => l.example) ? '<div class="banner"><span class="chip ex">Exemplo</span>Os números abaixo incluem os leads de exemplo até você removê-los no Pipeline.</div>' : '')
@@ -1109,9 +1143,9 @@ function viewAnalises(){
       <section class="panel"><div class="panel-h"><h2>% de leads em cada etapa</h2><div class="seg"><button data-a="an-base" data-v="cohort" aria-pressed="${UI.anBase === 'cohort'}">Do período</button><button data-a="an-base" data-v="all" aria-pressed="${UI.anBase === 'all'}">Base inteira</button></div></div><div class="panel-b">${tot ? dist : '<div class="empty">Nenhum lead neste recorte.</div>'}<p class="hint" style="margin-top:8px">${UI.anBase === 'cohort' ? `Etapa atual dos ${tot} leads que entraram ${p.name}.` : `Etapa atual de todos os ${tot} leads cadastrados.`}</p></div></section>
       <section class="panel"><div class="panel-h"><h2>Funil de conversão</h2><span class="sub">Leads do período que chegaram a cada etapa</span></div><div class="panel-b">${A.n ? funnel : '<div class="empty">Nenhum lead entrou neste período.</div>'}</div></section>
     </div>
-    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>${UI.anMode === 'week' ? 'Últimas 8 semanas' : 'Últimos 6 meses'}</h2></div><div class="panel-b">${trendChart(buckets)}</div></section>
+    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>${UI.anMode === 'custom' ? 'Semana a semana no período' : UI.anMode === 'week' ? 'Últimas 8 semanas' : 'Últimos 6 meses'}</h2></div><div class="panel-b">${trendChart(buckets)}</div></section>
     <div class="g2">
-      <section class="panel"><div class="panel-h"><h2>Por vendedor</h2><span class="sub">Comissão de ${monthLabel(mk).split(' ')[0]}</span></div><div class="panel-b"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Vendedor</th><th class="r">Leads</th><th class="r">Agend.</th><th class="r">Realiz.</th><th class="r">Vendas</th><th class="r">Tx. agend.</th><th class="r">Conv.</th><th class="r">Comissão</th></tr></thead><tbody>
+      <section class="panel"><div class="panel-h"><h2>Por vendedor</h2><span class="sub">Comissão do ciclo ${cycleLabel(mk)}</span></div><div class="panel-b"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Vendedor</th><th class="r">Leads</th><th class="r">Agend.</th><th class="r">Realiz.</th><th class="r">Vendas</th><th class="r">Tx. agend.</th><th class="r">Conv.</th><th class="r">Comissão</th></tr></thead><tbody>
         ${rows.map(r => `<tr><td><div class="who">${avatar(r.id)}${esc(r.name)}</div></td><td class="r">${r.X.n}</td><td class="r">${r.X.booked}</td><td class="r">${r.X.actDone}</td><td class="r">${r.X.actWon}</td><td class="r">${pct(r.X.booked, r.X.n)}</td><td class="r">${pct(r.X.won, r.X.n)}</td><td class="r"><b>${r.com == null ? '—' : brl(r.com)}</b></td></tr>`).join('') || '<tr><td colspan="8" class="muted">Cadastre vendedores em Configurações.</td></tr>'}
       </tbody></table></div><p class="hint" style="margin-top:8px">Lançamentos manuais entram só na comissão, não nestas métricas.</p></div></section>
       <section class="panel"><div class="panel-h"><h2>Motivos de perda</h2><span class="sub">${lostL.length} perdidos ou desqualificados ${p.name}</span></div><div class="panel-b">${rs.map(([r, n]) => `<div class="hb" style="--c:var(--s1)"><div class="hb-l" title="${attr(r)}">${esc(r)}</div><div class="hb-track"><div class="hb-fill" style="width:${n / rmax * 100}%"></div></div><div class="hb-v"><b>${n}</b> · ${pct(n, lostL.length)}</div></div>`).join('') || '<div class="empty">Nenhuma perda registrada no período.</div>'}</div></section>
@@ -1143,6 +1177,7 @@ function weeklySummary(){
 /* ---------- views: TRÁFEGO ---------- */
 function trPeriod(){
   if (UI.trMode === 'all') return {all: true, label: 'Todo o período', name: 'no total'};
+  if (UI.trMode === 'custom') return rangeOf(UI.trFrom, UI.trTo);
   const mk = monthShift(today().slice(0, 7), UI.trOffset), [y, m] = mk.split('-').map(Number);
   return {mk, from: mk + '-01', to: ymd(new Date(y, m, 0)), label: cap(monthLabel(mk)), name: 'em ' + monthLabel(mk).split(' ')[0]};
 }
@@ -1202,7 +1237,17 @@ async function refreshSpend(btn){
   await put('meta', 'spend', {updatedAt: iso(), account, rows});
   toast(`Investimento atualizado: ${ids.size} campanha(s), ${rows.length} linhas por mês e criativo`); render();
 }
-const spendRows = p => { const rows = (S.meta.spend && S.meta.spend.rows) || []; return p.all ? rows : rows.filter(r => r.month === p.mk) };
+// O investimento vem por mês. No calendário, cada mês entra proporcional aos dias que caem dentro do período.
+function prorate(rows, p){
+  const out = [];
+  rows.forEach(r => {
+    const f = r.month + '-01', last = ymd(new Date(+r.month.slice(0, 4), +r.month.slice(5, 7), 0)), a = f > p.from ? f : p.from, b = last < p.to ? last : p.to; if (a > b) return;
+    const k = (daysBetween(a, b) + 1) / (daysBetween(f, last) + 1), z = x => Math.round((+x || 0) * k);
+    out.push({...r, spend: Math.round((+r.spend || 0) * k * 100) / 100, impressions: z(r.impressions), clicks: z(r.clicks), lpv: z(r.lpv), metaLeads: z(r.metaLeads)});
+  });
+  return out;
+}
+const spendRows = p => { const rows = (S.meta.spend && S.meta.spend.rows) || []; return p.all ? rows : p.custom ? prorate(rows, p) : rows.filter(r => r.month === p.mk) };
 function stageBar(r){
   if (!r.n) return '<span class="hint">sem leads no CRM</span>';
   return `<div class="sbar">${BUCKETS.map(b => { const cnt = sum(b.st.map(s => r.c[s] || 0)); if (!cnt) return ''; const det = b.st.filter(s => r.c[s]).map(s => `${STAGE[s].name}: ${r.c[s]}`).join('\n'); return `<i style="flex:${cnt} 1 0;background:${b.color}" data-tip="${attr(`${b.name}: ${cnt} (${pct(cnt, r.n)})\n${det}`)}"></i>` }).join('')}</div>`;
@@ -1220,7 +1265,7 @@ function viewTrafego(){
     return {...g, n, c, booked: lv.filter(x => x >= 4).length, done: lv.filter(x => x >= 5).length, won: lv.filter(x => x >= 6).length, lost: (c.perdido || 0) + (c.desqualificado || 0)};
   }).filter(r => r.n || r.spend > 0).sort((a, b) => (a.k === '__none') - (b.k === '__none') || b.n - a.n || b.spend - a.spend);
   const meta = leads.filter(l => l.utm && l.utm.source === 'meta'), ml = meta.map(level);
-  const T = {spend: sum(sp.map(r => r.spend)), pixel: sum(sp.map(r => r.metaLeads)), n: leads.length, nMeta: meta.length, booked: ml.filter(x => x >= 4).length, done: ml.filter(x => x >= 5).length, won: ml.filter(x => x >= 6).length};
+  const T = {spend: sum(sp.map(r => r.spend)), pixel: Math.round(sum(sp.map(r => r.metaLeads))), n: leads.length, nMeta: meta.length, booked: ml.filter(x => x >= 4).length, done: ml.filter(x => x >= 5).length, won: ml.filter(x => x >= 6).length};
   const money = (a, b) => a && b ? brl(a / b) : '—';
   const kpi = (l, v, s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
   const elig = rows.filter(r => r.k !== '__none' && r.n >= TR_MIN), best = (f, cmp) => elig.filter(f).sort(cmp)[0];
@@ -1233,8 +1278,9 @@ function viewTrafego(){
   ];
   const noUtm = leads.filter(l => !l.utm).length, noDate = all.filter(l => !l.createdAt).length;
   const cell = (a, b) => `<td class="r"><span title="${a} de ${b}">${pct(a, b)}</span></td>`;
-  return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.',
-    `<div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
+  return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.' + (p.custom ? ' O investimento é mensal: no calendário, entra proporcional aos dias do período.' : ''),
+    `<div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
+     ${UI.trMode === 'custom' ? rangeInputs('tr', p) : ''}
      ${UI.trMode === 'month' ? `<div class="pager"><button class="btn sm ghost" data-a="tr-prev" aria-label="Mês anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="tr-next" ${UI.trOffset >= 0 ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>` : ''}
      ${(MCP && !MCP.hosted) || HOST ? '<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta">Atualizar investimento</button>' : ''}`)
   + `<div class="kpis">
@@ -1437,7 +1483,7 @@ async function syncClickup(btn){
     const st = CU_STATUS[String(t.status || '').toLowerCase()], id = byCu[t.id], at = new Date(+t.date_updated || Date.now()).toISOString();
     if (id){
       const cur = S.leads[id]; if (!cur) continue; const l = clone(cur); let ch = false;
-      if (st && st !== cur.stage){ l.stage = st; l.stageAt = at; l.history = [...(l.history || []), {s: st, at, by: 'clickup'}].slice(-80); applyMilestones(l, st, at); moved++; ch = true }
+      if (st && st !== cur.stage){ if (st === 'feita' && cfg().handoffOnDone !== false) applyHandoff(l, id); l.stage = st; l.stageAt = at; l.history = [...(l.history || []), {s: st, at, by: 'clickup'}].slice(-80); applyMilestones(l, st, at); moved++; ch = true }
       const ow = cuOwner(t.assignees); if (ow && ow !== cur.ownerId){ l.ownerId = ow; owners++; ch = true }
       if (ch){ l.updatedAt = iso(); await put('leads', id, l) }
     } else {
@@ -1445,6 +1491,7 @@ async function syncClickup(btn){
       const stage = st || 'novo', nid = 'c' + String(t.id).replace(/[^A-Za-z0-9_-]/g, '');
       const lead = {name: tn.name || 'Lead sem nome', company: '', contact: '', pain: '', team: '', phone: tn.phone, email: '', instagram: '', notes: '', value: null, revenue: tn.revenue, ownerId: cuOwner(t.assignees), stage, updatedAt: at, stageAt: at, history: [{s: stage, at}], touches: ['novo', 'print', 'qualificando', 'agendando'].includes(stage) ? buildCadence(today()) : [], bookedAt: null, meetingAt: null, meetingDoneAt: null, closedAt: null, lostReason: '', clickupId: t.id, clickupUrl: 'https://app.clickup.com/t/' + t.id, importedAt: iso(), source: 'ClickUp', createdAt: null};
       applyMilestones(lead, stage, at);
+      if (stage === 'feita' && cfg().handoffOnDone !== false) applyHandoff(lead, nid);
       await put('leads', nid, lead); byCu[t.id] = nid; created++;
     }
   }
@@ -1536,7 +1583,10 @@ function viewConfig(){
         <label class="f">Por reunião realizada (R$)<input class="in" type="number" min="0" step="5" data-c="cfg-com" data-k="perMeeting" id="cc-meet" value="${k.perMeeting}"></label>
         <label class="f">Por venda (R$)<input class="in" type="number" min="0" step="10" data-c="cfg-com" data-k="perSale" id="cc-sale" value="${k.perSale}"></label>
       </div>
-      <p class="hint">Reunião realizada = card chega em Reunião Feita (ou direto em Fechado). Venda = card em Fechado. Vale o mês da data registrada no card. Mudar os valores recalcula todos os meses.</p>
+      <div class="fgrid three" style="margin-top:12px">
+        <label class="f">Dia de fechamento do ciclo<input class="in" type="number" min="1" max="28" step="1" data-c="cfg-com" data-k="cutDay" id="cc-cut" value="${k.cutDay || 10}"></label>
+      </div>
+      <p class="hint">Reunião realizada = card chega em Reunião Feita (ou direto em Fechado). Venda = card em Fechado. Vale o ciclo da data registrada no card: do dia de fechamento até o dia anterior ao fechamento do mês seguinte (com 10, o ciclo de 10/09 vai até 09/10). Mudar valores ou o dia recalcula todos os ciclos.</p>
     </div></section>`;
   } else if (UI.cfgTab === 'cadencia'){
     const prev = buildCadence(today());
@@ -1544,6 +1594,7 @@ function viewConfig(){
       <div>${c.cadence.map((t, i) => `<div class="touch" style="grid-template-columns:30px minmax(0,1fr) 170px auto"><span class="tn">T${i + 1}</span><input class="in" data-c="cad-f" data-n="${i}" data-k="title" id="cad-t-${i}" value="${attr(t.title)}" aria-label="Nome do toque"><label class="f" style="grid-auto-flow:column;align-items:center;justify-content:start;gap:6px">${i === 0 ? '<span>no dia da entrada</span>' : `<input class="in" type="number" min="1" max="30" style="width:64px" data-c="cad-f" data-n="${i}" data-k="gap" id="cad-g-${i}" value="${t.gap}" aria-label="Dias após o toque anterior"><span>dias depois</span>`}</label><button class="icon-btn" data-a="cad-del" data-n="${i}" ${c.cadence.length <= 1 ? 'disabled' : ''} aria-label="Remover toque">×</button></div>`).join('')}</div>
       <div class="actions"><button class="btn sm" data-a="cad-add">+ Adicionar toque ao modelo</button></div>
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="skipWeekends" ${c.skipWeekends ? 'checked' : ''}> Pular fim de semana (toque que cairia no sábado ou domingo vai para segunda)</label>
+      <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="handoffOnDone" ${c.handoffOnDone !== false ? 'checked' : ''}> Ao marcar Reunião Feita, passar o processo para o gestor (sai do Hoje e dos atrasados do SDR, e o gestor recebe uma tarefa)</label>
       <div class="formula" style="font-size:13.5px">Lead que entra hoje: ${prev.map(t => wdOf(t.due) + ' ' + fmtDM(t.due)).join(' → ')}</div>
       <p class="hint">O modelo vale para leads novos. Leads que já estão no quadro mantêm as datas (use “Reiniciar cadência” no card se quiser recriar).</p>
     </div></section>`;
@@ -1651,6 +1702,8 @@ const ACT = {
   'add-touch': t => { const cur = S.leads[t.dataset.id]; if (!cur) return; const l = clone(cur); l.touches = l.touches || []; const last = l.touches[l.touches.length - 1]; const base = last && last.due > today() ? last.due : today(); l.touches.push({id: uid(), title: 'Toque extra', due: adjWeekend(addDays(base, 2)), done: false, doneAt: null}); l.updatedAt = iso(); put('leads', t.dataset.id, l) },
   'del-touch': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); l.touches = (l.touches || []).filter(x => x.id !== t.dataset.touch); put('leads', t.dataset.lead, l) },
   'reset-cadence': t => { updateLead(t.dataset.id, {touches: buildCadence(today())}); toast('Cadência recriada a partir de hoje') },
+  'handoff': t => { const id = t.dataset.id, cur = S.leads[id]; if (!cur) return; const l = clone(cur); if (applyHandoff(l, id)){ l.updatedAt = iso(); put('leads', id, l); toast('Processo passado para ' + manager().name.split(' ')[0]) } else toast('Não foi possível passar o processo (sem gestor cadastrado ou lead já é dele).', 'err') },
+  'unhand': t => { const id = t.dataset.id, cur = S.leads[id]; if (!cur) return; const l = clone(cur); delete l.handoff; l.updatedAt = iso(); put('leads', id, l); toast('Voltou para o SDR') },
   'del-lead': t => { del('leads', t.dataset.id); UI.drawer = null; renderDrawer(); toast('Lead excluído') },
   'del-task': t => del('tasks', t.dataset.id),
   'routine-chip': t => toggleRoutine(t.dataset.id, t.dataset.seller),
@@ -1658,11 +1711,11 @@ const ACT = {
   'com-prev': () => { UI.comOffset--; render() },
   'com-next': () => { UI.comOffset = Math.min(0, UI.comOffset + 1); render() },
   'del-adj': t => del('adjustments', t.dataset.id),
-  'an-mode': t => { UI.anMode = t.dataset.v; UI.anOffset = 0; render() },
+  'an-mode': t => { UI.anMode = t.dataset.v; UI.anOffset = 0; if (UI.anMode === 'custom' && !UI.anFrom){ const r = rangeOf('', ''); UI.anFrom = r.from; UI.anTo = r.to } render() },
   'an-prev': () => { UI.anOffset--; render() },
   'an-next': () => { UI.anOffset = Math.min(0, UI.anOffset + 1); render() },
   'an-base': t => { UI.anBase = t.dataset.v; render() },
-  'tr-mode': t => { UI.trMode = t.dataset.v; UI.trOffset = 0; render() },
+  'tr-mode': t => { UI.trMode = t.dataset.v; UI.trOffset = 0; if (UI.trMode === 'custom' && !UI.trFrom){ const r = rangeOf('', ''); UI.trFrom = r.from; UI.trTo = r.to } render() },
   'tr-prev': () => { UI.trOffset--; render() },
   'tr-next': () => { UI.trOffset = Math.min(0, UI.trOffset + 1); render() },
   'tr-dim': t => { UI.trDim = t.dataset.v; render() },
@@ -1721,11 +1774,21 @@ const CHG = {
   task: t => { const x = S.tasks[t.dataset.id]; if (x) put('tasks', t.dataset.id, {...clone(x), done: t.checked, doneAt: t.checked ? iso() : null}) },
   routine: t => toggleRoutine(t.dataset.id, t.dataset.seller),
   'lead-stage': t => moveLead(t.dataset.id, t.value),
-  'lead-field': t => { const k = t.dataset.k; let v = t.value; if (k === 'value' || k === 'revenue') v = v === '' ? null : Number(v); if (k === 'name' && !v.trim()) return; updateLead(t.dataset.id, {[k]: v}); if (k === 'lostReason' && v) toast('Motivo registrado') },
+  'lead-field': t => { const k = t.dataset.k; let v = t.value; if (k === 'value' || k === 'revenue') v = v === '' ? null : Number(v); if (k === 'name' && !v.trim()) return; const extra = {};
+    if (k === 'ownerId'){ const cur = S.leads[t.dataset.id] || {}, nw = S.sellers[v], old = S.sellers[cur.ownerId];
+      if (nw && nw.role === 'Gestor' && old && old.role !== 'Gestor' && !cur.sdrId){ extra.sdrId = cur.ownerId; toast('A comissão da reunião continua com ' + old.name.split(' ')[0]) }
+      else if (!nw || nw.role !== 'Gestor') extra.sdrId = '' }
+    updateLead(t.dataset.id, {[k]: v, ...extra}); if (k === 'lostReason' && v) toast('Motivo registrado') },
   'lead-ms': t => { const v = t.value; updateLead(t.dataset.id, {[t.dataset.k]: v ? new Date(+v.slice(0, 4), +v.slice(5, 7) - 1, +v.slice(8, 10), 12).toISOString() : null}) },
   'touch-f': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); const x = (l.touches || []).find(y => y.id === t.dataset.touch); if (!x || (t.dataset.k === 'due' && !t.value)) return; x[t.dataset.k] = t.value; put('leads', t.dataset.lead, l) },
   'seller-f': t => { const s = S.sellers[t.dataset.id]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value; if (k === 'goalMeetings' || k === 'goalSales') v = v === '' ? null : Math.max(0, Number(v)); if (k === 'name' && !String(v).trim()) return; put('sellers', t.dataset.id, {...clone(s), [k]: v}) },
   'cfg-com': t => { const v = Number(t.value); if (!isFinite(v) || v < 0) return; saveCfg({commission: {...cfg().commission, [t.dataset.k]: v}}) },
+  'an-from': t => { UI.anFrom = t.value; render() },
+  'an-to': t => { UI.anTo = t.value; render() },
+  'an-preset': t => { const r = presetRange(t.value); if (r){ UI.anFrom = r.from; UI.anTo = r.to; render() } },
+  'tr-from': t => { UI.trFrom = t.value; render() },
+  'tr-to': t => { UI.trTo = t.value; render() },
+  'tr-preset': t => { const r = presetRange(t.value); if (r){ UI.trFrom = r.from; UI.trTo = r.to; render() } },
   'cfg-bool': t => saveCfg({[t.dataset.k]: t.checked}),
   'cfg-url': t => { const v = t.value.trim(); if (v && !/^https:\/\/\S+$/.test(v)){ toast('Use um endereço que comece com https://', 'err'); return } saveCfg({[t.dataset.k]: v}); toast(v ? 'Reenvio salvo' : 'Reenvio desligado') },
   'wa-rule': t => saveCfg({waRules: {...cfg().waRules, [t.dataset.k]: t.checked}}),
