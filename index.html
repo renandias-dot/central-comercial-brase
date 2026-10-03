@@ -1305,6 +1305,7 @@ function mcpMsg(e){
   return 'Não foi possível buscar o investimento (' + (c || 'erro desconhecido') + ').';
 }
 // Versão hospedada: o servidor busca na Meta com o token guardado nele (segredo META_ACCESS_TOKEN).
+const spendCutoff = () => monthShift(today().slice(0, 7), -2) + '-01';
 async function refreshSpendHosted(btn){
   const ids = new Set(((S.meta.spend && S.meta.spend.rows) || []).map(r => r.campaignId).filter(Boolean));
   leadsArr().forEach(l => { if (l.utm && l.utm.campaignId) ids.add(l.utm.campaignId) });
@@ -1312,10 +1313,10 @@ async function refreshSpendHosted(btn){
   if (!HOSTMETA){ toast('Falta guardar o token da Meta no servidor (segredo META_ACCESS_TOKEN). Veja o README.', 'err'); return }
   if (btn) btn.disabled = true; toast(`Buscando investimento de ${ids.size} campanha(s) na Meta…`);
   try {
-    const r = await HOSTCALL({op: 'meta', campaigns: [...ids]});
+    const cut = spendCutoff(), r = await HOSTCALL({op: 'meta', campaigns: [...ids], from: cut});
     if (!r.rows || !r.rows.length){ toast('A Meta não devolveu dados para essas campanhas.', 'err'); return }
-    await put('meta', 'spend', {updatedAt: iso(), account: r.account || (S.meta.spend && S.meta.spend.account) || '', rows: r.rows});
-    toast(`Investimento atualizado: ${ids.size} campanha(s), ${r.rows.length} linhas por mês e criativo`); render();
+    await put('meta', 'spend', {updatedAt: iso(), daily: cut, account: r.account || (S.meta.spend && S.meta.spend.account) || '', rows: r.rows});
+    toast(`Investimento atualizado: ${ids.size} campanha(s), ${r.rows.length} linhas (por dia desde ${fmtDM(cut)})`); render();
   } catch (e){ toast('Não foi possível buscar o investimento: ' + ((e && e.message) || 'erro'), 'err') }
   finally { if (btn) btn.disabled = false }
 }
@@ -1326,26 +1327,31 @@ async function refreshSpend(btn){
   leadsArr().forEach(l => { if (l.utm && l.utm.campaignId) ids.add(l.utm.campaignId) });
   if (!ids.size){ toast('Ainda não há campanhas conhecidas: faltam leads com UTM da Meta.', 'err'); return }
   if (btn) btn.disabled = true; toast(`Buscando investimento de ${ids.size} campanha(s) na Meta…`);
-  const rows = []; let account = (S.meta.spend && S.meta.spend.account) || '';
+  const rows = [], cut = spendCutoff(); let account = (S.meta.spend && S.meta.spend.account) || '';
+  const pull = async (cid, range, brk, keep) => {
+    const res = await MCP.callTool('Pipe', 'get_insights', {object_id: cid, level: 'ad', time_range: range, time_breakdown: brk, limit: 500}, {cache: false});
+    let p = res && res.payload; if (p && typeof p.result === 'string'){ try { p = JSON.parse(p.result) } catch {} }
+    ((p && p.segmented_metrics) || []).forEach(s => (Array.isArray(s.metrics) ? s.metrics : [s.metrics]).forEach(x => {
+      if (!x || !x.ad_id || !keep(s.period)) return; const act = k => +(((x.actions || []).find(a => a.action_type === k)) || {}).value || 0;
+      if (!account && x.account_name) account = `${x.account_name} (act_${x.account_id})`;
+      rows.push({adId: x.ad_id, ad: x.ad_name, adsetId: x.adset_id, adset: x.adset_name, campaignId: x.campaign_id, campaign: x.campaign_name, ...(brk === 'day' ? {day: s.period} : {}), month: s.period.slice(0, 7), spend: Math.round(+x.spend * 100) / 100 || 0, impressions: +x.impressions || 0, clicks: +x.clicks || 0, lpv: act('landing_page_view'), metaLeads: act('lead')});
+    }));
+  };
   for (const cid of ids){
     try {
-      const res = await MCP.callTool('Pipe', 'get_insights', {object_id: cid, level: 'ad', time_range: 'maximum', time_breakdown: 'month', limit: 100}, {cache: false});
-      let p = res && res.payload; if (p && typeof p.result === 'string'){ try { p = JSON.parse(p.result) } catch {} }
-      ((p && p.segmented_metrics) || []).forEach(s => (Array.isArray(s.metrics) ? s.metrics : [s.metrics]).forEach(x => {
-        if (!x || !x.ad_id) return; const act = k => +(((x.actions || []).find(a => a.action_type === k)) || {}).value || 0;
-        if (!account && x.account_name) account = `${x.account_name} (act_${x.account_id})`;
-        rows.push({adId: x.ad_id, ad: x.ad_name, adsetId: x.adset_id, adset: x.adset_name, campaignId: x.campaign_id, campaign: x.campaign_name, month: s.period, spend: Math.round(+x.spend * 100) / 100 || 0, impressions: +x.impressions || 0, clicks: +x.clicks || 0, lpv: act('landing_page_view'), metaLeads: act('lead')});
-      }));
+      await pull(cid, 'maximum', 'month', per => per.slice(0, 7) < cut.slice(0, 7));
+      await pull(cid, {since: cut, until: today()}, 'day', () => true);
     } catch (e){ if (btn) btn.disabled = false; toast(mcpMsg(e), 'err'); return }
   }
   if (!rows.length){ if (btn) btn.disabled = false; toast('A Meta não devolveu dados para essas campanhas.', 'err'); return }
-  await put('meta', 'spend', {updatedAt: iso(), account, rows});
-  toast(`Investimento atualizado: ${ids.size} campanha(s), ${rows.length} linhas por mês e criativo`); render();
+  await put('meta', 'spend', {updatedAt: iso(), daily: cut, account, rows});
+  toast(`Investimento atualizado: ${ids.size} campanha(s), ${rows.length} linhas (por dia desde ${fmtDM(cut)})`); render();
 }
-// O investimento vem por mês. No calendário, cada mês entra proporcional aos dias que caem dentro do período.
+// O investimento vem por dia desde o corte (spendCutoff) e por mês antes dele. No calendário, linha diária entra exata e linha mensal entra proporcional aos dias do período.
 function prorate(rows, p){
   const out = [];
   rows.forEach(r => {
+    if (r.day){ if (r.day >= p.from && r.day <= p.to) out.push(r); return }
     const f = r.month + '-01', last = ymd(new Date(+r.month.slice(0, 4), +r.month.slice(5, 7), 0)), a = f > p.from ? f : p.from, b = last < p.to ? last : p.to; if (a > b) return;
     const k = (daysBetween(a, b) + 1) / (daysBetween(f, last) + 1), z = x => Math.round((+x || 0) * k);
     out.push({...r, spend: Math.round((+r.spend || 0) * k * 100) / 100, impressions: z(r.impressions), clicks: z(r.clicks), lpv: z(r.lpv), metaLeads: z(r.metaLeads)});
@@ -1383,7 +1389,7 @@ function viewTrafego(){
   ];
   const noUtm = leads.filter(l => !l.utm).length, noDate = all.filter(l => !l.createdAt).length;
   const cell = (a, b) => `<td class="r"><span title="${a} de ${b}">${pct(a, b)}</span></td>`;
-  return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.' + (p.custom ? ' O investimento é mensal: no calendário, entra proporcional aos dias do período.' : ''),
+  return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.' + (p.custom ? (S.meta.spend && S.meta.spend.daily ? (p.from < S.meta.spend.daily ? ' O investimento é exato por dia desde ' + fmtDM(S.meta.spend.daily) + '; antes disso é mensal e entra proporcional aos dias do período.' : ' O investimento é exato por dia.') : ' O investimento é mensal: no calendário, entra proporcional aos dias do período.') : ''),
     `<div class="seg" role="group" aria-label="Visão"><button data-a="tr-tab" data-v="num" aria-pressed="${UI.trTab !== 'sug'}">Números</button><button data-a="tr-tab" data-v="sug" aria-pressed="${UI.trTab === 'sug'}">Sugestões</button></div>
      <div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
      ${UI.trMode === 'custom' ? rangeInputs('tr', p) : ''}
