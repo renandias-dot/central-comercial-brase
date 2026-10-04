@@ -266,6 +266,28 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .adv-why{margin:0;padding-left:16px;display:grid;gap:3px;font-size:12.5px;color:var(--ink-2)}
 .adv-act{font-size:13px;font-weight:600}
 .adv-old{margin-top:14px}.adv-old summary{cursor:pointer;font-weight:600;margin-bottom:10px;color:var(--ink-2)}
+.idl{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(120px,1.6fr) minmax(96px,.7fr) minmax(180px,1.3fr);gap:6px 16px;align-items:center;padding:11px 0;border-bottom:1px solid var(--line)}
+.idl:last-of-type{border-bottom:0}
+.idl-l b{font-size:13.5px}.idl-l small,.idl-v small,.idl-s small{display:block;color:var(--muted);font-size:11.5px;margin-top:1px}
+.idl-track{position:relative;height:12px;background:var(--sunken);border-radius:6px}
+.idl-track i{display:block;height:100%;border-radius:6px 4px 4px 6px}
+.idl-track u{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);border-radius:1px}
+.idl.low .idl-track i{opacity:.4}.idl.na .idl-track i{opacity:0}
+.idl-v b{font:800 20px/1.1 var(--f-display);font-stretch:108%;font-variant-numeric:tabular-nums}
+.idl-s{display:grid;gap:3px;justify-items:start}
+.idl-head{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:2px 0 6px}
+.idl-key{display:inline-flex;align-items:center;gap:6px}.idl-key i{width:10px;height:10px;border-radius:3px;display:inline-block}.idl-key u{width:2px;height:12px;background:var(--ink);display:inline-block}
+.idl-lever{margin:12px 0 0;padding:10px 12px;border-radius:10px;background:var(--sunken);font-size:13px}
+.idl-tbl th small{display:block;text-transform:none;letter-spacing:0;font-weight:500;margin-top:2px;white-space:nowrap}
+.idl-tbl td small{display:block;font-size:11px;color:var(--muted);font-weight:500;white-space:nowrap}
+.idl-tbl th,.idl-tbl td{padding:8px 9px}.idl-tbl td.nm,.idl-tbl th.nm{min-width:190px;max-width:240px;position:sticky;left:0;z-index:1;background:var(--surface)}.idl-tbl td.nm small{white-space:normal}.idl-tot td.nm{background:var(--surface-2)}.idl-tbl th{font-size:10.5px}
+.idl-c b{font-variant-numeric:tabular-nums}
+.idl-c.ok{background:var(--good-soft)}.idl-c.ok b{color:var(--good)}
+.idl-c.warn{background:var(--warn-soft)}.idl-c.warn b{color:var(--warn)}
+.idl-c.bad{background:var(--crit-soft)}.idl-c.bad b{color:var(--crit)}
+.idl-c.low{opacity:.55}.idl-c.na{color:var(--muted)}
+.idl-tot td{background:var(--surface-2)}
+@media (max-width:760px){.idl{grid-template-columns:minmax(0,1fr) auto}.idl-bar{grid-column:1/-1;order:3}.idl-s{grid-column:1/-1;order:4}}
 .tbl td.nm{min-width:180px}
 .tbl td.nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
 .tbl tr.none td{color:var(--muted)}
@@ -433,6 +455,7 @@ const ACTIVE = s => !CLOSED.has(s);
 const DEFAULT_CONFIG = {
   commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
   handoffOnDone: true,
+  ideal: {ctr: 2, cpl: 40, desq: 35, booking: 15, show: 75, close: 30, onTime: 90, firstTouch: 15, sla5: 80},
   cadence: [
     {title:'Primeiro contato', gap:0},
     {title:'Follow-up', gap:2},
@@ -532,7 +555,7 @@ let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
 let HOSTCALL = null, HOSTMETA = false;
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -1149,6 +1172,7 @@ function viewAnalises(){
       ${kpi('Vendas', A.actWon, A.revenue ? `${brl(A.revenue)}/mês em contratos` : `fechadas ${p.name}`)}
       ${(() => { const w = waSla(p, own); return w.count ? kpi('SLA de resposta (WhatsApp)', fmtHours(w.avg / 60), `${pct(w.u5, w.count)} respondidas em até 5 min · ${w.count} conversas`) : kpi('SLA de resposta', '—', 'Aparece quando o WhatsApp estiver conectado', true) })()}
     </div>
+    ${idealAnalyticsHTML(A, p, own)}
     <div class="g2" style="margin-bottom:14px">
       <section class="panel"><div class="panel-h"><h2>% de leads em cada etapa</h2><div class="seg"><button data-a="an-base" data-v="cohort" aria-pressed="${UI.anBase === 'cohort'}">Do período</button><button data-a="an-base" data-v="all" aria-pressed="${UI.anBase === 'all'}">Base inteira</button></div></div><div class="panel-b">${tot ? dist : '<div class="empty">Nenhum lead neste recorte.</div>'}<p class="hint" style="margin-top:8px">${UI.anBase === 'cohort' ? `Etapa atual dos ${tot} leads que entraram ${p.name}.` : `Etapa atual de todos os ${tot} leads cadastrados.`}</p></div></section>
       <section class="panel"><div class="panel-h"><h2>Funil de conversão</h2><span class="sub">Leads do período que chegaram a cada etapa</span></div><div class="panel-b">${A.n ? funnel : '<div class="empty">Nenhum lead entrou neste período.</div>'}</div></section>
@@ -1279,6 +1303,140 @@ function adviceHTML(p, TT){
       <p class="hint">Cada anúncio é comparado com a média da conta no mesmo período (50 = na média; acima de 62 pede escala; abaixo de 38 pede corte). Pesos: custo por agendamento 30%, taxa de agendamento 20%, custo por lead 15%, reuniões feitas 10%, faturamento dos leads 10%, leads perdidos 5%, CTR 5% e conversão da página 5%. Anúncios com poucos leads são puxados para a média, e só recebem veredito com pelo menos ${brl(ADV.minSpend)} investidos ou ${ADV.minLeads} leads. “Sem gasto recente” são anúncios sem investimento no mês atual nem no anterior. É uma orientação, não uma garantia: confira o contexto antes de mexer no orçamento.</p></div></section>`;
 }
 
+/* ---------- métricas ideais ---------- */
+// Metas de referência (editáveis em Configurações › Metas ideais). Os custos por agendamento, reunião e venda são calculados
+// a partir do custo por lead e das taxas do funil, para a régua ficar coerente.
+const IDEAL_SHORT = {ctr: 'CTR', cpl: 'Custo/lead', desq: 'Desqualif.', booking: 'Agendam.', show: 'Compar.', close: 'Fechamento', costBook: 'Custo/agend.', costDone: 'Custo/reunião', cac: 'Custo/venda'};
+const IDEAL_LABEL = {
+  ctr: ['CTR do anúncio', '%'], cpl: ['Custo por lead', 'R$'], desq: ['Leads desqualificados', '%'], booking: ['Taxa de agendamento', '%'], show: ['Comparecimento', '%'],
+  close: ['Fechamento (venda ÷ reunião)', '%'], conv: ['Conversão lead → venda', '%'], costBook: ['Custo por agendamento', 'R$'], costDone: ['Custo por reunião feita', 'R$'], cac: ['Custo por venda', 'R$'],
+  onTime: ['Cadência em dia', '%'], firstTouch: ['Tempo até o 1º toque', 'min'], sla5: ['Respostas em até 5 min (WhatsApp)', '%'],
+};
+function idealTargets(){
+  const I = cfg().ideal, bk = I.booking / 100, sh = I.show / 100, cl = I.close / 100;
+  return {ctr: I.ctr, cpl: I.cpl, desq: I.desq, booking: I.booking, show: I.show, close: I.close, conv: bk * sh * cl * 100, costBook: I.cpl / bk, costDone: I.cpl / (bk * sh), cac: I.cpl / (bk * sh * cl), onTime: I.onTime, firstTouch: I.firstTouch, sla5: I.sla5};
+}
+// Funil de um grupo de leads. Reuniões ainda marcadas para o futuro não entram na base do comparecimento.
+function funnelOf(leads){
+  const t0 = today(), pending = l => l.stage === 'marcada' && (!l.meetingAt || l.meetingAt.slice(0, 10) >= t0);
+  const f = {n: leads.length, booked: 0, done: 0, won: 0, desq: 0, showBase: 0};
+  leads.forEach(l => { const lv = level(l); if (lv >= 4) f.booked++; if (lv >= 5) f.done++; if (lv >= 6) f.won++; if (l.stage === 'desqualificado') f.desq++; if (lv >= 4 && !pending(l)) f.showBase++ });
+  return f;
+}
+// Monta as métricas de um grupo. x: {n, booked, done, won, desq, showBase} + opcionais {spend, impr, clicks, ft (horas), ftN, due, onTime, wa: {count, u5}}.
+function idealMetrics(x, only){
+  const T = idealTargets(), rate = (a, b) => b ? a / b * 100 : null, spend = +x.spend || 0, M = [];
+  const add = (id, v, minOk, need) => { const [label, unit] = IDEAL_LABEL[id]; M.push({id, label, unit, v, ideal: T[id], ok: v != null && minOk, need: need || null, dir: ['cpl', 'costBook', 'costDone', 'cac', 'desq', 'firstTouch'].includes(id) ? 'down' : 'up'}) };
+  if (x.impr != null){ add('ctr', x.impr ? rate(x.clicks, x.impr) : null, x.impr >= 3000); add('cpl', x.n && spend ? spend / x.n : null, x.n >= 5 && spend >= 100) }
+  add('desq', rate(x.desq, x.n), x.n >= 10);
+  add('booking', rate(x.booked, x.n), x.n >= 10, {base: x.n, have: x.booked, what: 'agendamento'});
+  add('show', rate(x.done, x.showBase), x.showBase >= 5, {base: x.showBase, have: x.done, what: 'reunião'});
+  add('close', rate(x.won, x.done), x.done >= 5, {base: x.done, have: x.won, what: 'venda'});
+  add('conv', rate(x.won, x.n), x.n >= 20, {base: x.n, have: x.won, what: 'venda'});
+  if (x.impr != null){ add('costBook', x.booked && spend ? spend / x.booked : null, x.booked >= 3); add('costDone', x.done && spend ? spend / x.done : null, x.done >= 3); add('cac', x.won && spend ? spend / x.won : null, x.won >= 2) }
+  if (x.due != null) add('onTime', rate(x.onTime, x.due), x.due >= 10);
+  if (x.ftN != null) add('firstTouch', x.ft != null ? x.ft * 60 : null, x.ftN >= 5);
+  if (x.wa && x.wa.count) add('sla5', rate(x.wa.u5, x.wa.count), x.wa.count >= 10);
+  M.forEach(m => {
+    const r = m.v == null ? null : m.dir === 'up' ? (m.ideal ? m.v / m.ideal : 1) : (m.v > 0 ? m.ideal / m.v : 9);
+    m.ratio = r; m.dst = m.v == null ? 'na' : r >= 1 ? 'ok' : r >= 0.75 ? 'warn' : 'bad'; m.st = m.v != null && !m.ok ? 'low' : m.dst;
+    m.miss = m.v == null ? null : m.dir === 'up' ? m.ideal - m.v : m.v - m.ideal;
+  });
+  return only ? M.filter(m => only.includes(m.id)) : M;
+}
+const IDEAL_ST = {ok: ['No ideal', 'ok'], warn: ['Quase lá', 'today'], bad: ['Longe do ideal', 'late'], low: ['Poucos dados', ''], na: ['Sem dados', '']};
+const idealColor = st => st === 'ok' ? 'var(--good)' : st === 'warn' ? 'var(--warn)' : st === 'bad' ? 'var(--crit)' : 'var(--muted)';
+const pp1 = v => (Math.round(Math.abs(v) * 10) / 10).toLocaleString('pt-BR', {maximumFractionDigits: 1});
+function idealFmt(m, v){
+  if (v == null) return '—';
+  if (m.unit === 'R$') return brl(v);
+  if (m.unit === 'min') return fmtHours(v / 60);
+  return (Math.round(v * 10) / 10).toLocaleString('pt-BR') + '%';
+}
+// Quanto falta para o ideal, em texto.
+function idealGap(m){
+  if (m.v == null) return 'Sem dados no período';
+  const good = m.dir === 'up' ? m.v >= m.ideal : m.v <= m.ideal;
+  if (m.unit === 'R$'){ const d = Math.abs(m.v - m.ideal); return good ? `${brl(d)} abaixo do ideal` : `${brl(d)} acima do ideal (+${Math.round(d / m.ideal * 100)}%)` }
+  if (m.unit === 'min'){ const d = Math.abs(m.v - m.ideal); return good ? 'dentro do ideal' : `${fmtHours(d / 60)} a mais que o ideal` }
+  const d = Math.abs(m.v - m.ideal);
+  if (m.dir === 'down') return good ? `${pp1(d)} pp abaixo do limite` : `${pp1(d)} pp acima do limite`;
+  if (good) return `${pp1(d)} pp acima do ideal`;
+  const nd = m.need ? Math.max(0, Math.ceil(m.ideal / 100 * m.need.base - 1e-9) - m.need.have) : 0;
+  return `faltam ${pp1(d)} pp` + (nd ? ` (≈ ${nd} ${nd > 1 ? {agendamento: 'agendamentos', 'reunião': 'reuniões', venda: 'vendas'}[m.need.what] : m.need.what} a mais)` : '');
+}
+const idealShort = m => { if (m.v == null) return ''; const d = m.v - m.ideal, s = d < 0 ? '−' : '+'; return m.unit === 'R$' ? `${s}${brl(Math.abs(d))}` : m.unit === 'min' ? `${s}${fmtHours(Math.abs(d) / 60)}` : `${s}${pp1(d)} pp` };
+// Maior alavanca do funil: qual etapa, se chegasse ao ideal, mais aumentaria a conversão de lead em venda.
+function idealLever(x){
+  const T = idealTargets(), r1 = x.n ? x.booked / x.n : null, r2 = x.showBase ? x.done / x.showBase : null, r3 = x.done ? x.won / x.done : null;
+  if (x.n < 10 || r1 == null || r2 == null) return null;
+  const R = [r1, r2, r3 == null ? T.close / 100 : r3], I = [T.booking / 100, T.show / 100, T.close / 100], names = ['agendamento', 'comparecimento', 'fechamento'];
+  const now = R[0] * R[1] * R[2]; let best = null;
+  R.forEach((r, i) => { if (r >= I[i] || (i === 2 && x.done < 5) || (i === 1 && x.showBase < 5)) return; const f = R.map((v, j) => j === i ? I[i] : v), c = f[0] * f[1] * f[2]; if (!best || c - now > best.c - now) best = {i, name: names[i], r, ideal: I[i], c} });
+  return best ? {...best, now} : null;
+}
+function idealLeverHTML(x){
+  const L = idealLever(x); if (!L) return '';
+  const pc = v => (v * 100).toFixed(1).replace('.', ',') + '%';
+  return `<p class="idl-lever"><b>Maior alavanca: ${L.name}.</b> Hoje está em ${pc(L.r)} (ideal ${pc(L.ideal)}). Se chegar lá, a cada 100 leads você teria cerca de ${(L.c * 100).toFixed(1).replace('.', ',')} vendas, contra ${(L.now * 100).toFixed(1).replace('.', ',')} no ritmo atual das etapas.</p>`;
+}
+function idealRowHTML(m){
+  const [lab, cls] = IDEAL_ST[m.st], scale = Math.max(m.ideal * 1.6, (m.v || 0) * 1.08, 1e-9), w = m.v == null ? 0 : Math.min(100, m.v / scale * 100), tick = Math.min(100, m.ideal / scale * 100);
+  const hint = {desq: 'Quanto menor, melhor: é o limite aceitável de leads fora do perfil.', firstTouch: 'Média entre a entrada do lead e o 1º toque registrado. Quanto menor, melhor.', conv: 'Ideal calculado: agendamento × comparecimento × fechamento.', costBook: 'Ideal calculado: custo por lead ÷ taxa de agendamento.', costDone: 'Ideal calculado: custo por lead ÷ (agendamento × comparecimento).', cac: 'Ideal calculado: custo por lead ÷ (agendamento × comparecimento × fechamento).', show: 'Reuniões feitas ÷ marcadas. Não conta reuniões ainda marcadas para o futuro.', close: 'Vendas ÷ reuniões feitas. Reuniões recentes ainda podem fechar.'}[m.id] || '';
+  return `<div class="idl ${m.st}" ${hint ? `data-tip="${attr(hint)}"` : ''}>
+    <div class="idl-l"><b>${m.label}</b><small>${m.dir === 'down' ? 'quanto menor, melhor' : 'quanto maior, melhor'}</small></div>
+    <div class="idl-bar"><div class="idl-track"><i style="width:${w}%;background:${idealColor(m.dst)}"></i><u style="left:${tick}%" title="Ideal"></u></div></div>
+    <div class="idl-v"><b>${idealFmt(m, m.v)}</b><small>ideal ${m.dir === 'down' ? '≤ ' : '≥ '}${idealFmt(m, m.ideal)}</small></div>
+    <div class="idl-s"><span class="chip ${cls}">${lab}</span><small>${esc(idealGap(m))}</small></div>
+  </div>`;
+}
+function idealPanelHTML(title, sub, M, x, note){
+  const real = M.filter(m => m.v != null && m.ok), good = real.filter(m => m.st === 'ok').length;
+  return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>${title}</h2><span class="sub">${sub}${real.length ? ` · ${good} de ${real.length} no ideal` : ''}</span></div><div class="panel-b">
+    <div class="idl-head"><span class="idl-key"><i style="background:var(--good)"></i>No ideal</span><span class="idl-key"><i style="background:var(--warn)"></i>Quase lá (a partir de 75% do ideal)</span><span class="idl-key"><i style="background:var(--crit)"></i>Longe do ideal</span><span class="idl-key"><i style="background:var(--muted)"></i>Poucos dados</span><span class="idl-key"><u></u>Marca do ideal</span></div>
+    ${M.map(idealRowHTML).join('')}
+    ${x ? idealLeverHTML(x) : ''}
+    <p class="hint" style="margin-top:8px">${note || ''} As metas são de referência e podem ser ajustadas em Configurações › Metas ideais.</p>
+  </div></section>`;
+}
+// Análises: funil comercial e processo do SDR contra o ideal, no período e vendedor escolhidos.
+function idealAnalyticsHTML(A, p, own){
+  const f = funnelOf(A.cohort), w = waSla(p, own);
+  const M = idealMetrics({...f, due: A.due, onTime: A.onTime, ft: A.ft, ftN: A.ftN, wa: w.count ? {count: w.count, u5: w.u5} : null}, ['desq', 'booking', 'show', 'close', 'conv', 'onTime', 'firstTouch', 'sla5']);
+  if (!f.n) return '';
+  return idealPanelHTML('Métricas comerciais × ideal', `leads que entraram ${p.name}`, M, f, 'O funil conta os leads que entraram no período; cadência e tempo até o 1º toque, o que aconteceu nele.');
+}
+// Tráfego › Ideal: conta inteira e cada criativo contra o ideal.
+function idealTrafficHTML(p){
+  const {act, old, base, T: TT} = adAdvice(p), T = idealTargets();
+  const fx = a => ({...funnelOf(a.leads), spend: a.spend, impr: a.impr, clicks: a.clicks});
+  const all = [].concat(...act.concat(old).map(a => a.leads)), tot = {...funnelOf(all), spend: TT.spend, impr: TT.impr, clicks: TT.clicks};
+  if (!act.length && !old.length) return '<div class="panel"><div class="panel-b"><div class="empty">Sem anúncios neste período. Atualize o investimento e confira se os leads têm UTM da Meta.</div></div></div>';
+  const MT = idealMetrics(tot), cols = ['ctr', 'cpl', 'desq', 'booking', 'show', 'close', 'costBook', 'costDone', 'cac'];
+  const bad = MT.filter(m => m.ok && m.v != null && (m.st === 'bad' || m.st === 'warn')).sort((a, b) => a.ratio - b.ratio), okk = MT.filter(m => m.ok && m.st === 'ok');
+  const sum1 = `<div class="g2" style="margin-bottom:14px">
+    <section class="panel"><div class="panel-h"><h2>O que está bom</h2></div><div class="panel-b">${okk.length ? `<ul class="adv-sum">${okk.map(m => `<li><b>${m.label}:</b> ${idealFmt(m, m.v)} (ideal ${m.dir === 'down' ? '≤ ' : '≥ '}${idealFmt(m, m.ideal)}), ${esc(idealGap(m))}.</li>`).join('')}</ul>` : '<div class="empty">Nenhuma métrica da conta no ideal com dados suficientes.</div>'}</div></section>
+    <section class="panel"><div class="panel-h"><h2>O que está ruim</h2><span class="sub">do mais distante do ideal para o mais próximo</span></div><div class="panel-b">${bad.length ? `<ul class="adv-sum">${bad.map(m => `<li><b>${m.label}:</b> ${idealFmt(m, m.v)} (ideal ${m.dir === 'down' ? '≤ ' : '≥ '}${idealFmt(m, m.ideal)}), ${esc(idealGap(m))}.</li>`).join('')}</ul>` : '<div class="empty">Nada abaixo do ideal com dados suficientes.</div>'}</div></section>
+  </div>`;
+  const thead = `<tr><th class="nm">Criativo</th><th class="r">Leads</th>${cols.map(id => { const m = MT.find(z => z.id === id); return `<th class="r" title="${attr(IDEAL_LABEL[id][0])}">${IDEAL_SHORT[id]}<small>ideal ${m.dir === 'down' ? '≤ ' : '≥ '}${idealFmt(m, m.ideal)}</small></th>` }).join('')}<th>Maior gargalo</th><th class="r">No ideal</th></tr>`;
+  const cell = m => { if (!m || m.v == null) return '<td class="r idl-c na">—</td>'; return `<td class="r idl-c ${m.dst}${m.ok ? '' : ' low'}" data-tip="${attr(`${m.label}: ${idealFmt(m, m.v)}\nIdeal: ${idealFmt(m, m.ideal)}\n${idealGap(m)}${m.ok ? '' : '\nPoucos dados para concluir'}`)}"><b>${idealFmt(m, m.v)}</b><small>${idealShort(m)}</small></td>` };
+  const row = (a, x, isTot) => {
+    const M = idealMetrics(x), by = id => M.find(m => m.id === id), L = idealLever(x), real = M.filter(m => cols.includes(m.id) && m.ok && m.v != null), good = real.filter(m => m.st === 'ok').length;
+    const worst = M.filter(m => ['booking', 'show', 'close'].includes(m.id) && m.ok && m.v != null && m.st !== 'ok').sort((u, v) => u.ratio - v.ratio)[0];
+    const gar = worst ? `${worst.label.split(' (')[0]} <small>${idealShort(worst)}</small>` : '<span class="hint">—</span>';
+    return `<tr class="${isTot ? 'idl-tot' : ''}"><td class="nm">${isTot ? '<b>Conta (todos os anúncios)</b>' : `<b>${esc(a.name)}</b><small>${esc([a.campaign, a.adset].filter(Boolean).join(' · '))}</small>`}</td><td class="r num">${x.n}</td>${cols.map(id => cell(by(id))).join('')}<td>${gar}</td><td class="r num">${real.length ? `<b>${good}</b>/${real.length}` : '—'}</td></tr>`;
+  };
+  const table = (list, withTot) => `<div class="tbl-wrap"><table class="tbl idl-tbl"><thead>${thead}</thead><tbody>${withTot ? row(null, tot, true) : ''}${list.map(a => row(a, fx(a))).join('')}</tbody></table></div>`;
+  return idealPanelHTML('Conta inteira × ideal', `leads de anúncios da Meta ${p.name || ''}`.trim(), MT, tot, 'Leads por data de entrada. Custos usam o investimento da Meta no mesmo período.')
+    + sum1
+    + `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Criativos × ideal</h2><span class="sub">cada célula mostra o valor e a diferença para o ideal (positivo ou negativo conforme a métrica)</span></div><div class="panel-b">
+        <div class="idl-head"><span class="idl-key"><i style="background:var(--good)"></i>No ideal</span><span class="idl-key"><i style="background:var(--warn)"></i>Quase lá</span><span class="idl-key"><i style="background:var(--crit)"></i>Longe do ideal</span><span class="idl-key"><i style="background:var(--muted)"></i>Poucos dados (cor apagada)</span></div>
+        ${act.length ? table(act, true) :'<div class="empty">Nenhum anúncio com gasto recente neste período.</div>'}
+        ${old.length ? `<details class="adv-old"><summary>Anúncios sem gasto recente (${old.length})</summary>${table(old, false)}</details>` : ''}
+        <p class="hint" style="margin-top:8px">Anúncios com poucos leads aparecem com cor apagada: o número ainda varia muito. “Maior gargalo” é a etapa do funil (agendamento, comparecimento ou fechamento) mais distante do ideal, entre as que têm dados suficientes.</p>
+      </div></section>`;
+}
+
 /* ---------- views: TRÁFEGO ---------- */
 function trPeriod(){
   if (UI.trMode === 'all') return {all: true, label: 'Todo o período', name: 'no total'};
@@ -1390,7 +1548,7 @@ function viewTrafego(){
   const noUtm = leads.filter(l => !l.utm).length, noDate = all.filter(l => !l.createdAt).length;
   const cell = (a, b) => `<td class="r"><span title="${a} de ${b}">${pct(a, b)}</span></td>`;
   return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.' + (p.custom ? (S.meta.spend && S.meta.spend.daily ? (p.from < S.meta.spend.daily ? ' O investimento é exato por dia desde ' + fmtDM(S.meta.spend.daily) + '; antes disso é mensal e entra proporcional aos dias do período.' : ' O investimento é exato por dia.') : ' O investimento é mensal: no calendário, entra proporcional aos dias do período.') : ''),
-    `<div class="seg" role="group" aria-label="Visão"><button data-a="tr-tab" data-v="num" aria-pressed="${UI.trTab !== 'sug'}">Números</button><button data-a="tr-tab" data-v="sug" aria-pressed="${UI.trTab === 'sug'}">Sugestões</button></div>
+    `<div class="seg" role="group" aria-label="Visão"><button data-a="tr-tab" data-v="num" aria-pressed="${UI.trTab !== 'sug' && UI.trTab !== 'ideal'}">Números</button><button data-a="tr-tab" data-v="sug" aria-pressed="${UI.trTab === 'sug'}">Sugestões</button><button data-a="tr-tab" data-v="ideal" aria-pressed="${UI.trTab === 'ideal'}">Ideal</button></div>
      <div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
      ${UI.trMode === 'custom' ? rangeInputs('tr', p) : ''}
      ${UI.trMode === 'month' ? `<div class="pager"><button class="btn sm ghost" data-a="tr-prev" aria-label="Mês anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="tr-next" ${UI.trOffset >= 0 ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>` : ''}
@@ -1404,7 +1562,7 @@ function viewTrafego(){
       ${kpi('Custo por venda', money(T.spend, T.won), `${T.won} vendas`)}
     </div>
     ${noUtm ? `<div class="banner warn">${noUtm} lead(s) ${p.all ? '' : 'deste período '}ainda estão sem UTM (vieram do ClickUp antes da leitura das descrições). ${p.all ? '' : `${noDate} leads sem data de entrada só aparecem em “Tudo”.`}</div>` : ''}
-    ${UI.trTab === 'sug' ? adviceHTML(p, T) : `<div class="g3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px">${hl.map(([l, r, f]) => `<section class="panel hl"><div class="l">${l}</div>${r ? `<div class="n">${esc(r.name)}</div><div class="v">${f(r)}</div>` : `<div class="v hint">Precisa de itens com pelo menos ${TR_MIN} leads.</div>`}</section>`).join('')}</div>
+    ${UI.trTab === 'sug' ? adviceHTML(p, T) : UI.trTab === 'ideal' ? idealTrafficHTML(p) : `<div class="g3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px">${hl.map(([l, r, f]) => `<section class="panel hl"><div class="l">${l}</div>${r ? `<div class="n">${esc(r.name)}</div><div class="v">${f(r)}</div>` : `<div class="v hint">Precisa de itens com pelo menos ${TR_MIN} leads.</div>`}</section>`).join('')}</div>
     <section class="panel"><div class="panel-h"><div class="seg" role="group" aria-label="Agrupar por">${TR_DIMS.map(([id, l]) => `<button data-a="tr-dim" data-v="${id}" aria-pressed="${dim === id}">${l}</button>`).join('')}</div>
       <div class="legend">${BUCKETS.map(b => `<span><i style="background:${b.color}"></i>${b.name}</span>`).join('')}</div></div>
       <div class="panel-b"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${dimLabel}</th><th class="r">Leads</th><th>Onde estão hoje</th><th class="r">Agend.</th><th class="r">Reunião feita</th><th class="r">Venda</th><th class="r">Perda</th>${isUtm ? '<th class="r">Investido</th><th class="r">CPL</th><th class="r">Custo/reunião</th><th class="r">Leads pixel</th>' : ''}</tr></thead><tbody>
@@ -1653,7 +1811,7 @@ async function runDistribution(btn){
 }
 function viewConfig(){
   if (!loaded()) return loading();
-  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
+  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
   const c = cfg(); let body = '';
   if (UI.cfgTab === 'distribuir'){
     const d = UI.dist, cands = distCandidates(), qty = Math.min(Math.max(1, +d.qty || 1), 100, cands.length);
@@ -1699,6 +1857,16 @@ function viewConfig(){
         <label class="f">Dia de fechamento do ciclo<input class="in" type="number" min="1" max="28" step="1" data-c="cfg-com" data-k="cutDay" id="cc-cut" value="${k.cutDay || 10}"></label>
       </div>
       <p class="hint">Reunião realizada = card chega em Reunião Feita (ou direto em Fechado). Venda = card em Fechado. Vale o ciclo da data registrada no card: do dia de fechamento até o dia anterior ao fechamento do mês seguinte (com 10, o ciclo de 10/09 vai até 09/10). Mudar valores ou o dia recalcula todos os ciclos.</p>
+    </div></section>`;
+  } else if (UI.cfgTab === 'ideal'){
+    const I = c.ideal, T = idealTargets(), fld = (k, lab, step) => `<label class="f">${lab}<input class="in" type="number" min="0" step="${step}" data-c="cfg-ideal" data-k="${k}" id="ideal-${k}" value="${I[k]}"></label>`;
+    body = `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:16px;max-width:820px">
+      <p class="hint">Metas de referência usadas em Análises e em Tráfego › Ideal. São um ponto de partida: ajuste para o que faz sentido para a Brase. Os custos por agendamento, reunião e venda são calculados a partir do custo por lead e das taxas do funil.</p>
+      <div><h3 style="margin-bottom:8px">Anúncios</h3><div class="fgrid three">${fld('ctr', 'CTR mínimo (%)', 0.1)}${fld('cpl', 'Custo por lead máximo (R$)', 1)}${fld('desq', 'Leads desqualificados, no máximo (%)', 1)}</div></div>
+      <div><h3 style="margin-bottom:8px">Funil comercial</h3><div class="fgrid three">${fld('booking', 'Agendamento: leads que viram reunião marcada (%)', 1)}${fld('show', 'Comparecimento: reuniões feitas ÷ marcadas (%)', 1)}${fld('close', 'Fechamento: vendas ÷ reuniões feitas (%)', 1)}</div></div>
+      <div><h3 style="margin-bottom:8px">Processo do SDR</h3><div class="fgrid three">${fld('onTime', 'Cadência em dia, mínimo (%)', 1)}${fld('firstTouch', 'Tempo até o 1º toque, máximo (minutos)', 1)}${fld('sla5', 'Respostas em até 5 min no WhatsApp (%)', 1)}</div></div>
+      <div class="idl-lever" style="margin:0"><b>Calculado a partir das metas acima</b><br>Conversão lead → venda: ${idealFmt({unit: '%'}, T.conv)} · Custo por agendamento: ${brl(T.costBook)} · Custo por reunião feita: ${brl(T.costDone)} · Custo por venda: ${brl(T.cac)}</div>
+      <div class="actions"><button class="btn sm" data-a="ideal-reset" data-confirm="Sim, restaurar padrão">Restaurar valores padrão</button></div>
     </div></section>`;
   } else if (UI.cfgTab === 'cadencia'){
     const prev = buildCadence(today());
@@ -1841,6 +2009,7 @@ const ACT = {
   'doc-edit': () => { UI.docEdit = 'edit'; render() },
   'doc-cancel': () => { UI.docEdit = false; render() },
   'doc-del': t => { del('docs', t.dataset.id); UI.docId = null; toast('Documento excluído') },
+  'ideal-reset': () => { saveCfg({ideal: {...DEFAULT_CONFIG.ideal}}); toast('Metas ideais restauradas') },
   'cfg-tab': t => { UI.cfgTab = t.dataset.v; render() },
   'del-seller': t => { del('sellers', t.dataset.id); toast('Vendedor removido') },
   'cad-add': () => { const cad = clone(cfg().cadence); cad.push({title: 'Toque ' + (cad.length + 1), gap: 2}); saveCfg({cadence: cad}) },
@@ -1895,6 +2064,7 @@ const CHG = {
   'lead-ms': t => { const v = t.value; updateLead(t.dataset.id, {[t.dataset.k]: v ? new Date(+v.slice(0, 4), +v.slice(5, 7) - 1, +v.slice(8, 10), 12).toISOString() : null}) },
   'touch-f': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); const x = (l.touches || []).find(y => y.id === t.dataset.touch); if (!x || (t.dataset.k === 'due' && !t.value)) return; x[t.dataset.k] = t.value; put('leads', t.dataset.lead, l) },
   'seller-f': t => { const s = S.sellers[t.dataset.id]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value; if (k === 'goalMeetings' || k === 'goalSales') v = v === '' ? null : Math.max(0, Number(v)); if (k === 'name' && !String(v).trim()) return; put('sellers', t.dataset.id, {...clone(s), [k]: v}) },
+  'cfg-ideal': t => { const v = Number(t.value); if (!isFinite(v) || v <= 0) return; saveCfg({ideal: {...cfg().ideal, [t.dataset.k]: v}}) },
   'cfg-com': t => { const v = Number(t.value); if (!isFinite(v) || v < 0) return; saveCfg({commission: {...cfg().commission, [t.dataset.k]: v}}) },
   'an-from': t => { UI.anFrom = t.value; render() },
   'an-to': t => { UI.anTo = t.value; render() },
