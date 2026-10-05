@@ -287,6 +287,22 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .idl-c.bad{background:var(--crit-soft)}.idl-c.bad b{color:var(--crit)}
 .idl-c.low{opacity:.55}.idl-c.na{color:var(--muted)}
 .idl-tot td{background:var(--surface-2)}
+.tr-open{margin-top:8px;display:inline-flex;border:1px solid var(--line-2)}.tr-open:hover{background:var(--sunken)}
+.idl-tbl .lnk-btn{border:0;background:none;padding:0;margin-top:3px;color:var(--accent-strong);font:700 11px/1.2 var(--f-body);cursor:pointer;text-align:left}.idl-tbl .lnk-btn:hover{text-decoration:underline}
+.modal-wrap.low{z-index:39}
+.modal.cr{width:min(1000px,100%);gap:12px}
+.cr-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.cr-h h2{overflow-wrap:anywhere}.cr-h small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere}
+.cr-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.cr-sum span{display:grid;gap:2px;font-size:11.5px;color:var(--muted);background:var(--sunken);border-radius:10px;padding:8px 10px;line-height:1.25}
+.cr-sum b{font:800 18px/1.1 var(--f-display);color:var(--ink);font-variant-numeric:tabular-nums}
+.cr-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.cr-list{max-height:min(48vh,440px);overflow:auto;border:1px solid var(--line);border-radius:10px}
+.cr-tbl tr[data-a]{cursor:pointer}.cr-tbl tr[data-a]:hover td{background:var(--sunken)}
+.cr-tbl th{position:sticky;top:0;background:var(--surface);z-index:1}
+.cr-lnk{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--ink);text-align:left;cursor:pointer}.cr-lnk:hover{text-decoration:underline}
+.cr-tbl td small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
+.cr-empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13.5px}
 @media (max-width:760px){.idl{grid-template-columns:minmax(0,1fr) auto}.idl-bar{grid-column:1/-1;order:3}.idl-s{grid-column:1/-1;order:4}}
 .tbl td.nm{min-width:180px}
 .tbl td.nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
@@ -543,7 +559,7 @@ const UI = {
   me: ls.get('brase.me') || '',
   owner: null, search: '', showSide: ls.get('brase.side') !== '0',
   anMode: 'week', anOffset: 0, anOwner: '', anBase: 'cohort', anFrom: '', anTo: '',
-  trMode: 'all', trOffset: 0, trDim: 'ad', trFrom: '', trTo: '', trTab: 'num',
+  cr: null, trMode: 'all', trOffset: 0, trDim: 'ad', trFrom: '', trTo: '', trTab: 'num',
   dist: {from: 'frio+morno', owner: '*', minRev: '0', qty: 20, to: '', cadence: true, move: 'keep'},
   comSeller: '', comOffset: 0,
   docId: null, docEdit: false, docQ: '',
@@ -978,9 +994,50 @@ function renderDrawer(){
 }
 
 /* ---------- modal: new lead ---------- */
+/* ---------- leads de um criativo (Tráfego) ---------- */
+// Abre um painel com os leads de uma linha do Tráfego (anúncio, conjunto, campanha...) para ver quem virou reunião e venda.
+const CR_TABS = [['won', 'Vendas', l => level(l) >= 6], ['done', 'Reuniões feitas', l => level(l) >= 5], ['booked', 'Agendaram', l => level(l) >= 4], ['all', 'Todos', () => true]];
+function crCollect(cr, p){
+  if (cr.src === 'adv'){ const A = adAdvice(p), x = A.act.concat(A.old).find(z => z.k === cr.k); return {leads: x ? x.leads : [], spend: x ? x.spend : 0} }
+  const leads = leadsArr().filter(l => (p.all || inRange(localDay(l.createdAt), p)) && trKey(l, cr.dim).k === cr.k);
+  const col = {ad: 'adId', adset: 'adsetId', campaign: 'campaignId'}[cr.dim];
+  return {leads, spend: col ? sum(spendRows(p).filter(r => r[col] === cr.k).map(r => r.spend)) : 0};
+}
+const plural = (n, one, many) => n === 1 ? one : many;
+const crDay = v => { const d = localDay(v); return d ? fmtDM(d) + (d.slice(0, 4) !== today().slice(0, 4) ? '/' + d.slice(2, 4) : '') : '—' };
+function creativeModalHTML(){
+  const cr = UI.cr; if (!cr) return '';
+  const pNow = trPeriod(), isAll = !!pNow.all, data = {p: isAll ? null : crCollect(cr, pNow), all: crCollect(cr, {all: true})};
+  const sc = isAll || cr.scope === 'all' ? 'all' : 'p', D = data[sc], L = D.leads, tabFn = id => CR_TABS.find(t => t[0] === id)[2], cnt = id => L.filter(tabFn(id)).length;
+  if (!cr.tab) cr.tab = cnt('won') ? 'won' : cnt('done') ? 'done' : cnt('booked') ? 'booked' : 'all';
+  const rows = L.filter(tabFn(cr.tab)).sort(cr.tab === 'all' ? (a, b) => level(b) - level(a) || (b.createdAt || '').localeCompare(a.createdAt || '') : (a, b) => ((b[{won: 'closedAt', done: 'meetingDoneAt', booked: 'bookedAt'}[cr.tab]] || '').localeCompare(a[{won: 'closedAt', done: 'meetingDoneAt', booked: 'bookedAt'}[cr.tab]] || '')));
+  const won = cnt('won'), done = cnt('done'), booked = cnt('booked'), money = (a, b) => a && b ? brl(a / b) : '—';
+  const m = (v, l) => `<span><b>${v}</b>${l}</span>`;
+  const tabs = CR_TABS.map(([id, name]) => `<button data-a="cr-tab" data-v="${id}" aria-pressed="${cr.tab === id}">${name} (${cnt(id)})</button>`).join('');
+  const wonOf = d => d.leads.filter(l => level(l) >= 6).length;
+  const scope = isAll ? '' : `<div class="seg" role="group" aria-label="Recorte"><button data-a="cr-scope" data-v="p" aria-pressed="${sc === 'p'}">No período (${wonOf(data.p)} ${plural(wonOf(data.p), 'venda', 'vendas')})</button><button data-a="cr-scope" data-v="all" aria-pressed="${sc === 'all'}">Todo o histórico (${wonOf(data.all)} ${plural(wonOf(data.all), 'venda', 'vendas')})</button></div>`;
+  const empty = {won: 'Nenhuma venda de leads deste criativo neste recorte.', done: 'Nenhuma reunião feita neste recorte.', booked: 'Nenhum lead chegou a Reunião Marcada neste recorte.', all: 'Nenhum lead neste recorte.'}[cr.tab] + (sc === 'p' && data.all.leads.filter(tabFn(cr.tab)).length > rows.length ? ` No histórico inteiro há ${data.all.leads.filter(tabFn(cr.tab)).length}: troque para “Todo o histórico”.` : '');
+  const body = rows.length ? `<table class="tbl cr-tbl"><thead><tr><th>Lead</th><th>Etapa</th><th>Entrou</th><th>Reunião feita</th><th>Venda</th><th class="r">Faturamento</th><th>Resp.</th></tr></thead><tbody>${rows.map(l => `<tr data-a="open-lead" data-id="${attr(l.id)}"><td class="nm"><button class="cr-lnk" data-a="open-lead" data-id="${attr(l.id)}">${esc(l.name || 'Lead sem nome')}</button>${l.contact ? `<small>${esc(l.contact)}</small>` : ''}</td><td>${stagePill(l.stage)}</td><td>${crDay(l.createdAt)}</td><td>${crDay(l.meetingDoneAt)}</td><td>${crDay(l.closedAt)}</td><td class="r">${+l.revenue ? 'R$ ' + fmtK(+l.revenue) + '/mês' : '—'}</td><td>${avatar(l.sdrId || l.ownerId)}</td></tr>`).join('')}</tbody></table>` : `<div class="cr-empty">${esc(empty)}</div>`;
+  return `<div class="modal-wrap low"><div class="modal cr" role="dialog" aria-modal="true" aria-label="Leads do criativo">
+    <div class="cr-h"><div><h2>${esc(cr.name)}</h2><small>${esc(cr.sub)}${cr.sub ? ' · ' : ''}${sc === 'all' ? 'todo o histórico' : esc(pNow.label)}</small></div><button class="btn sm ghost" data-a="close-modal">Fechar</button></div>
+    <div class="cr-sum">${m(L.length, plural(L.length, 'lead', 'leads'))}${m(booked, plural(booked, 'agendou', 'agendaram'))}${m(done, plural(done, 'reunião feita', 'reuniões feitas'))}${m(won, plural(won, 'venda', 'vendas'))}${m(D.spend ? brl(D.spend) : '—', 'investido')}${m(money(D.spend, L.length), 'por lead')}${m(money(D.spend, done), 'por reunião feita')}${m(money(D.spend, won), 'por venda')}</div>
+    <div class="cr-bar"><div class="seg" role="group" aria-label="Mostrar">${tabs}</div>${scope}</div>
+    <div class="cr-list">${body}</div>
+    <p class="hint">Clique em um lead para abrir o card. “Vendas” são os leads que chegaram a Fechado; faturamento é o que o lead informou no quiz.</p>
+  </div></div>`;
+}
+let crLast = '';
+function renderCreative(host){
+  const html = creativeModalHTML();
+  if (host.dataset.m === 'creative' && html === crLast && host.innerHTML) return;
+  const old = host.dataset.m === 'creative' ? host.querySelector('.cr-list') : null, st = old ? old.scrollTop : 0;
+  host.dataset.m = 'creative'; crLast = html; host.innerHTML = html;
+  const nl = host.querySelector('.cr-list'); if (nl && st) nl.scrollTop = st;
+}
 function renderModal(){
   const host = $('#modal-host');
-  if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; return }
+  if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; crLast = ''; return }
+  if (UI.modal === 'creative') return renderCreative(host);
   if (host.dataset.m === UI.modal && host.innerHTML) return;
   host.dataset.m = UI.modal;
   const c = cfg(), cad = buildCadence(today());
@@ -1239,15 +1296,16 @@ function adAdvice(p){
     a.bookS = sh(a.booked, a.n, base.bookRate); a.doneS = sh(a.done, a.n, base.doneRate); a.desqS = sh(a.lost, a.n, base.desq);
     a.cpl = a.n && a.spend ? a.spend / a.n : null; a.costBook = a.booked && a.spend ? a.spend / a.booked : null; a.costDone = a.done && a.spend ? a.spend / a.done : null; a.cac = a.won && a.spend ? a.spend / a.won : null;
     a.ctr = a.impr ? a.clicks / a.impr : null; a.conv = a.lpv ? a.pixel / a.lpv : null;
-    const bookedS = a.n * a.bookS, costBookS = a.spend && bookedS > 0 ? a.spend / bookedS : null, parts = [];
+    const doneSC = a.n * a.doneS, costDoneS = a.spend && doneSC > 0 ? a.spend / doneSC : null, parts = [];
     const add = (w, v) => { if (v != null && isFinite(v)) parts.push([w, cap(v)]) };
-    add(30, ratio(base.costBook, costBookS)); add(20, ratio(a.bookS, base.bookRate)); add(15, ratio(base.cpl, a.cpl)); add(10, ratio(a.doneS, base.doneRate));
+    add(30, ratio(base.costDone, costDoneS)); add(20, ratio(a.bookS, base.bookRate)); add(15, ratio(base.cpl, a.cpl)); add(10, ratio(a.doneS, base.doneRate));
     add(10, a.revN ? ratio(a.rev, base.rev) : null); add(5, ratio(1 - a.desqS, 1 - base.desq)); add(5, ratio(a.ctr, base.ctr)); add(5, ratio(a.conv, base.conv));
     const w = sum(parts.map(x => x[0])); a.score = w ? Math.round(Math.min(100, 50 * sum(parts.map(x => x[0] * x[1])) / w)) : null;
     a.conf = a.spend >= ADV.solidSpend || a.n >= ADV.solidLeads ? 'alta' : a.spend >= ADV.minSpend || a.n >= ADV.minLeads ? 'média' : 'baixa';
     // motivos, do mais forte para o mais fraco
     const why = [], vs = (v, b) => { const d = v / b - 1; return d <= 0 ? `${Math.round(-d * 100)}% abaixo da média` : `${Math.round(d * 100)}% acima da média` };
-    if (a.costBook && base.costBook) why.push(`${brl(a.costBook)} por agendamento, ${vs(a.costBook, base.costBook)} (${brl(base.costBook)})`);
+    if (a.costDone && base.costDone) why.push(`${brl(a.costDone)} por reunião feita, ${vs(a.costDone, base.costDone)} (${brl(base.costDone)})`);
+    else if (!a.done && a.spend >= ADV.minSpend && base.costDone) why.push(`Investiu ${brl(a.spend)} e ainda não teve reunião feita (média da conta: ${brl(base.costDone)} por reunião)`);
     if (a.n) why.push(`${pct(a.booked, a.n)} dos ${a.n} lead${a.n === 1 ? '' : 's'} agendaram (média ${pct(T.booked, T.n)})`);
     if (a.cpl && base.cpl) why.push(`Custo por lead ${brl(a.cpl)}, ${vs(a.cpl, base.cpl)} (${brl(base.cpl)})`);
     if (a.done || a.won) why.push(`${a.done} reunião(ões) feita(s) e ${a.won} venda(s)${a.cac ? ' · ' + brl(a.cac) + ' por venda' : ''}`);
@@ -1261,7 +1319,7 @@ function adAdvice(p){
     else if (a.conf === 'baixa' || (a.n < 3 && a.spend < ADV.solidSpend)) a.v = {id: 'test', label: 'Em teste', tone: '', act: a.spend >= ADV.minSpend ? `Investiu ${brl(a.spend)} e trouxe só ${a.n} lead(s). Espere chegar a ${ADV.minLeads} leads antes de decidir.` : `Ainda sem dados suficientes: espere pelo menos ${brl(ADV.minSpend)} investidos ou ${ADV.minLeads} leads antes de decidir.`};
     else if (a.spend >= ADV.solidSpend && a.n >= 6 && !a.booked && a.medAge >= 5) a.v = {id: 'pause', label: 'Pausar', tone: 'late', act: `Gastou ${brl(a.spend)}, trouxe ${a.n} leads e nenhum agendamento. Pause e passe o orçamento para os que estão funcionando.`};
     else if (a.score != null && a.score >= 62 && a.booked + a.won >= 1 && (a.n < ADV.minLeads || !(a.booked >= 2 || a.done >= 1))) a.v = {id: 'promising', label: 'Promissor', tone: 'ok', act: a.n < ADV.minLeads ? `Bom começo, mas são só ${a.n} leads. Espere chegar a ${ADV.minLeads} antes de aumentar o orçamento.` : `Bom custo, mas só ${a.booked} agendamento(s) até agora. Espere pelo menos 2 agendamentos ou 1 reunião feita antes de aumentar o orçamento.`};
-    else if (a.score != null && a.score >= 62 && a.booked + a.won >= 1) a.v = {id: 'scale', label: 'Escalar', tone: 'ok', act: `Aumente o orçamento aos poucos (15 a 20% a cada 3 dias) ou duplique para outro público, e acompanhe se o custo por agendamento se mantém.${a.conf === 'média' ? ' Confiança média: ainda são poucos dados.' : ''}`};
+    else if (a.score != null && a.score >= 62 && a.booked + a.won >= 1) a.v = {id: 'scale', label: 'Escalar', tone: 'ok', act: `Aumente o orçamento aos poucos (15 a 20% a cada 3 dias) ou duplique para outro público, e acompanhe se o custo por reunião feita se mantém.${a.conf === 'média' ? ' Confiança média: ainda são poucos dados.' : ''}`};
     else if (a.score != null && a.score <= 38 && a.conf === 'alta') a.v = {id: 'cut', label: 'Reduzir', tone: 'late', act: 'Resultado bem abaixo da média da conta. Corte o orçamento ou troque o criativo.'};
     else if (hi && lowConv) a.v = {id: 'fix', label: 'Revisar a página', tone: 'today', act: 'O anúncio atrai cliques, mas poucos viram lead. Revise o formulário e a promessa da página.'};
     else if (a.n >= 8 && a.cpl && base.cpl && a.cpl <= 0.8 * base.cpl && (a.desqS > base.desq * 1.3 || (a.revN >= 3 && base.rev && a.rev < 0.7 * base.rev))) a.v = {id: 'cheap', label: 'Lead barato, fraco', tone: 'today', act: 'Traz muito lead por pouco dinheiro, mas de qualidade menor. Ajuste o público ou a promessa para filtrar melhor.'};
@@ -1279,8 +1337,8 @@ function adviceHTML(p, TT){
   if (best && best.v.id === 'scale') lines.push(`<li><b>Escalar:</b> ${esc(best.name)}, nota ${best.score}. ${esc(best.why[0] || '')}.</li>`);
   else if (best) lines.push(`<li><b>Melhor do período:</b> ${esc(best.name)}, nota ${best.score}. ${esc(best.why[0] || '')}.</li>`);
   if (worst && worst.score < 50) lines.push(`<li><b>Pior do período:</b> ${esc(worst.name)}, nota ${worst.score}. ${esc(worst.why[0] || '')}.</li>`);
-  if (best && worst && best.costBook && worst.costBook && worst.costBook > best.costBook * 1.4 && worst.spend > 0)
-    lines.push(`<li><b>Mover verba:</b> de “${esc(worst.name)}” (${brl(worst.costBook)} por agendamento) para “${esc(best.name)}” (${brl(best.costBook)}). Dá para agendar até ${(worst.costBook / best.costBook).toFixed(1).replace('.', ',')}× mais com o mesmo dinheiro.</li>`);
+  if (best && worst && best.costDone && worst.costDone && worst.costDone > best.costDone * 1.4 && worst.spend > 0)
+    lines.push(`<li><b>Mover verba:</b> de “${esc(worst.name)}” (${brl(worst.costDone)} por reunião feita) para “${esc(best.name)}” (${brl(best.costDone)}). Dá para fazer até ${(worst.costDone / best.costDone).toFixed(1).replace('.', ',')}× mais reuniões com o mesmo dinheiro.</li>`);
   const pausa = act.filter(a => a.v.id === 'pause'); if (pausa.length) lines.push(`<li><b>Gasto sem retorno:</b> ${pausa.map(a => `${esc(a.name)} (${brl(a.spend)})`).join(', ')}.</li>`);
   const testing = count('test'); if (testing) lines.push(`<li>${testing} anúncio(s) ainda em teste: sem dados suficientes para decidir.</li>`);
   if (!T.spend) lines.push('<li>Sem investimento registrado neste período: a nota usa só os leads. Atualize o investimento para incluir custos.</li>');
@@ -1289,18 +1347,19 @@ function adviceHTML(p, TT){
   const card = a => `<article class="adv-card">
     <div class="adv-h"><div class="adv-t"><div class="adv-n">${esc(a.name)}</div><small>${esc([a.campaign, a.adset].filter(Boolean).join(' · '))}</small></div><span class="chip ${a.v.tone}">${a.v.label}</span></div>
     ${a.score != null ? `<div class="adv-s"><div class="bar" style="--c:${a.score >= 62 ? 'var(--good)' : a.score <= 38 ? 'var(--crit)' : 'var(--warn)'}"><i style="width:${a.score}%"></i></div><b class="num">${a.score}</b><span class="hint" title="Nota de 0 a 100 comparada com a média da conta (50 = na média). Confiança: ${a.conf}.">nota · confiança ${a.conf}</span></div>` : ''}
-    <div class="adv-m">${m(a.n, 'leads')}${m(pct(a.booked, a.n), 'agendaram')}${m(a.done, 'reuniões feitas')}${m(a.won, 'vendas')}${m(a.spend ? brl(a.spend) : '—', 'investido')}${m(a.cpl ? brl(a.cpl) : '—', 'por lead')}${m(a.costBook ? brl(a.costBook) : '—', 'por agend.')}${m(a.ctr ? (a.ctr * 100).toFixed(1).replace('.', ',') + '%' : '—', 'CTR')}</div>
+    <div class="adv-m">${m(a.n, plural(a.n, 'lead', 'leads'))}${m(pct(a.booked, a.n), 'agendaram')}${m(a.done, plural(a.done, 'reunião feita', 'reuniões feitas'))}${m(a.won, plural(a.won, 'venda', 'vendas'))}${m(a.spend ? brl(a.spend) : '—', 'investido')}${m(a.cpl ? brl(a.cpl) : '—', 'por lead')}${m(a.costDone ? brl(a.costDone) : '—', 'por reunião')}${m(a.ctr ? (a.ctr * 100).toFixed(1).replace('.', ',') + '%' : '—', 'CTR')}</div>
     ${a.why.length ? `<ul class="adv-why">${a.why.map(x => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}
     <p class="adv-act">${esc(a.v.act)}</p>
+    ${a.n ? `<div><button class="btn sm ghost" data-a="open-cr" data-src="adv" data-k="${attr(a.k)}" data-name="${attr(a.name)}" data-sub="${attr([a.campaign, a.adset].filter(Boolean).join(' · '))}">Ver leads${a.won ? ` · ${a.won} venda${a.won > 1 ? 's' : ''}` : ''}</button></div>` : ''}
   </article>`;
   return `<section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Resumo das sugestões</h2><span class="sub">${count('scale')} para escalar · ${count('promising')} promissor(es) · ${count('keep')} para manter · ${count('cut') + count('pause')} para cortar · ${count('test')} em teste</span></div><div class="panel-b">
       ${lines.length ? `<ul class="adv-sum">${lines.join('')}</ul>` : '<div class="empty">Ainda não há dados suficientes para sugerir.</div>'}
-      <p class="hint" style="margin-top:10px">Média da conta no período: ${base.cpl ? brl(base.cpl) + ' por lead' : 'sem custo registrado'} · ${base.costBook ? brl(base.costBook) + ' por agendamento' : 'sem agendamentos'} · ${pct(T.booked, T.n)} dos leads agendam.</p>
+      <p class="hint" style="margin-top:10px">Média da conta no período: ${base.cpl ? brl(base.cpl) + ' por lead' : 'sem custo registrado'} · ${base.costDone ? brl(base.costDone) + ' por reunião feita' : 'sem reuniões feitas'} · ${pct(T.booked, T.n)} dos leads agendam.</p>
     </div></section>
     <div class="adv-grid">${act.map(card).join('') || '<div class="empty">Nenhum anúncio com gasto recente neste período.</div>'}</div>
     ${old.length ? `<details class="adv-old"><summary>Anúncios sem gasto recente (${old.length})</summary><div class="adv-grid">${old.map(card).join('')}</div></details>` : ''}
     <section class="panel" style="margin-top:14px"><div class="panel-b"><h3 style="margin-bottom:6px">Como a nota é calculada</h3>
-      <p class="hint">Cada anúncio é comparado com a média da conta no mesmo período (50 = na média; acima de 62 pede escala; abaixo de 38 pede corte). Pesos: custo por agendamento 30%, taxa de agendamento 20%, custo por lead 15%, reuniões feitas 10%, faturamento dos leads 10%, leads perdidos 5%, CTR 5% e conversão da página 5%. Anúncios com poucos leads são puxados para a média, e só recebem veredito com pelo menos ${brl(ADV.minSpend)} investidos ou ${ADV.minLeads} leads. “Sem gasto recente” são anúncios sem investimento no mês atual nem no anterior. É uma orientação, não uma garantia: confira o contexto antes de mexer no orçamento.</p></div></section>`;
+      <p class="hint">Cada anúncio é comparado com a média da conta no mesmo período (50 = na média; acima de 62 pede escala; abaixo de 38 pede corte). Pesos: custo por reunião feita 30%, taxa de agendamento 20%, custo por lead 15%, reuniões feitas 10%, faturamento dos leads 10%, leads perdidos 5%, CTR 5% e conversão da página 5%. Anúncios com poucos leads são puxados para a média, e só recebem veredito com pelo menos ${brl(ADV.minSpend)} investidos ou ${ADV.minLeads} leads. Reuniões demoram a acontecer: anúncios novos tendem a parecer piores até os leads chegarem à reunião. “Sem gasto recente” são anúncios sem investimento no mês atual nem no anterior. É uma orientação, não uma garantia: confira o contexto antes de mexer no orçamento.</p></div></section>`;
 }
 
 /* ---------- métricas ideais ---------- */
@@ -1424,7 +1483,7 @@ function idealTrafficHTML(p){
     const M = idealMetrics(x), by = id => M.find(m => m.id === id), L = idealLever(x), real = M.filter(m => cols.includes(m.id) && m.ok && m.v != null), good = real.filter(m => m.st === 'ok').length;
     const worst = M.filter(m => ['booking', 'show', 'close'].includes(m.id) && m.ok && m.v != null && m.st !== 'ok').sort((u, v) => u.ratio - v.ratio)[0];
     const gar = worst ? `${worst.label.split(' (')[0]} <small>${idealShort(worst)}</small>` : '<span class="hint">—</span>';
-    return `<tr class="${isTot ? 'idl-tot' : ''}"><td class="nm">${isTot ? '<b>Conta (todos os anúncios)</b>' : `<b>${esc(a.name)}</b><small>${esc([a.campaign, a.adset].filter(Boolean).join(' · '))}</small>`}</td><td class="r num">${x.n}</td>${cols.map(id => cell(by(id))).join('')}<td>${gar}</td><td class="r num">${real.length ? `<b>${good}</b>/${real.length}` : '—'}</td></tr>`;
+    return `<tr class="${isTot ? 'idl-tot' : ''}"><td class="nm">${isTot ? '<b>Conta (todos os anúncios)</b>' : `<b>${esc(a.name)}</b><small>${esc([a.campaign, a.adset].filter(Boolean).join(' · '))}</small>${x.n ? `<button class="lnk-btn" data-a="open-cr" data-src="adv" data-k="${attr(a.k)}" data-name="${attr(a.name)}" data-sub="${attr([a.campaign, a.adset].filter(Boolean).join(' · '))}">ver leads${x.won ? ` · ${x.won} venda${x.won > 1 ? 's' : ''}` : ''}</button>` : ''}`}</td><td class="r num">${x.n}</td>${cols.map(id => cell(by(id))).join('')}<td>${gar}</td><td class="r num">${real.length ? `<b>${good}</b>/${real.length}` : '—'}</td></tr>`;
   };
   const table = (list, withTot) => `<div class="tbl-wrap"><table class="tbl idl-tbl"><thead>${thead}</thead><tbody>${withTot ? row(null, tot, true) : ''}${list.map(a => row(a, fx(a))).join('')}</tbody></table></div>`;
   return idealPanelHTML('Conta inteira × ideal', `leads de anúncios da Meta ${p.name || ''}`.trim(), MT, tot, 'Leads por data de entrada. Custos usam o investimento da Meta no mesmo período.')
@@ -1546,7 +1605,7 @@ function viewTrafego(){
           : ['Mais desqualifica', best(r => r.lost, (a, b) => b.lost / b.n - a.lost / a.n), r => `${pct(r.lost, r.n)} perdidos ou desqualificados`],
   ];
   const noUtm = leads.filter(l => !l.utm).length, noDate = all.filter(l => !l.createdAt).length;
-  const cell = (a, b) => `<td class="r"><span title="${a} de ${b}">${pct(a, b)}</span></td>`;
+  const cell = (a, b) => `<td class="r" style="white-space:nowrap"><span title="${a} de ${b}">${pct(a, b)}</span> <span class="hint">(${a})</span></td>`;
   return head('Tráfego', 'De onde vêm os leads e quais criativos viram reunião e venda. Leads contam pela data em que entraram.' + (p.custom ? (S.meta.spend && S.meta.spend.daily ? (p.from < S.meta.spend.daily ? ' O investimento é exato por dia desde ' + fmtDM(S.meta.spend.daily) + '; antes disso é mensal e entra proporcional aos dias do período.' : ' O investimento é exato por dia.') : ' O investimento é mensal: no calendário, entra proporcional aos dias do período.') : ''),
     `<div class="seg" role="group" aria-label="Visão"><button data-a="tr-tab" data-v="num" aria-pressed="${UI.trTab !== 'sug' && UI.trTab !== 'ideal'}">Números</button><button data-a="tr-tab" data-v="sug" aria-pressed="${UI.trTab === 'sug'}">Sugestões</button><button data-a="tr-tab" data-v="ideal" aria-pressed="${UI.trTab === 'ideal'}">Ideal</button></div>
      <div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
@@ -1566,7 +1625,7 @@ function viewTrafego(){
     <section class="panel"><div class="panel-h"><div class="seg" role="group" aria-label="Agrupar por">${TR_DIMS.map(([id, l]) => `<button data-a="tr-dim" data-v="${id}" aria-pressed="${dim === id}">${l}</button>`).join('')}</div>
       <div class="legend">${BUCKETS.map(b => `<span><i style="background:${b.color}"></i>${b.name}</span>`).join('')}</div></div>
       <div class="panel-b"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>${dimLabel}</th><th class="r">Leads</th><th>Onde estão hoje</th><th class="r">Agend.</th><th class="r">Reunião feita</th><th class="r">Venda</th><th class="r">Perda</th>${isUtm ? '<th class="r">Investido</th><th class="r">CPL</th><th class="r">Custo/reunião</th><th class="r">Leads pixel</th>' : ''}</tr></thead><tbody>
-      ${rows.map(r => `<tr class="${r.k === '__none' ? 'none' : ''}"><td class="nm">${esc(r.name)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}</td><td class="r"><b>${r.n}</b></td><td>${stageBar(r)}</td>${cell(r.booked, r.n)}${cell(r.done, r.n)}${cell(r.won, r.n)}${cell(r.lost, r.n)}${isUtm ? `<td class="r">${r.spend ? brl(r.spend) : '—'}</td><td class="r">${money(r.spend, r.n)}</td><td class="r">${money(r.spend, r.done)}</td><td class="r">${r.pixel || '—'}</td>` : ''}</tr>`).join('') || `<tr><td colspan="11" class="muted">Nenhum lead ${p.name}.</td></tr>`}
+      ${rows.map(r => `<tr class="${r.k === '__none' ? 'none' : ''}"><td class="nm">${esc(r.name)}${r.sub ? `<small>${esc(r.sub)}</small>` : ''}${r.n ? `<button class="btn sm ghost tr-open" data-a="open-cr" data-src="num" data-dim="${dim}" data-k="${attr(r.k)}" data-name="${attr(r.name)}" data-sub="${attr(r.sub)}" title="Ver quais leads foram${r.won ? ' e as vendas' : ''}">Ver leads${r.won ? ` · ${r.won} venda${r.won > 1 ? 's' : ''}` : ''}</button>` : ''}</td><td class="r"><b>${r.n}</b></td><td>${stageBar(r)}</td>${cell(r.booked, r.n)}${cell(r.done, r.n)}${cell(r.won, r.n)}${cell(r.lost, r.n)}${isUtm ? `<td class="r">${r.spend ? brl(r.spend) : '—'}</td><td class="r">${money(r.spend, r.n)}</td><td class="r">${money(r.spend, r.done)}</td><td class="r">${r.pixel || '—'}</td>` : ''}</tr>`).join('') || `<tr><td colspan="11" class="muted">Nenhum lead ${p.name}.</td></tr>`}
       </tbody></table></div>
       <p class="hint" style="margin-top:10px">Percentuais sobre os leads de cada linha. “Agend.” conta quem chegou a Reunião Marcada ou além. Passe o mouse na barra para ver cada etapa. Leads do pixel são os que a Meta registrou; a diferença para o CRM mostra leads que não chegaram ao quadro.</p></div></section>`}`;
 }
@@ -1976,6 +2035,9 @@ const ACT = {
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
+  'open-cr': t => { const d = t.dataset; UI.cr = {src: d.src, dim: d.dim || 'ad', k: d.k, name: d.name || '', sub: d.sub || '', scope: 'p', tab: null}; UI.modal = 'creative'; renderModal() },
+  'cr-tab': t => { if (!UI.cr) return; UI.cr.tab = t.dataset.v; $('#modal-host').dataset.m = ''; renderModal() },
+  'cr-scope': t => { if (!UI.cr) return; UI.cr.scope = t.dataset.v; UI.cr.tab = null; $('#modal-host').dataset.m = ''; renderModal() },
   'toggle-side': () => { UI.showSide = !UI.showSide; ls.set('brase.side', UI.showSide ? '1' : '0'); render() },
   'remove-examples': () => { const ex = leadsArr().filter(l => l.example); ex.forEach(l => del('leads', l.id)); toast(`${ex.length} leads de exemplo removidos`) },
   'meeting-done': t => moveLead(t.dataset.id, 'feita'),
@@ -2117,7 +2179,7 @@ document.addEventListener('change', e => { const t = e.target.closest('[data-c]'
 document.addEventListener('input', e => { const t = e.target.closest('[data-i]'); if (t && INP[t.dataset.i]) INP[t.dataset.i](t, e) });
 document.addEventListener('submit', e => { const f = e.target.closest('form[data-f]'); if (!f) return; e.preventDefault(); if (FORM[f.dataset.f]) FORM[f.dataset.f](f, new FormData(f)) });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape'){ if (UI.modal){ UI.modal = null; renderModal() } else if (UI.drawer){ UI.drawer = null; renderDrawer() } }
+  if (e.key === 'Escape'){ if (UI.modal && !(UI.modal === 'creative' && UI.drawer)){ UI.modal = null; renderModal() } else if (UI.drawer){ UI.drawer = null; renderDrawer() } }
   if (e.key === 'Enter' && e.target.matches('.card[data-a]')) openLead(e.target.dataset.id);
 });
 
