@@ -1595,12 +1595,12 @@ function agStatusChip(cal){
 const AG_CMD = 'supabase secrets set GOOGLE_CALENDAR_ICS_URL="COLE_AQUI_O_ENDERECO_SECRETO" --project-ref wndgqvkeguampmtmkmhq';
 function agSetupHTML(err){
   return `<section class="panel"><div class="panel-h"><h2>Conectar o Google Agenda</h2><span class="sub">uma vez só, leva uns 2 minutos</span></div><div class="panel-b">
-    ${err ? `<div class="banner warn" style="margin-bottom:12px">Não consegui ler a agenda do Google agora: ${esc(err)}. Confira o endereço secreto nos passos abaixo.</div>` : ''}
+    ${err ? `<div class="banner warn" style="margin-bottom:12px">Não consegui ler a agenda do Google agora: ${esc(err)}. Confira o endereço nos passos abaixo.</div>` : ''}
     <ol class="ag-steps">
       <li>No Google Agenda (no computador), clique na engrenagem › <b>Configurações</b>.</li>
       <li>À esquerda, em <b>Configurações de minhas agendas</b>, escolha a agenda onde ficam as suas reuniões.</li>
-      <li>Role até <b>Integrar agenda</b> e copie o <b>Endereço secreto no formato iCal</b> (ele tem <code>private-</code> no meio). Não use o “Endereço público”: ele só funciona se a agenda estiver aberta ao público.</li>
-      <li>Guarde esse endereço no servidor com o comando abaixo, trocando o texto entre aspas. Ele funciona como uma senha de leitura da sua agenda: não cole em chats nem em lugares públicos.
+      <li>Em <b>Permissões de acesso a eventos</b>, marque <b>Disponibilizar publicamente</b> e escolha <b>Ver somente disponibilidade (ocultar detalhes)</b>: é o suficiente e não expõe o nome dos compromissos. Depois, em <b>Integrar agenda</b>, copie o <b>Endereço público no formato iCal</b>. (Se o seu Google tiver o <b>Endereço secreto no formato iCal</b>, ele também serve e dispensa tornar a agenda pública.)</li>
+      <li>Guarde esse endereço no servidor com o comando abaixo, trocando o texto entre aspas. O endereço secreto funciona como uma senha de leitura: não cole em chats nem em lugares públicos.
         <pre class="ag-cmd">${esc(AG_CMD)}</pre><button class="btn sm" data-a="copy-text" data-v="${attr(AG_CMD)}">Copiar comando</button></li>
       <li>Volte aqui e clique em <b>Atualizar agora</b>.</li>
     </ol>
