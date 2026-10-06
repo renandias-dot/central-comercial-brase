@@ -290,6 +290,38 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .tr-open{margin-top:8px;display:inline-flex;border:1px solid var(--line-2)}.tr-open:hover{background:var(--sunken)}
 .idl-tbl .lnk-btn{border:0;background:none;padding:0;margin-top:3px;color:var(--accent-strong);font:700 11px/1.2 var(--f-body);cursor:pointer;text-align:left}.idl-tbl .lnk-btn:hover{text-decoration:underline}
 .modal-wrap.low{z-index:39}
+.ag-tools{display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.ag-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
+@media (max-width:1060px){.ag-main{grid-template-columns:minmax(0,1fr)}}
+.ag-days{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:10px}
+.ag-day{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px;display:grid;gap:8px;align-content:start}
+.ag-day.today{border-color:var(--accent)}
+.ag-day-h{display:flex;justify-content:space-between;align-items:baseline;gap:6px;font-weight:700;font-size:13.5px}
+.ag-day-h small{font-weight:600;color:var(--muted);font-size:11.5px}
+.ag-slots{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.ag-s{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:36px;padding:4px 6px;border-radius:8px;border:1px solid var(--line);font:600 13px/1.1 var(--f-body);font-variant-numeric:tabular-nums;background:var(--surface);color:var(--ink);text-align:center;min-width:0}
+.ag-s small{font-size:10.5px;font-weight:500;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+button.ag-s{cursor:pointer}
+.ag-s.free{border-color:color-mix(in srgb,var(--good) 55%,transparent);background:var(--good-soft);color:var(--good)}
+.ag-s.free:hover{background:color-mix(in srgb,var(--good) 18%,var(--good-soft))}
+.ag-s.free.on{background:var(--good);color:#fff;border-color:var(--good)}
+.ag-s.held{border-color:color-mix(in srgb,var(--warn) 55%,transparent);background:var(--warn-soft);color:var(--warn)}
+.ag-s.busy{background:var(--sunken);color:var(--muted);border-color:transparent}
+.ag-s.busy.crm{background:color-mix(in srgb,var(--s1) 14%,var(--surface));color:var(--ink-2)}
+.ag-s.soon{opacity:.45;border-style:dashed;color:var(--muted)}
+.ag-bar{position:sticky;top:8px;z-index:6;display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:var(--ink);color:var(--surface);padding:10px 14px;border-radius:12px;box-shadow:var(--shadow);margin-bottom:12px;font-size:13px}
+.ag-bar-a{display:flex;gap:8px}.ag-bar .btn.ghost{color:inherit}
+.ag-hold{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:8px;margin-bottom:10px}
+.ag-hold-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.ag-hold-m{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ag-hrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:space-between;font-size:13px}.ag-hrow-a{display:flex;gap:6px;margin-left:auto}
+.ag-resl{display:grid;gap:6px;max-height:min(46vh,360px);overflow:auto}
+.ag-res{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;text-align:left;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);cursor:pointer;font:inherit;color:inherit}
+.ag-res:hover{background:var(--sunken)}.ag-res small{display:block;color:var(--muted);font-size:11.5px}
+.ag-chosen{display:flex;gap:6px;flex-wrap:wrap}
+.ag-pick{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:var(--sunken)}
+.modal.ag-offer{width:min(560px,100%)}
+.ag-steps{margin:0;padding-left:20px;display:grid;gap:10px;font-size:13.5px}
+.ag-cmd{margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--sunken);font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .modal.cr{width:min(1000px,100%);gap:12px}
 .cr-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .cr-h h2{overflow-wrap:anywhere}.cr-h small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere}
@@ -471,6 +503,7 @@ const ACTIVE = s => !CLOSED.has(s);
 const DEFAULT_CONFIG = {
   commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
   handoffOnDone: true,
+  agenda: {days: [1, 2, 3, 4, 5], start: '09:00', end: '18:00', lunchFrom: '12:00', lunchTo: '13:30', duration: 30, step: 30, minNoticeH: 2, holdWarnH: 24, showTitles: false},
   ideal: {ctr: 2, cpl: 40, desq: 35, booking: 15, show: 75, close: 30, onTime: 90, firstTouch: 15, sla5: 80},
   cadence: [
     {title:'Primeiro contato', gap:0},
@@ -482,7 +515,7 @@ const DEFAULT_CONFIG = {
   autoAssign: true,
   lossReasons: ['Sem orçamento','Sem resposta','Já tem agência','Não é o momento','Fora do perfil (ICP)','Preço','Outro'],
 };
-const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats'];
+const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats','holds'];
 const BUCKETS = [
   {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','print','qualificando','agendando']},
   {id: 'marcada', name: 'Reunião marcada', color: '#d49b0b', st: ['marcada']},
@@ -498,7 +531,7 @@ const MONTHS = ['janeiro','fevereiro','março','abril','maio','junho','julho','a
 const MON3 = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
 const WD = ['dom','seg','ter','qua','qui','sex','sáb'];
 const WD1 = ['D','S','T','Q','Q','S','S'];
-const VIEW_IDS = ['hoje','pipeline','comissao','analises','trafego','processos','whatsapp','config'];
+const VIEW_IDS = ['hoje','agenda','pipeline','comissao','analises','trafego','processos','whatsapp','config'];
 
 const I = {
   sun:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></svg>',
@@ -553,13 +586,13 @@ const adjWeekend = s => { if (!cfg().skipWeekends) return s; const w = parseYmd(
 const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0]||'?')[0] + (p.length > 1 ? p[p.length-1][0] : '')).toUpperCase() };
 
 /* ---------- state ---------- */
-const S = { sellers:{}, leads:{}, tasks:{}, routines:{}, routineLog:{}, docs:{}, adjustments:{}, config:{}, meta:{}, wa_stats:{}, ready:{}, dbOk:false, connecting:true };
+const S = { sellers:{}, leads:{}, tasks:{}, routines:{}, routineLog:{}, docs:{}, adjustments:{}, config:{}, meta:{}, wa_stats:{}, holds:{}, ready:{}, dbOk:false, connecting:true };
 const UI = {
   view: (() => { const h = (location.hash || '').slice(1); if (VIEW_IDS.includes(h)) return h; const v = ls.get('brase.view'); return VIEW_IDS.includes(v) ? v : 'hoje' })(),
   me: ls.get('brase.me') || '',
   owner: null, search: '', showSide: ls.get('brase.side') !== '0',
   anMode: 'week', anOffset: 0, anOwner: '', anBase: 'cohort', anFrom: '', anTo: '',
-  cr: null, trMode: 'all', trOffset: 0, trDim: 'ad', trFrom: '', trTo: '', trTab: 'num',
+  cr: null, agWeek: 0, agSel: [], ag: null, agFree: false, calLoading: false, calTried: false, calErr: null, calCode: null, trMode: 'all', trOffset: 0, trDim: 'ad', trFrom: '', trTo: '', trTab: 'num',
   dist: {from: 'frio+morno', owner: '*', minRev: '0', qty: 20, to: '', cadence: true, move: 'keep'},
   comSeller: '', comOffset: 0,
   docId: null, docEdit: false, docQ: '',
@@ -569,9 +602,9 @@ const UI = {
 UI.owner = UI.me;
 let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
-let HOSTCALL = null, HOSTMETA = false;
+let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null;
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -1036,8 +1069,9 @@ function renderCreative(host){
 }
 function renderModal(){
   const host = $('#modal-host');
-  if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; crLast = ''; return }
+  if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; crLast = ''; offerLast = ''; return }
   if (UI.modal === 'creative') return renderCreative(host);
+  if (UI.modal === 'offer') return renderOffer(host);
   if (host.dataset.m === UI.modal && host.innerHTML) return;
   host.dataset.m = UI.modal;
   const c = cfg(), cad = buildCadence(today());
@@ -1496,6 +1530,216 @@ function idealTrafficHTML(p){
       </div></section>`;
 }
 
+/* ---------- views: AGENDA ---------- */
+// Horário livre = expediente configurado − compromissos da agenda do Google − reuniões já marcadas no CRM − horários oferecidos a leads.
+// Um horário oferecido fica reservado para aquele lead até a reunião ser confirmada ou o horário ser liberado, para o SDR não oferecer o mesmo horário duas vezes.
+const WDL = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const tmin = s => { const [h, m] = String(s || '0:0').split(':').map(Number); return (h || 0) * 60 + (m || 0) };
+const hm = m => pad(Math.floor(m / 60)) + ':' + pad(m % 60);
+const hh = m => Math.floor(m / 60) + 'h' + (m % 60 ? pad(m % 60) : '');
+const slotMs = (day, m) => { const d = parseYmd(day); d.setMinutes(m); return +d };
+const localStr = ms => { const d = new Date(ms); return ymd(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) };
+const minOfMs = ms => { const d = new Date(ms); return d.getHours() * 60 + d.getMinutes() };
+const agCfg = () => cfg().agenda;
+const agHoldId = ms => 'h' + localStr(ms).replace(/\D/g, '');
+const agDayLabel = d => cap(wdOf(d)) + ' ' + fmtDM(d);
+// Só dá para oferecer horário a quem ainda está sendo trabalhado e não tem reunião marcada.
+const canHold = l => !!l && ACTIVE(l.stage) && l.stage !== 'marcada' && l.stage !== 'feita';
+function agBusy(){
+  const out = [], cal = S.meta.calendar, dur = agCfg().duration * 60e3;
+  ((cal && cal.events) || []).forEach(ev => {
+    if (ev.ad){ const s = +parseYmd(ev.s.slice(0, 10)), e = +parseYmd(ev.e.slice(0, 10)); out.push({s, e: e > s ? e : s + 864e5, kind: 'google', allDay: true, label: ev.t || 'Dia inteiro'}); return }
+    const s = +new Date(ev.s), e = +new Date(ev.e); if (!isNaN(s) && !isNaN(e)) out.push({s, e, kind: 'google', label: ev.t || 'Ocupado'});
+  });
+  leadsArr().forEach(l => { if (l.stage === 'marcada' && l.meetingAt){ const s = +new Date(l.meetingAt); if (!isNaN(s)) out.push({s, e: s + dur, kind: 'crm', label: l.name, leadId: l.id}) } });
+  return out;
+}
+function agHolds(){
+  const now = Date.now(), dur = agCfg().duration;
+  return Object.entries(S.holds || {}).map(([id, h]) => ({...h, id, s: +new Date(h.start), e: +new Date(h.start) + (+h.dur || dur) * 60e3}))
+    .filter(h => h.leadId && !isNaN(h.s) && h.e > now && canHold(S.leads[h.leadId]));
+}
+function agDaySlots(day, ctx){
+  const c = agCfg(), dur = c.duration, st = tmin(c.start), en = tmin(c.end), l1 = tmin(c.lunchFrom), l2 = tmin(c.lunchTo), notice = ctx.now + c.minNoticeH * 36e5, out = [];
+  for (let m = st; m + dur <= en; m += Math.max(5, c.step)){
+    if (l2 > l1 && m < l2 && m + dur > l1) continue;
+    const s = slotMs(day, m), e = s + dur * 60e3;
+    if (e <= ctx.now) continue;
+    const b = ctx.busy.find(x => x.s < e && x.e > s), h = ctx.holds.find(x => x.s < e && x.e > s);
+    out.push({s, e, m, b, h, state: b ? 'busy' : h ? 'held' : s < notice ? 'soon' : 'free'});
+  }
+  return out;
+}
+function agWeekDays(){
+  const c = agCfg(), t = today(), s = addDays(weekStart(t), 7 * UI.agWeek);
+  return [0, 1, 2, 3, 4, 5, 6].map(i => addDays(s, i)).filter(d => c.days.includes(parseYmd(d).getDay()) && d >= t);
+}
+function agSlotText(starts){
+  const by = {}; starts.slice().sort((a, b) => a - b).forEach(s => (by[ymd(new Date(s))] ||= []).push(minOfMs(s)));
+  const parts = Object.entries(by).map(([d, ms]) => `${WDL[parseYmd(d).getDay()]} (${fmtDM(d)}) às ${ms.length < 2 ? hh(ms[0]) : ms.slice(0, -1).map(hh).join(', ') + ' ou ' + hh(ms[ms.length - 1])}`);
+  return `Tenho estes horários livres: ${parts.join('; ')}. Qual fica melhor pra você?`;
+}
+// Seleção só vale para horários que continuam livres (a agenda pode ter mudado).
+function agSelValid(){
+  if (!(UI.agSel || []).length) return [];
+  const ctx = {now: Date.now(), busy: agBusy(), holds: agHolds()}, free = new Set();
+  new Set(UI.agSel.map(s => ymd(new Date(s)))).forEach(d => agDaySlots(d, ctx).forEach(x => { if (x.state === 'free') free.add(x.s) }));
+  return UI.agSel = UI.agSel.filter(s => free.has(s));
+}
+function agStatusChip(cal){
+  if (!cal || !cal.fetchedAt) return '';
+  const age = Date.now() - Date.parse(cal.fetchedAt), at = new Date(cal.fetchedAt), hhmm = pad(at.getHours()) + ':' + pad(at.getMinutes());
+  if (cal.error) return `<span class="chip late" title="${attr(cal.error)}">Falha ao atualizar · mostrando dados das ${hhmm}</span>`;
+  return `<span class="chip ${age > 10 * 60e3 ? 'today' : 'ok'}" title="A agenda do Google é lida de novo a cada 1 a 2 minutos enquanto esta aba está aberta.">Google Agenda · ${age < 90e3 ? 'atualizada agora' : 'atualizada há ' + minsAgo(cal.fetchedAt)}</span>`;
+}
+const AG_CMD = 'supabase secrets set GOOGLE_CALENDAR_ICS_URL="COLE_AQUI_O_ENDERECO_SECRETO" --project-ref wndgqvkeguampmtmkmhq';
+function agSetupHTML(err){
+  return `<section class="panel"><div class="panel-h"><h2>Conectar o Google Agenda</h2><span class="sub">uma vez só, leva uns 2 minutos</span></div><div class="panel-b">
+    ${err ? `<div class="banner warn" style="margin-bottom:12px">Não consegui ler a agenda do Google agora: ${esc(err)}. Confira o endereço secreto nos passos abaixo.</div>` : ''}
+    <ol class="ag-steps">
+      <li>No Google Agenda (no computador), clique na engrenagem › <b>Configurações</b>.</li>
+      <li>À esquerda, em <b>Configurações de minhas agendas</b>, escolha a agenda onde ficam as suas reuniões.</li>
+      <li>Role até <b>Integrar agenda</b> e copie o <b>Endereço secreto no formato iCal</b>.</li>
+      <li>Guarde esse endereço no servidor com o comando abaixo, trocando o texto entre aspas. Ele funciona como uma senha de leitura da sua agenda: não cole em chats nem em lugares públicos.
+        <pre class="ag-cmd">${esc(AG_CMD)}</pre><button class="btn sm" data-a="copy-text" data-v="${attr(AG_CMD)}">Copiar comando</button></li>
+      <li>Volte aqui e clique em <b>Atualizar agora</b>.</li>
+    </ol>
+    <p class="hint" style="margin-top:10px">A conexão é só de leitura: o site nunca cria nem altera compromissos na sua agenda. Se você gerar um novo endereço secreto no Google, repita o passo 4. Mudanças recentes na agenda podem levar alguns minutos para chegar pelo endereço iCal do Google.</p>
+  </div></section>`;
+}
+function viewAgenda(){
+  if (!loaded()) return loading();
+  const sub = 'Horários livres da sua agenda do Google (só leitura), já descontando o que foi oferecido a leads. Um horário oferecido fica reservado para aquele lead até confirmar ou liberar.';
+  if (!HOSTCAL) return head('Agenda', sub) + '<div class="banner">A conexão com o Google Agenda funciona no site publicado, não nesta versão.</div>';
+  const cal = S.meta.calendar, act = `<button class="btn" data-a="ag-refresh" ${UI.calLoading ? 'disabled' : ''}>${UI.calLoading ? 'Atualizando…' : 'Atualizar agora'}</button>`;
+  if (!cal || !cal.fetchedAt){
+    if (UI.calLoading || !UI.calTried) return head('Agenda', sub, act) + '<div class="panel"><div class="panel-b"><div class="empty">Buscando a agenda do Google…</div></div></div>';
+    return head('Agenda', sub, act) + agSetupHTML(UI.calCode === 'not_configured' ? '' : UI.calErr);
+  }
+  const c = agCfg(), ctx = {now: Date.now(), busy: agBusy(), holds: agHolds()}, t0 = today();
+  let days = agWeekDays(); if (!days.length && UI.agWeek === 0){ UI.agWeek = 1; days = agWeekDays() }
+  const sel = new Set(agSelValid()), covered = addDays(localDay(cal.to) || t0, -1);
+  const chip = x => {
+    const tt = hm(x.m);
+    if (x.state === 'free'){ const on = sel.has(x.s); return `<button class="ag-s free ${on ? 'on' : ''}" data-a="ag-pick" data-s="${x.s}" aria-pressed="${on}" title="${on ? 'Clique para tirar da seleção' : 'Livre. Clique para selecionar e oferecer a um lead'}">${tt}</button>` }
+    if (x.state === 'held'){ const l = S.leads[x.h.leadId]; return `<button class="ag-s held" data-a="open-lead" data-id="${attr(x.h.leadId)}" title="${attr('Oferecido a ' + (l ? l.name : 'um lead') + '. Clique para abrir o lead.')}">${tt}<small>${esc(l ? l.name : 'Oferecido')}</small></button>` }
+    if (x.state === 'busy'){ const crm = x.b.kind === 'crm', lab = crm ? 'Reunião: ' + x.b.label : x.b.label; return `<span class="ag-s busy ${x.b.kind}" title="${attr(lab)}">${tt}<small>${esc(lab)}</small></span>` }
+    return `<span class="ag-s soon" title="Muito perto para oferecer (antecedência mínima de ${c.minNoticeH} h)">${tt}</span>`;
+  };
+  const dayCard = d => {
+    const all = agDaySlots(d, ctx), free = all.filter(x => x.state === 'free').length;
+    const ds = slotMs(d, 0), allDay = ctx.busy.filter(b => b.allDay && b.s <= ds && b.e > ds), list = allDay.length ? [] : UI.agFree ? all.filter(x => x.state === 'free' || x.state === 'held') : all;
+    return `<section class="ag-day ${d === t0 ? 'today' : ''}"><div class="ag-day-h"><span>${agDayLabel(d)}${d === t0 ? ' · hoje' : ''}</span><small>${allDay.length ? 'ocupado' : free ? free + ' livre' + (free > 1 ? 's' : '') : 'sem horário'}</small></div>
+      ${allDay.map(b => `<div class="hint" title="Evento de dia inteiro">Dia inteiro: ${esc(b.label)}</div>`).join('')}
+      <div class="ag-slots">${list.map(chip).join('') || `<span class="hint" style="grid-column:1/-1">${allDay.length ? 'Dia inteiro ocupado.' : d === t0 ? 'Não há mais horários hoje.' : 'Nada neste dia.'}</span>`}</div></section>`;
+  };
+  const n = sel.size, bar = n ? `<div class="ag-bar"><span><b>${n}</b> horário${n > 1 ? 's' : ''} selecionado${n > 1 ? 's' : ''}: ${[...sel].sort((a, b) => a - b).map(s => `${wdOf(ymd(new Date(s)))} ${fmtDM(ymd(new Date(s)))} ${hm(minOfMs(s))}`).join(' · ')}</span><span class="ag-bar-a"><button class="btn sm ghost" data-a="ag-clear">Limpar</button><button class="btn sm primary" data-a="ag-offer-open">Oferecer a um lead…</button></span></div>` : '';
+  const groups = {}; ctx.holds.forEach(h => (groups[h.leadId] ||= []).push(h));
+  const warnMs = c.holdWarnH * 36e5, holdsHTML = Object.entries(groups).sort((a, b) => Math.min(...a[1].map(h => h.s)) - Math.min(...b[1].map(h => h.s))).map(([lid, hs]) => {
+    const l = S.leads[lid], oldest = Math.min(...hs.map(h => +new Date(h.at || Date.now()))), late = Date.now() - oldest > warnMs;
+    return `<div class="ag-hold"><div class="ag-hold-h"><button class="cr-lnk" data-a="open-lead" data-id="${attr(lid)}">${esc(l.name)}</button>${stagePill(l.stage)}</div>
+      <div class="ag-hold-m"><span class="chip ${late ? 'late' : ''}" title="Quando o primeiro horário foi oferecido">${late ? 'sem resposta há ' : 'oferecido há '}${minsAgo(oldest)}</span>${hs[0].by && S.sellers[hs[0].by] ? `<span class="hint">por ${esc(S.sellers[hs[0].by].name.split(' ')[0])}</span>` : ''}</div>
+      ${hs.sort((a, b) => a.s - b.s).map(h => { const dd = ymd(new Date(h.s)), clash = ctx.busy.some(b => b.kind === 'google' && b.s < h.e && b.e > h.s);
+        return `<div class="ag-hrow"><span class="num"><b>${agDayLabel(dd)}</b> · ${hm(minOfMs(h.s))}</span>${clash ? '<span class="chip late" title="Surgiu um compromisso na agenda do Google neste horário">agora ocupado</span>' : ''}<span class="ag-hrow-a"><button class="btn sm" data-a="ag-confirm" data-id="${attr(h.id)}" title="Marca a reunião no card do lead (Reunião Marcada) e libera os outros horários dele">Confirmar</button><button class="btn sm ghost" data-a="ag-release" data-id="${attr(h.id)}">Liberar</button></span></div>` }).join('')}
+      ${hs.length > 1 ? `<button class="btn sm ghost" data-a="ag-release-lead" data-id="${attr(lid)}">Liberar todos</button>` : ''}</div>`;
+  }).join('');
+  const meets = leadsArr().filter(l => l.stage === 'marcada' && l.meetingAt && +new Date(l.meetingAt) > Date.now() - 36e5).sort((a, b) => a.meetingAt.localeCompare(b.meetingAt)).slice(0, 8);
+  const pager = `<div class="pager"><button class="btn sm ghost" data-a="ag-week" data-v="-1" ${UI.agWeek <= 0 ? 'disabled' : ''} aria-label="Semana anterior">‹</button><span class="lbl">${UI.agWeek === 0 ? 'Esta semana' : UI.agWeek === 1 ? 'Próxima semana' : 'Daqui a ' + UI.agWeek + ' semanas'}</span><button class="btn sm ghost" data-a="ag-week" data-v="1" ${UI.agWeek >= 6 ? 'disabled' : ''} aria-label="Próxima semana">›</button></div>`;
+  const beyond = days.length && days[days.length - 1] > covered;
+  return head('Agenda', sub, `${agStatusChip(cal)}${act}`)
+    + (cal.error ? `<div class="banner warn">Não consegui atualizar a agenda do Google agora (${esc(cal.error)}). Os horários abaixo usam os dados das ${pad(new Date(cal.fetchedAt).getHours())}:${pad(new Date(cal.fetchedAt).getMinutes())} e podem estar desatualizados.</div>` : '')
+    + `<div class="ag-tools">${pager}<label class="switch" style="font-weight:500"><input type="checkbox" class="ck" data-c="ag-free" ${UI.agFree ? 'checked' : ''}> Mostrar só horários livres e oferecidos</label><span class="hint">Reunião de ${c.duration} min · ${c.start} às ${c.end} · almoço ${c.lunchFrom}–${c.lunchTo}. Ajuste em Configurações › Agenda.</span></div>`
+    + bar
+    + `<div class="ag-main"><div>${beyond ? `<div class="banner warn">A agenda do Google é lida só até ${fmtDM(covered)}: depois disso os horários aparecem livres sem conferir.</div>` : ''}<div class="ag-days">${days.map(dayCard).join('') || '<div class="empty">Sem dias de atendimento nesta semana.</div>'}</div></div>
+      <aside style="display:grid;gap:14px">
+        <section class="panel"><div class="panel-h"><h2>Oferecidos, aguardando</h2><span class="sub">${Object.keys(groups).length} lead${Object.keys(groups).length === 1 ? '' : 's'}</span></div><div class="panel-b">${holdsHTML || '<div class="empty">Nenhum horário oferecido no momento. Selecione horários livres e clique em “Oferecer a um lead”.</div>'}
+          <p class="hint" style="margin-top:8px">Horários oferecidos ficam bloqueados para os outros leads. Quando o lead escolher, clique em Confirmar: a reunião vai para o card e os outros horários dele são liberados. Horários que passaram, ou de leads que já foram perdidos ou marcaram, liberam sozinhos.</p></div></section>
+        <section class="panel"><div class="panel-h"><h2>Reuniões marcadas no CRM</h2></div><div class="panel-b">${meets.map(l => `<div class="ag-hrow"><span class="num"><b>${agDayLabel(localDay(l.meetingAt))}</b> · ${esc(l.meetingAt.slice(11, 16))}</span><button class="cr-lnk" data-a="open-lead" data-id="${attr(l.id)}">${esc(l.name)}</button></div>`).join('') || '<div class="empty">Nenhuma reunião marcada.</div>'}
+          <p class="hint" style="margin-top:8px">Também bloqueiam o horário, mesmo que o convite ainda não esteja no Google Agenda.</p></div></section>
+      </aside></div>`;
+}
+let calBusy = false;
+async function refreshCalendar(force, quiet){
+  if (!HOSTCAL || calBusy) return;
+  calBusy = true; if (!quiet){ UI.calLoading = true; if (UI.view === 'agenda') render() }
+  try { await HOSTCAL(force); UI.calErr = null; UI.calCode = null }
+  catch (e){ UI.calErr = (e && e.message) || 'erro'; UI.calCode = e && e.code }
+  finally { calBusy = false; UI.calLoading = false; UI.calTried = true; render() }
+}
+/* ----- oferecer horários a um lead ----- */
+function agLeadResults(){
+  const ag = UI.ag || {}, q = (ag.q || '').trim().toLowerCase(), dq = q.replace(/\D/g, ''), held = {};
+  agHolds().forEach(h => { held[h.leadId] = (held[h.leadId] || 0) + 1 });
+  const rank = {agendando: 0, qualificando: 1, print: 2, novo: 3, morno: 4, frio: 5}, me = validMe();
+  let list = leadsArr().filter(l => canHold(l) && !l.example);
+  if (q) list = list.filter(l => [l.name, l.contact, l.company].some(v => String(v || '').toLowerCase().includes(q)) || (dq.length >= 4 && String(l.phone || '').replace(/\D/g, '').includes(dq)));
+  else if (me && S.sellers[me] && S.sellers[me].role !== 'Gestor') list = list.filter(l => l.ownerId === me);
+  list = list.sort((a, b) => (rank[a.stage] ?? 9) - (rank[b.stage] ?? 9) || (b.updatedAt || '').localeCompare(a.updatedAt || '')).slice(0, 8);
+  return list.map(l => `<button class="ag-res" data-a="ag-lead" data-id="${attr(l.id)}"><span><b>${esc(l.name)}</b><small>${esc([l.contact, STAGE[l.stage].name].filter(Boolean).join(' · '))}</small></span>${held[l.id] ? `<span class="chip today">${held[l.id]} oferecido${held[l.id] > 1 ? 's' : ''}</span>` : ''}</button>`).join('') || '<div class="empty">Nenhum lead encontrado.</div>';
+}
+function offerModalHTML(){
+  const ag = UI.ag || {}, starts = (UI.agSel || []).slice().sort((a, b) => a - b), lead = ag.lead && S.leads[ag.lead];
+  const chosen = starts.map(s => `<span class="chip meet">${esc(agDayLabel(ymd(new Date(s))))} · ${hm(minOfMs(s))}</span>`).join('');
+  const body = lead ? `<div class="ag-pick"><div><b>${esc(lead.name)}</b><small class="hint" style="display:block">${esc([lead.contact, STAGE[lead.stage].name].filter(Boolean).join(' · '))}</small></div><button class="btn sm ghost" data-a="ag-unlead">Trocar</button></div>
+      <label class="f">Mensagem para enviar ao lead<textarea class="in" id="ag-msg" rows="4" data-i="ag-msg">${esc(ag.msg || '')}</textarea></label>
+      <p class="hint">Reservar bloqueia estes horários para os outros leads até você confirmar ou liberar.</p>
+      <div class="foot"><button class="btn ghost" data-a="close-modal">Cancelar</button><button class="btn" data-a="ag-reserve" data-copy="0">Só reservar</button><button class="btn primary" data-a="ag-reserve" data-copy="1">Reservar e copiar mensagem</button></div>`
+    : `<label class="f">Para qual lead?<input class="in" id="ag-q" data-i="ag-q" placeholder="Buscar por nome, contato ou telefone" value="${attr(ag.q || '')}" autocomplete="off"></label>
+      <div id="ag-res" class="ag-resl">${agLeadResults()}</div>
+      <div class="foot"><button class="btn ghost" data-a="close-modal">Cancelar</button></div>`;
+  return `<div class="modal-wrap"><div class="modal ag-offer" role="dialog" aria-modal="true" aria-label="Oferecer horários"><h2>Oferecer ${starts.length} horário${starts.length > 1 ? 's' : ''}</h2><div class="ag-chosen">${chosen}</div>${body}</div></div>`;
+}
+let offerLast = '';
+function renderOffer(host){
+  const html = offerModalHTML();
+  if (host.dataset.m === 'offer' && html === offerLast && host.innerHTML) return;
+  const a = document.activeElement, keep = a && a.id && host.contains(a) ? {id: a.id, s: a.selectionStart, e: a.selectionEnd} : null;
+  host.dataset.m = 'offer'; offerLast = html; host.innerHTML = html;
+  const f = keep && host.querySelector('#' + keep.id) || (UI.ag && UI.ag.lead ? null : host.querySelector('#ag-q'));
+  if (f){ f.focus(); if (keep && keep.s != null){ try { f.setSelectionRange(keep.s, keep.e) } catch {} } }
+}
+async function agReserve(copyMsg){
+  const ag = UI.ag, lead = ag && S.leads[ag.lead]; if (!lead) return;
+  const c = agCfg(), busy = agBusy(), holds = agHolds(), ok = [], bad = [];
+  for (const s of (UI.agSel || []).slice().sort((a, b) => a - b)){
+    const e = s + c.duration * 60e3, own = holds.find(x => x.s === s && x.leadId === ag.lead), b = busy.find(x => x.s < e && x.e > s), h = holds.find(x => x.s < e && x.e > s && x !== own);
+    if (b) bad.push('ocupado na agenda'); else if (h) bad.push('já oferecido a ' + ((S.leads[h.leadId] || {}).name || 'outro lead')); else ok.push({s, own: !!own});
+  }
+  if (!ok.length){ toast('Esses horários não estão mais livres' + (bad[0] ? ' (' + bad[0] + ')' : '') + '. Escolha outros.', 'err'); UI.modal = null; UI.agSel = []; renderModal(); render(); return }
+  const me = validMe(), at = iso();
+  await Promise.all(ok.filter(x => !x.own).map(x => put('holds', agHoldId(x.s), {leadId: ag.lead, start: localStr(x.s), dur: c.duration, by: me, at})));
+  const msg = bad.length ? agSlotText(ok.map(x => x.s)) : (ag.msg || agSlotText(ok.map(x => x.s)));
+  if (copyMsg) copy(msg);
+  UI.modal = null; UI.agSel = []; renderModal(); render();
+  toast(`${ok.length} horário${ok.length > 1 ? 's' : ''} reservado${ok.length > 1 ? 's' : ''} para ${lead.name}${copyMsg ? ' · mensagem copiada' : ''}${bad.length ? ` · ${bad.length} não estava${bad.length > 1 ? 'm' : ''} mais livre${bad.length > 1 ? 's' : ''}` : ''}`);
+}
+async function agConfirm(hid){
+  const h = S.holds[hid], lead = h && S.leads[h.leadId]; if (!lead) return;
+  const l = clone(lead); l.meetingAt = h.start; l.updatedAt = iso();
+  await put('leads', h.leadId, l);
+  moveLead(h.leadId, 'marcada');
+  Object.entries(S.holds || {}).filter(([, x]) => x.leadId === h.leadId).forEach(([id]) => del('holds', id));
+  const d = localDay(h.start);
+  toast(`Reunião marcada com ${lead.name}: ${wdOf(d)} ${fmtDM(d)} às ${h.start.slice(11, 16)}. Crie o convite no Google Agenda; até lá o horário continua bloqueado aqui.`);
+}
+
+/* ----- Configurações › Agenda ----- */
+function agConfigHTML(){
+  const A = cfg().agenda, cal = S.meta.calendar;
+  const fld = (k, lab, type, extra = '') => `<label class="f">${lab}<input class="in" type="${type}" ${extra} data-c="cfg-ag" data-k="${k}" id="ag-${k}" value="${attr(A[k])}"></label>`;
+  const sel = (k, lab, opts) => `<label class="f">${lab}<select class="in" data-c="cfg-ag" data-k="${k}" id="ag-${k}">${opts.map(o => `<option value="${o}" ${+A[k] === o ? 'selected' : ''}>${o} min</option>`).join('')}</select></label>`;
+  return `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:16px;max-width:820px">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">${cal && cal.fetchedAt ? agStatusChip(cal) : '<span class="chip">Google Agenda ainda não conectado</span>'}<button class="btn sm" data-a="nav" data-v="agenda">Abrir a Agenda</button></div>
+    <p class="hint">Define o que aparece como horário livre na aba Agenda. O Google só informa o que está ocupado: o resto, dentro do expediente abaixo, vira horário livre.</p>
+    <div><h3 style="margin-bottom:8px">Dias de atendimento</h3><div style="display:flex;gap:16px;flex-wrap:wrap">${[1, 2, 3, 4, 5, 6, 0].map(d => `<label class="switch" style="font-weight:500"><input type="checkbox" class="ck" data-c="cfg-ag-day" data-d="${d}" ${A.days.includes(d) ? 'checked' : ''}> ${cap(WD[d])}</label>`).join('')}</div></div>
+    <div><h3 style="margin-bottom:8px">Expediente</h3><div class="fgrid three">${fld('start', 'Início', 'time')}${fld('end', 'Fim', 'time')}</div><div class="fgrid three" style="margin-top:12px">${fld('lunchFrom', 'Almoço, início', 'time')}${fld('lunchTo', 'Almoço, fim', 'time')}</div></div>
+    <div><h3 style="margin-bottom:8px">Reunião</h3><div class="fgrid three">${sel('duration', 'Duração da reunião', [15, 20, 30, 45, 60, 90])}${sel('step', 'Intervalo entre horários', [15, 20, 30, 45, 60])}${fld('minNoticeH', 'Antecedência mínima (horas)', 'number', 'min="0" max="72" step="1"')}</div></div>
+    <div><h3 style="margin-bottom:8px">Ofertas aos leads</h3><div class="fgrid three">${fld('holdWarnH', 'Avisar oferta sem resposta após (horas)', 'number', 'min="1" max="240" step="1"')}</div></div>
+    <label class="switch"><input type="checkbox" class="ck" data-c="cfg-ag" data-k="showTitles" ${A.showTitles ? 'checked' : ''}> Mostrar o nome dos compromissos do Google (desligado: todo mundo vê só “Ocupado”)</label>
+    <div class="actions"><button class="btn sm" data-a="ag-defaults" data-confirm="Sim, restaurar padrão">Restaurar valores padrão</button></div>
+  </div></section>`;
+}
+
 /* ---------- views: TRÁFEGO ---------- */
 function trPeriod(){
   if (UI.trMode === 'all') return {all: true, label: 'Todo o período', name: 'no total'};
@@ -1870,7 +2114,7 @@ async function runDistribution(btn){
 }
 function viewConfig(){
   if (!loaded()) return loading();
-  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
+  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
   const c = cfg(); let body = '';
   if (UI.cfgTab === 'distribuir'){
     const d = UI.dist, cands = distCandidates(), qty = Math.min(Math.max(1, +d.qty || 1), 100, cands.length);
@@ -1917,6 +2161,8 @@ function viewConfig(){
       </div>
       <p class="hint">Reunião realizada = card chega em Reunião Feita (ou direto em Fechado). Venda = card em Fechado. Vale o ciclo da data registrada no card: do dia de fechamento até o dia anterior ao fechamento do mês seguinte (com 10, o ciclo de 10/09 vai até 09/10). Mudar valores ou o dia recalcula todos os ciclos.</p>
     </div></section>`;
+  } else if (UI.cfgTab === 'agenda'){
+    body = agConfigHTML();
   } else if (UI.cfgTab === 'ideal'){
     const I = c.ideal, T = idealTargets(), fld = (k, lab, step) => `<label class="f">${lab}<input class="in" type="number" min="0" step="${step}" data-c="cfg-ideal" data-k="${k}" id="ideal-${k}" value="${I[k]}"></label>`;
     body = `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:16px;max-width:820px">
@@ -1999,9 +2245,9 @@ function viewConfig(){
 }
 
 /* ---------- render ---------- */
-const VIEWS = {hoje: viewHoje, pipeline: viewPipeline, comissao: viewComissao, analises: viewAnalises, trafego: viewTrafego, processos: viewProcessos, whatsapp: viewWhats, config: viewConfig};
+const VIEWS = {hoje: viewHoje, agenda: viewAgenda, pipeline: viewPipeline, comissao: viewComissao, analises: viewAnalises, trafego: viewTrafego, processos: viewProcessos, whatsapp: viewWhats, config: viewConfig};
 function navHTML(){
-  const items = [['hoje', 'Hoje', I.sun], ['pipeline', 'Pipeline', I.cols], ['comissao', 'Comissão', I.coin], ['analises', 'Análises', I.bars], ['trafego', 'Tráfego', I.target], ['processos', 'Processos', I.book], ['whatsapp', 'WhatsApp', I.chat], ['config', 'Configurações', I.gear]];
+  const items = [['hoje', 'Hoje', I.sun], ['agenda', 'Agenda', I.cal], ['pipeline', 'Pipeline', I.cols], ['comissao', 'Comissão', I.coin], ['analises', 'Análises', I.bars], ['trafego', 'Tráfego', I.target], ['processos', 'Processos', I.book], ['whatsapp', 'WhatsApp', I.chat], ['config', 'Configurações', I.gear]];
   const badge = loaded() ? todayCount(validMe()) : 0;
   const sync = S.connecting ? '<span class="sync wait">Conectando…</span>' : S.dbOk ? '<span class="sync">Sincronizado com a equipe</span>' : '<span class="sync off">Modo local · nada é salvo</span>';
   return `<div class="brand"><div class="brand-mark">B</div><div><div class="brand-name">Brase</div><div class="brand-sub">Central comercial</div></div></div>
@@ -2030,11 +2276,24 @@ function copy(v){ try { navigator.clipboard.writeText(v).then(() => toast('Copia
 
 /* ---------- actions ---------- */
 const ACT = {
-  nav: t => { UI.view = t.dataset.v; ls.set('brase.view', UI.view); UI.drawer = null; render(); window.scrollTo(0, 0) },
+  nav: t => { UI.view = t.dataset.v; ls.set('brase.view', UI.view); UI.drawer = null; render(); window.scrollTo(0, 0); if (UI.view === 'agenda') refreshCalendar(false, true) },
   'open-lead': t => openLead(t.dataset.id),
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
+  'ag-refresh': () => refreshCalendar(true),
+  'ag-pick': t => { const s = +t.dataset.s, set = new Set(UI.agSel || []); if (set.has(s)) set.delete(s); else { if (set.size >= 5){ toast('Selecione até 5 horários por lead.', 'err'); return } set.add(s) } UI.agSel = [...set]; render() },
+  'ag-clear': () => { UI.agSel = []; render() },
+  'ag-week': t => { UI.agWeek = Math.max(0, Math.min(6, UI.agWeek + (+t.dataset.v))); render() },
+  'ag-offer-open': () => { if (!agSelValid().length){ toast('Selecione horários livres primeiro.', 'err'); render(); return } UI.ag = {q: '', lead: '', msg: ''}; UI.modal = 'offer'; renderModal() },
+  'ag-lead': t => { if (!UI.ag) return; UI.ag.lead = t.dataset.id; UI.ag.msg = agSlotText(agSelValid()); renderModal() },
+  'ag-unlead': () => { if (!UI.ag) return; UI.ag.lead = ''; renderModal() },
+  'ag-reserve': t => agReserve(t.dataset.copy === '1'),
+  'ag-release': t => { del('holds', t.dataset.id); toast('Horário liberado') },
+  'ag-release-lead': t => { Object.entries(S.holds || {}).filter(([, h]) => h.leadId === t.dataset.id).forEach(([id]) => del('holds', id)); toast('Horários liberados') },
+  'ag-confirm': t => agConfirm(t.dataset.id),
+  'ag-defaults': () => { saveCfg({agenda: {...DEFAULT_CONFIG.agenda}}); toast('Configurações da agenda restauradas') },
+  'copy-text': t => copy(t.dataset.v),
   'open-cr': t => { const d = t.dataset; UI.cr = {src: d.src, dim: d.dim || 'ad', k: d.k, name: d.name || '', sub: d.sub || '', scope: 'p', tab: null}; UI.modal = 'creative'; renderModal() },
   'cr-tab': t => { if (!UI.cr) return; UI.cr.tab = t.dataset.v; $('#modal-host').dataset.m = ''; renderModal() },
   'cr-scope': t => { if (!UI.cr) return; UI.cr.scope = t.dataset.v; UI.cr.tab = null; $('#modal-host').dataset.m = ''; renderModal() },
@@ -2127,6 +2386,14 @@ const CHG = {
   'touch-f': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); const x = (l.touches || []).find(y => y.id === t.dataset.touch); if (!x || (t.dataset.k === 'due' && !t.value)) return; x[t.dataset.k] = t.value; put('leads', t.dataset.lead, l) },
   'seller-f': t => { const s = S.sellers[t.dataset.id]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value; if (k === 'goalMeetings' || k === 'goalSales') v = v === '' ? null : Math.max(0, Number(v)); if (k === 'name' && !String(v).trim()) return; put('sellers', t.dataset.id, {...clone(s), [k]: v}) },
   'cfg-ideal': t => { const v = Number(t.value); if (!isFinite(v) || v <= 0) return; saveCfg({ideal: {...cfg().ideal, [t.dataset.k]: v}}) },
+  'ag-free': t => { UI.agFree = t.checked; render() },
+  'cfg-ag-day': t => { const d = +t.dataset.d, set = new Set(cfg().agenda.days); t.checked ? set.add(d) : set.delete(d); saveCfg({agenda: {...cfg().agenda, days: [...set].sort()}}) },
+  'cfg-ag': t => {
+    const k = t.dataset.k, A = cfg().agenda; let v = t.type === 'checkbox' ? t.checked : t.value;
+    if (['duration', 'step', 'minNoticeH', 'holdWarnH'].includes(k)){ v = Number(v); if (!isFinite(v) || v < 0 || (k !== 'minNoticeH' && v < 1)) return }
+    if (['start', 'end', 'lunchFrom', 'lunchTo'].includes(k)){ if (!/^\d\d:\d\d$/.test(v)) return; const n = {...A, [k]: v}; if (tmin(n.end) <= tmin(n.start)){ toast('O fim do expediente precisa ser depois do início.', 'err'); render(); return } }
+    const p = saveCfg({agenda: {...A, [k]: v}}); if (k === 'showTitles') p.then(() => refreshCalendar(true));
+  },
   'cfg-com': t => { const v = Number(t.value); if (!isFinite(v) || v < 0) return; saveCfg({commission: {...cfg().commission, [t.dataset.k]: v}}) },
   'an-from': t => { UI.anFrom = t.value; render() },
   'an-to': t => { UI.anTo = t.value; render() },
@@ -2143,6 +2410,8 @@ const CHG = {
   'rot-f': t => { const r = S.routines[t.dataset.id]; if (r) put('routines', t.dataset.id, {...clone(r), [t.dataset.k]: t.value}) },
 };
 const INP = {
+  'ag-q': t => { if (!UI.ag) return; UI.ag.q = t.value; const r = document.querySelector('#ag-res'); if (r) r.innerHTML = agLeadResults(); offerLast = offerModalHTML() },
+  'ag-msg': t => { if (UI.ag){ UI.ag.msg = t.value; offerLast = offerModalHTML() } },
   'pipe-search': t => { UI.search = t.value; const b = $('#board'); if (b) b.innerHTML = boardHTML() },
   'doc-q': t => { UI.docQ = t.value; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
 };
@@ -2257,6 +2526,7 @@ async function hostedDb(conf){
   setInterval(poll, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll() });
   HOSTCALL = call; HOSTMETA = !!first.meta;
+  HOSTCAL = async force => { const r = await call({op: 'calendar', force: !!force}); (cache.meta ||= new Map()).set('calendar', r); emit('meta'); return r };
   if (first.clickup) MCP = {hosted: true, callTool: async (server, tool, input) => ({payload: await call({op: 'clickup', tool, input})})};
   return {
     collection(col){ return { onSnapshot(next){
@@ -2288,7 +2558,10 @@ async function boot(){
     } catch (e) { S.ready[c] = true; console.warn(e) }
   });
   render();
+  if (UI.view === 'agenda') refreshCalendar(false, true);
 }
+setInterval(() => { if (UI.view === 'agenda' && !document.hidden && UI.calCode !== 'not_configured') refreshCalendar(false, true) }, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.view === 'agenda' && UI.calCode !== 'not_configured') refreshCalendar(false, true) });
 boot();
 })();
 </script>
