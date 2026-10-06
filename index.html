@@ -1599,7 +1599,7 @@ function agSetupHTML(err){
     <ol class="ag-steps">
       <li>No Google Agenda (no computador), clique na engrenagem › <b>Configurações</b>.</li>
       <li>À esquerda, em <b>Configurações de minhas agendas</b>, escolha a agenda onde ficam as suas reuniões.</li>
-      <li>Role até <b>Integrar agenda</b> e copie o <b>Endereço secreto no formato iCal</b>.</li>
+      <li>Role até <b>Integrar agenda</b> e copie o <b>Endereço secreto no formato iCal</b> (ele tem <code>private-</code> no meio). Não use o “Endereço público”: ele só funciona se a agenda estiver aberta ao público.</li>
       <li>Guarde esse endereço no servidor com o comando abaixo, trocando o texto entre aspas. Ele funciona como uma senha de leitura da sua agenda: não cole em chats nem em lugares públicos.
         <pre class="ag-cmd">${esc(AG_CMD)}</pre><button class="btn sm" data-a="copy-text" data-v="${attr(AG_CMD)}">Copiar comando</button></li>
       <li>Volte aqui e clique em <b>Atualizar agora</b>.</li>
