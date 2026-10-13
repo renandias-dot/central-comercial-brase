@@ -39,20 +39,20 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 - **App:** https://renandias-dot.github.io/central-comercial-brase/restaurantes/
 - **Supabase:** projeto `brase-restaurantes` (`kxabfippeekyxpcgjytx`, São Paulo), separado do projeto da Central Comercial.
   - Banco: as duas migrações de `supabase/migrations` já foram aplicadas.
-  - Função `restaurantes-api` publicada sem verificação de JWT (o app entra com o código da equipe).
+  - Função `restaurantes-api` publicada sem verificação de JWT (o acesso é controlado pela própria função; veja abaixo).
   - Coleta agendada no pg_cron (`restaurantes-coleta`, a cada 30 minutos, até 40 lojas por rodada: 1.920 lojas por dia). Com a base maior que isso, aumente a frequência ou o `limit` em `20261013000100_restaurantes_coleta.sql`.
   - A chave que o agendamento usa é gerada no próprio banco (tabela `rs_settings`) e não sai dele.
 
-### Segredo da função
+### Acesso
 
-Só um segredo é obrigatório: **`RESTAURANTES_ACCESS_CODE`**, o código de acesso da equipe (pode ser o mesmo da Central Comercial). No painel do Supabase: projeto brase-restaurantes › Edge Functions › Secrets › Add new secret. Sem ele, a função responde “Falta configurar o segredo RESTAURANTES_ACCESS_CODE” e a coleta também não roda.
+O app está **aberto**: quem tiver o endereço entra direto, sem código. Para exigir um código da equipe, crie o segredo **`RESTAURANTES_ACCESS_CODE`** no painel do Supabase (projeto brase-restaurantes › Edge Functions › Secrets): o app passa a pedir o código sozinho. A coleta agendada nunca fica aberta: só roda com a chave guardada em `rs_settings` (ou com o código, quando ele existir).
 
 ### Para refazer em outro projeto
 
 1. Rode `supabase/migrations/20261013000000_restaurantes.sql` no SQL Editor. Pode rodar de novo sem problema.
 2. Troque o endereço da função em `supabase/migrations/20261013000100_restaurantes_coleta.sql` e rode também.
 3. Dentro da pasta `restaurantes/`: `supabase functions deploy restaurantes-api --project-ref SEU_PROJETO --no-verify-jwt`.
-4. Crie o segredo `RESTAURANTES_ACCESS_CODE`.
+4. Se quiser exigir código de acesso, crie o segredo `RESTAURANTES_ACCESS_CODE`.
 5. Ajuste a linha `window.RS_HOST` no topo de `index.html` com o endereço da função.
 
 ### Chave do Google (opcional)

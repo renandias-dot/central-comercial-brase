@@ -1,7 +1,8 @@
 // restaurantes-api — back-end do app Restaurantes (restaurantes/index.html).
-// Recebe POST em JSON {op, ...} com o código da equipe no cabeçalho x-rs-key.
+// Recebe POST em JSON {op, ...}. Com o segredo RESTAURANTES_ACCESS_CODE, exige o código da equipe no cabeçalho x-rs-key;
+// sem ele, o app fica aberto para quem tiver o endereço.
 // Fontes: iFood (endpoint público de cada loja), Google Places API (New) e BrasilAPI (CNPJ da Receita Federal).
-// Segredos: RESTAURANTES_ACCESS_CODE (obrigatório) e GOOGLE_PLACES_API_KEY (opcional: sem ela o app funciona sem o Google).
+// Segredos opcionais: RESTAURANTES_ACCESS_CODE e GOOGLE_PLACES_API_KEY (sem ela o app funciona sem o Google).
 // A coleta agendada se identifica com a chave guardada na tabela rs_settings (cabeçalho x-rs-cron).
 import postgres from 'npm:postgres@3.4.5';
 import {bestMatch, clamp, merchantIdFrom, parseCnpj, parseIfood, parsePlace, sameKey} from './logic.ts';
@@ -142,7 +143,7 @@ const loadCronKey = async () => cronKey ||= (await sql`select value from rs_sett
 const loadMerchant = async (id: string) => (await sql`select ${MERCHANT_COLS} from rs_merchants where id = ${id}`)[0];
 
 const ops: Record<string, (b: any) => Promise<unknown>> = {
-  async ping(){ return {ok: true, google: !!GOOGLE_KEY} },
+  async ping(){ return {ok: true, google: !!GOOGLE_KEY, open: !ACCESS_CODE} },
 
   async search({q = '', cnpj = '', merchant = ''}){
     const id = merchantIdFrom(merchant || q);
@@ -274,11 +275,14 @@ const reply = (status: number, body: unknown) => new Response(JSON.stringify(bod
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, {headers: CORS});
   if (req.method !== 'POST') return reply(405, {error: 'Use POST.'});
-  if (!ACCESS_CODE) return reply(500, {error: 'Falta configurar o segredo RESTAURANTES_ACCESS_CODE.'});
   const body = await req.json().catch(() => ({}));
+  const member = ACCESS_CODE ? sameKey(req.headers.get('x-rs-key') ?? '', ACCESS_CODE) : true;
+  // A coleta (que dispara leituras no iFood) só roda pelo agendamento ou por quem tem o código, mesmo com o app aberto.
   const cronHeader = req.headers.get('x-rs-cron') ?? '';
-  const cron = !!cronHeader && body.op === 'collect' && sameKey(cronHeader, await loadCronKey());
-  if (!sameKey(req.headers.get('x-rs-key') ?? '', ACCESS_CODE) && !cron) return reply(401, {error: 'Código de acesso inválido.'});
+  const allowed = body.op === 'collect'
+    ? (!!cronHeader && sameKey(cronHeader, await loadCronKey())) || (!!ACCESS_CODE && member)
+    : member;
+  if (!allowed) return reply(401, {error: 'Código de acesso inválido.'});
   const op = ops[body.op];
   if (!op) return reply(400, {error: 'Operação desconhecida.'});
   try { return reply(200, await op(body)) }
