@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<base href="../">
+<!-- Endereço da função funis-api do Supabase. Vazio = modo estático: o funil abre a partir de funis/data/<slug>.json, sem gravar leads. -->
+<script>window.FN_HOST = {"api": ""};</script>
+<title>Carregando…</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<style>
+html,body{margin:0;min-height:100%;background:var(--page-bg,#ffffff)}
+#app{min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+#app>div{flex:1;display:flex;flex-direction:column}
+#app .fnr{flex:1}
+.boot{flex:1;display:grid;place-items:center}
+.boot i{width:28px;height:28px;border-radius:50%;border:3px solid rgba(127,127,127,.25);border-top-color:rgba(127,127,127,.8);animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.msg{flex:1;display:grid;place-items:center;text-align:center;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#475569;padding:24px}
+.msg b{display:block;font-size:18px;color:#0f172a;margin-bottom:4px}
+</style>
+<script src="runtime.js"></script>
+</head>
+<body>
+<div id="app"><div class="boot"><i></i></div></div>
+<script>
+(function(){
+'use strict';
+const FR = window.FunnelRuntime;
+const API = (window.FN_HOST && window.FN_HOST.api) || '';
+const qs = new URLSearchParams(location.search);
+const params = {}; qs.forEach((v, k) => { params[k] = v });
+// ?f=brase-2  ou  ?brase-2  ou  #brase-2
+let slug = qs.get('f') || qs.get('funil') || '';
+if (!slug) { for (const [k, v] of qs) { if (v === '' && /^[a-z0-9][a-z0-9-]*$/i.test(k)) { slug = k; break } } }
+if (!slug && location.hash.length > 1) slug = decodeURIComponent(location.hash.slice(1));
+slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+const app = document.getElementById('app');
+const show = (title, text) => { app.innerHTML = `<div class="msg"><div><b>${FR.esc(title)}</b>${FR.esc(text || '')}</div></div>` };
+
+async function api(op, body, opt){
+  const r = await fetch(API, Object.assign({method: 'POST', headers: {'content-type': 'text/plain;charset=UTF-8'}, body: JSON.stringify(Object.assign({op}, body))}, opt || {}));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) { const e = new Error(j.error || ('Erro ' + r.status)); e.status = r.status; throw e }
+  return j;
+}
+async function loadFunnel(){
+  if (API) {
+    try { const j = await api('public.funnel', {slug}); return {funnel: j.funnel, live: true} }
+    catch (e) { if (e.status === 404) throw e; console.warn('API indisponível, usando o arquivo estático.', e) }
+  }
+  const r = await fetch(`data/${slug}.json`, {cache: 'no-cache'});
+  if (!r.ok) { const e = new Error('não encontrado'); e.status = 404; throw e }
+  const j = await r.json();
+  return {funnel: j.published || j.draft || j, live: false};
+}
+
+/* ---------- scripts e marcação ---------- */
+function addScript(src, inline, where){
+  const s = document.createElement('script');
+  if (src) { s.src = src; s.async = true } else s.textContent = inline;
+  (where || document.head).appendChild(s);
+}
+function addHtml(html, where){
+  if (!html) return;
+  const box = document.createElement('div'); box.innerHTML = html;
+  [...box.childNodes].forEach(n => {
+    if (n.nodeName === 'SCRIPT') { const s = document.createElement('script'); for (const a of n.attributes) s.setAttribute(a.name, a.value); s.textContent = n.textContent; where.appendChild(s) }
+    else where.appendChild(n);
+  });
+}
+function meta(name, content, prop){
+  if (!content) return;
+  const m = document.createElement('meta'); m.setAttribute(prop ? 'property' : 'name', name); m.content = content; document.head.appendChild(m);
+}
+function setup(f){
+  const s = f.settings || {}, px = s.pixel || {}, seo = s.seo || {}, d = Object.assign({}, FR.DEFAULT_DESIGN, f.design || {});
+  document.title = seo.title || f.title || 'Funil';
+  meta('description', seo.description || f.description);
+  meta('og:title', seo.title || f.title, true); meta('og:description', seo.description || f.description, true); meta('og:image', seo.image, true);
+  if (seo.noindex) meta('robots', 'noindex');
+  if (seo.favicon) { const l = document.createElement('link'); l.rel = 'icon'; l.href = seo.favicon; document.head.appendChild(l) }
+  if (px.gsv) meta('google-site-verification', px.gsv);
+  document.documentElement.style.setProperty('--page-bg', d.backgroundColor || '#fff');
+  const fl = document.createElement('link'); fl.rel = 'stylesheet'; fl.href = FR.fontsUrl(d); document.head.appendChild(fl);
+  if (px.facebook) {
+    !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+    String(px.facebook).split(/[\s,;]+/).filter(Boolean).forEach(id => window.fbq('init', id));
+    window.fbq('track', 'PageView');
+  }
+  if (px.ga4) { addScript('https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(px.ga4)); window.dataLayer = window.dataLayer || []; window.gtag = function(){ dataLayer.push(arguments) }; gtag('js', new Date()); gtag('config', px.ga4) }
+  if (px.gtm) { window.dataLayer = window.dataLayer || []; dataLayer.push({'gtm.start': Date.now(), event: 'gtm.js'}); addScript('https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(px.gtm)) }
+  if (s.scripts) { addHtml(s.scripts.head, document.head); addHtml(s.scripts.body, document.body) }
+}
+// Filtro de tráfego: só deixa entrar quem cumpre as regras.
+function blocked(f){
+  const r = (f.settings || {}).filter || {};
+  if (!r.enabled) return false;
+  const ua = navigator.userAgent || '';
+  if (r.mobileOnly && !/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true;
+  if (r.blockBots && /bot|crawler|spider|headless|lighthouse|facebookexternalhit/i.test(ua)) return true;
+  const need = String(r.requireParams || '').split(/[\s,;]+/).filter(Boolean);
+  if (need.length && !need.some(k => params[k])) return true;
+  return false;
+}
+
+/* ---------- registro das respostas ---------- */
+function session(){
+  const key = 'fn-sess:' + slug;
+  try { const s = JSON.parse(sessionStorage.getItem(key) || 'null'); if (s && s.id) return s } catch (e) {}
+  const s = {id: FR.uid(6), at: Date.now()};
+  try { sessionStorage.setItem(key, JSON.stringify(s)) } catch (e) {}
+  return s;
+}
+function tracking(){
+  const t = {};
+  ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'utm_id', 'fbclid', 'gclid', 'src', 'sck'].forEach(k => { if (params[k]) t[k] = params[k] });
+  t.screen = screen.width + 'x' + screen.height; t.viewport = innerWidth + 'x' + innerHeight;
+  t.platform = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+  t.userAgent = navigator.userAgent; t.language = (navigator.languages || [navigator.language]).join(',');
+  if (document.referrer) t.referrer = document.referrer;
+  t.url = location.href.split('#')[0];
+  return t;
+}
+function tracker(live){
+  const sess = session(), queue = []; let sentTracking = !!sess.tracked, timer = 0, inflight = Promise.resolve();
+  const payload = () => { const evs = queue.splice(0); const b = {slug, session: sess.id, events: evs}; if (!sentTracking) { b.tracking = tracking(); sentTracking = true; sess.tracked = 1; try { sessionStorage.setItem('fn-sess:' + slug, JSON.stringify(sess)) } catch (e) {} } return b };
+  function flush(keepalive){
+    clearTimeout(timer);
+    if (!live || !queue.length) return inflight;
+    const b = payload();
+    inflight = inflight.then(() => api('public.track', b, {keepalive: !!keepalive}).catch(e => console.warn('Falha ao registrar', e)));
+    return inflight;
+  }
+  return {
+    push(ev){ if (!live) return; queue.push(ev); clearTimeout(timer); timer = setTimeout(() => flush(true), ev.type === 'click' || ev.type === 'complete' ? 0 : 500) },
+    flush,
+    beacon(){ if (!live || !queue.length) return; const b = JSON.stringify(Object.assign({op: 'public.track'}, payload())); try { if (!navigator.sendBeacon(API, new Blob([b], {type: 'text/plain'}))) throw 0 } catch (e) { fetch(API, {method: 'POST', body: b, keepalive: true, headers: {'content-type': 'text/plain;charset=UTF-8'}}).catch(() => {}) } },
+  };
+}
+
+(async () => {
+  if (!slug) { show('Funil não encontrado', 'O endereço precisa do nome do funil, por exemplo: …/funis/f/?f=brase-2'); return }
+  let got;
+  try { got = await loadFunnel() }
+  catch (e) { show(e.status === 404 ? 'Funil não encontrado' : 'Não foi possível abrir o funil', e.status === 404 ? 'Confira o endereço ou se o funil foi publicado.' : 'Tente de novo em instantes.'); return }
+  const f = got.funnel;
+  if (!f || !Array.isArray(f.steps) || !f.steps.length) { show('Funil sem etapas', 'Publique o funil no editor.'); return }
+  f.slug = f.slug || slug;
+  if (blocked(f)) { const to = f.settings.filter.redirect; if (to) location.replace(to); else show('Página indisponível', ''); return }
+  setup(f);
+  const T = tracker(got.live && !!API);
+  const startAt = params.etapa != null ? (/^\d+$/.test(params.etapa) ? Math.max(0, +params.etapa - 1) : params.etapa) : 0;
+  app.innerHTML = '<div></div>';
+  FR.mount(app.firstChild, f, {
+    mode: 'live', params, step: startAt,
+    onEvent: ev => T.push(ev),
+    beforeRedirect: () => Promise.race([T.flush(true), new Promise(r => setTimeout(r, 1500))]),
+  });
+  addEventListener('pagehide', () => T.beacon());
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') T.beacon() });
+})();
+})();
+</script>
+</body>
+</html>
