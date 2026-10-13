@@ -359,13 +359,29 @@ function loginScreen(msg){
     });
   });
 }
+function retryScreen(msg){
+  return new Promise(resolve => {
+    $('#modal-host').innerHTML = `<div class="modal-wrap" style="background:var(--bg)"><div class="modal" role="alert"><h2>Sem conexão</h2><p class="muted">${esc(msg)}</p>
+      <div class="foot"><button class="btn primary" id="retry">Tentar de novo</button></div></div></div>`;
+    $('#retry').addEventListener('click', resolve, {once: true});
+  });
+}
+// Abre direto quando o servidor não exige código (sem o segredo RESTAURANTES_ACCESS_CODE); a tela de código só aparece se ele responder 401.
+let ready = false;
 async function start(){
+  ready = false;
   for (let msg = ''; ; ){
-    if (!accessCode) accessCode = await loginScreen(msg);
-    try { googleOn = !!(await call({op: 'ping'})).google; break }
-    catch (e){ msg = e.code === 'unauthorized' ? 'Código inválido. Confira com o gestor.' : e.message; accessCode = '' }
+    try {
+      const p = await call({op: 'ping'});
+      googleOn = !!p.google; $('#logout').hidden = !!p.open;
+      break;
+    } catch (e){
+      if (e.code === 'unauthorized'){ accessCode = await loginScreen(msg); msg = 'Código inválido. Confira com o gestor.' }
+      else await retryScreen(e.message);
+    }
   }
-  store.set(CODE_KEY, accessCode);
+  if (accessCode) store.set(CODE_KEY, accessCode);
+  ready = true;
   applyGoogle();
   $('#modal-host').innerHTML = '';
   render();
@@ -378,7 +394,7 @@ function route(){
   return {path: path || '/', q: new URLSearchParams(qs || '')};
 }
 function render(){
-  if (!accessCode) return;
+  if (!ready) return;
   const {path, q} = route();
   const section = path.startsWith('/r/') ? '/' : path;
   document.querySelectorAll('.nav-item').forEach(a => a.dataset.route === section ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
