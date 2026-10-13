@@ -172,9 +172,8 @@ table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
 .r-title h1{font:800 28px/1.05 var(--f-display);font-stretch:114%;letter-spacing:-.02em}
 .r-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .radius{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
-.src-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.src-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(340px,100%),1fr));gap:12px;margin-bottom:14px}
 .src-grid .panel{margin-bottom:0}
-@media (max-width:1180px){.src-grid{grid-template-columns:minmax(0,1fr)}}
 .mark{width:24px;height:24px;border-radius:7px;display:inline-grid;place-items:center;font:800 11px/1 var(--f-display);color:#fff;flex:none}
 .mark.ifood{background:#ea1d2c}.mark.google{background:#1a73e8}.mark.cnpj{background:#12813a}
 .dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 12px;font-size:13px;margin:0}
@@ -224,7 +223,7 @@ table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
       <a class="nav-item" href="#/incluir" data-route="/incluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Incluir lojas</a>
     </nav>
     <div class="nav-foot">
-      <p class="hint">Dados do iFood, do Google e da Receita Federal.</p>
+      <p class="hint" id="data-hint">Dados do iFood e da Receita Federal.</p>
       <button class="btn sm" type="button" id="logout">Sair</button>
     </div>
   </aside>
@@ -305,6 +304,12 @@ document.addEventListener('focusin', e => {
 });
 document.addEventListener('focusout', hideTip);
 
+// Sem a chave do Google, as colunas do Google saem do CSV.
+const withoutGoogle = rows => {
+  if (googleOn) return rows;
+  const keep = rows[0].map((h, i) => /google/.test(h) ? -1 : i).filter(i => i >= 0);
+  return rows.map(r => keep.map(i => r[i]));
+};
 function downloadCsv(name, rows){
   const cell = v => { const s = v == null ? '' : String(v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s };
   const text = '﻿' + rows.map(r => r.map(cell).join(';')).join('\r\n');
@@ -316,7 +321,12 @@ function downloadCsv(name, rows){
 
 /* ---------- servidor ---------- */
 let accessCode = store.get(CODE_KEY) || '';
+// O Google só aparece quando o servidor tem a chave (GOOGLE_PLACES_API_KEY).
 let googleOn = false;
+function applyGoogle(){
+  $('.nav-item[data-route="/regiao"]').hidden = !googleOn;
+  $('#data-hint').textContent = googleOn ? 'Dados do iFood, do Google e da Receita Federal.' : 'Dados do iFood e da Receita Federal.';
+}
 async function call(body){
   if (!API) throw new Error('Falta o endereço do servidor (window.RS_HOST).');
   let r;
@@ -356,6 +366,7 @@ async function start(){
     catch (e){ msg = e.code === 'unauthorized' ? 'Código inválido. Confira com o gestor.' : e.message; accessCode = '' }
   }
   store.set(CODE_KEY, accessCode);
+  applyGoogle();
   $('#modal-host').innerHTML = '';
   render();
 }
@@ -440,7 +451,7 @@ async function viewDetail(id, km){
   try {
     const data = await call({op: 'detail', id, km});
     if (seq !== D.seq) return;
-    D.data = data; googleOn = data.google_enabled;
+    D.data = data; googleOn = data.google_enabled; applyGoogle();
     drawDetail();
   } catch (e){
     if (seq !== D.seq) return;
@@ -476,14 +487,14 @@ function drawDetail(){
         <button class="btn${d.favorite ? ' on' : ''}" data-a="fav" aria-pressed="${d.favorite}">${d.favorite ? '★ Favorito' : '☆ Favoritar'}</button>
         ${extLink(ifoodUrl(m), 'Abrir no iFood ↗')}
         ${extLink(wa, 'WhatsApp ↗', 'Abre uma conversa com “Olá, ' + m.name + '”')}
-        ${m.lat != null ? `<a class="btn" href="#/regiao?lat=${m.lat}&lon=${m.lon}&km=2&ref=${encodeURIComponent(m.name)}">Região no Google</a>` : ''}
+        ${googleOn && m.lat != null ? `<a class="btn" href="#/regiao?lat=${m.lat}&lon=${m.lon}&km=2&ref=${encodeURIComponent(m.name)}">Região no Google</a>` : ''}
         <button class="btn" data-a="refresh" title="Lê de novo a loja no iFood, no Google e na Receita">Atualizar agora</button>
       </div>
     </div>
     ${m.ifood_error ? `<div class="banner warn">Última leitura no iFood falhou: ${esc(m.ifood_error)}. Os dados abaixo são da leitura anterior.</div>` : ''}
     <div class="radius"><span class="hint">Raio da análise</span><div class="seg" role="group" aria-label="Raio da análise">${RADII.map(k => `<button type="button" data-a="km" data-v="${k}" aria-pressed="${k === D.km}">${k} km</button>`).join('')}</div><span class="hint">Tudo abaixo considera as lojas da base num raio de ${kmLabel}.</span></div>
     ${kpisHtml(d, a, kmLabel)}
-    <div class="src-grid">${ifoodCard(m, a)}${googleCard(m, d)}${cnpjCard(m)}</div>
+    <div class="src-grid">${ifoodCard(m, a)}${googleOn || m.google ? googleCard(m) : ''}${cnpjCard(m)}</div>
     ${goalsHtml(d, a, kmLabel)}
     <section class="panel"><div class="panel-h"><h2>Mapa da região</h2>
       <div class="seg" role="group" aria-label="Camada do mapa">${[['lojas', 'Lojas'], ['calor', 'Concentração de pedidos'], ['preco', 'Faixa de preço']].map(([k, l]) => `<button type="button" data-a="layer" data-v="${k}" aria-pressed="${D.layer === k}">${l}</button>`).join('')}</div></div>
@@ -493,7 +504,7 @@ function drawDetail(){
       <section class="panel"><div class="panel-h"><h2>Evolução das avaliações</h2><span class="sub">últimos 6 meses</span></div><div class="panel-b">${historyHtml(d.history, m)}</div></section>
     </div>
     <section class="panel" id="ranking">${rankingHtml(a)}</section>
-    <p class="hint">Última leitura do iFood: ${when(m.ifood_checked_at)} · Google: ${when(m.google_checked_at)} · CNPJ: ${when(m.cnpj_checked_at)}. O coletor relê cada loja da base uma vez por dia.</p>`;
+    <p class="hint">Última leitura do iFood: ${when(m.ifood_checked_at)}${googleOn ? ` · Google: ${when(m.google_checked_at)}` : ''} · CNPJ: ${when(m.cnpj_checked_at)}. O coletor relê cada loja da base uma vez por dia.</p>`;
   mountMap();
   bindChart();
 }
@@ -520,11 +531,10 @@ function ifoodCard(m, a){
   </dl><p class="hint" style="margin-top:10px">O iFood informa o número de avaliações, mas não a nota em estrelas, no endereço público que o coletor usa.</p></div></section>`;
 }
 
-function googleCard(m, d){
+function googleCard(m){
   const g = m.google;
   let body;
-  if (!g && !d.google_enabled) body = `<p class="empty">A chave do Google ainda não foi configurada no servidor (GOOGLE_PLACES_API_KEY). Veja o README do app.</p>`;
-  else if (!g) body = `<p class="empty">Ainda não consultado. Clique em “Atualizar agora”.</p>`;
+  if (!g) body = `<p class="empty">Ainda não consultado. Clique em “Atualizar agora”.</p>`;
   else if (g.none) body = `<p class="empty">Não achei esta loja no Google Maps perto do endereço do iFood (até 400 m, com nome parecido).</p>`;
   else body = `<dl class="dl">
     <dt>Nota</dt><dd><span class="big">★ ${dec(g.rating)}</span> <span class="hint">em ${fmt(g.count)} avaliações</span></dd>
@@ -662,6 +672,7 @@ function rankRows(a){
 }
 function rankingHtml(a){
   const m = D.data.merchant, rows = rankRows(a), shown = rows.slice(0, D.limit);
+  const cols = RANK_COLS.filter(c => googleOn || c.key !== 'google_rating');
   const th = c => {
     const sorted = D.sort.key === c.key;
     const label = c.nosort ? c.label : `<button data-a="sort" data-v="${c.key}">${c.label}${sorted ? (D.sort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>`;
@@ -676,7 +687,7 @@ function rankingHtml(a){
       <td class="r">${fmt(x.rating_count)}</td>
       <td class="r">${fmt(x.count_3m)}</td>
       <td class="r">${trend(x.growth)}</td>
-      <td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>
+      ${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}
       <td>${esc(x.district || '—')}</td>
       <td class="r">${dec(x.km)} km</td>
       <td><span class="links">${extLink(ifoodUrl(x), 'iFood ↗')}${extLink(wa, 'Zap ↗')}</span></td></tr>`;
@@ -686,17 +697,17 @@ function rankingHtml(a){
       <button role="tab" data-a="tab" data-v="cat" aria-current="${D.tab === 'cat'}">Mesma categoria · ${fmt(a.cat.length)}</button>
       <button role="tab" data-a="tab" data-v="all" aria-current="${D.tab === 'all'}">Geral · ${fmt(a.all.length)}</button>
     </div>
-    ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>${RANK_COLS.map(th).join('')}</tr></thead><tbody>${shown.map(tr).join('')}</tbody></table></div>` : '<div class="panel-b"><p class="empty">Nenhuma loja neste raio.</p></div>'}
+    ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${shown.map(tr).join('')}</tbody></table></div>` : '<div class="panel-b"><p class="empty">Nenhuma loja neste raio.</p></div>'}
     <div class="panel-b" style="padding-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       ${rows.length > D.limit ? `<button class="btn sm" data-a="more">Ver mais ${fmt(Math.min(PAGE, rows.length - D.limit))}</button>` : ''}
       <span class="hint">Mostrando ${fmt(shown.length)} de ${fmt(rows.length)}. Clique no título da coluna para reordenar. “3 meses atrás” usa a leitura de 90 dias antes.</span></div>`;
 }
 function rankingCsv(){
   const a = analyze(D.data), rows = rankRows(a);
-  downloadCsv(`ranking-${slug(D.data.merchant.name)}-${D.tab === 'cat' ? 'categoria' : 'geral'}-${D.km}km.csv`, [
+  downloadCsv(`ranking-${slug(D.data.merchant.name)}-${D.tab === 'cat' ? 'categoria' : 'geral'}-${D.km}km.csv`, withoutGoogle([
     ['posicao', 'restaurante', 'categoria', 'avaliacoes', 'avaliacoes_3_meses_atras', 'variacao_%', 'nota_google', 'avaliacoes_google', 'bairro', 'cidade', 'uf', 'distancia_km', 'telefone', 'link_ifood', 'whatsapp'],
     ...rows.map(x => [x.rank, x.name, x.category, x.rating_count, x.count_3m, x.growth == null ? '' : (x.growth * 100).toFixed(1).replace('.', ','), x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, x.district, x.city, x.state, dec(x.km, 2), fmtPhone(x.phone || x.google_phone), ifoodUrl(x), waUrl(x.phone || x.google_phone, x.name)]),
-  ]);
+  ]));
 }
 
 /* mapa */
@@ -831,11 +842,11 @@ async function viewFavorites(){
   if (route().path !== '/favoritos') return;
   const grow = x => x.count_3m ? x.rating_count / x.count_3m - 1 : null;
   view.innerHTML = head('Favoritos', 'Lojas que a equipe acompanha. A lista é a mesma para todo mundo que usa o código de acesso.', rows.length ? '<button class="btn sm" id="fav-csv">Baixar CSV</button>' : '') + (rows.length ? `
-    <section class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Restaurante</th><th>Categoria</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th><th class="r">Google</th><th>Desde</th><th></th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${x.enabled ? '' : ' · fora do ar no iFood'}</small></td><td>${esc(x.category || '—')}</td><td class="r">${fmt(x.rating_count)}</td><td class="r">${fmt(x.count_3m)}</td><td class="r">${trend(grow(x))}</td><td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td><td class="num">${dateOnly(x.created_at)}</td><td><button class="btn sm ghost" data-unfav="${x.id}">Remover</button></td></tr>`).join('')}
+    <section class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Restaurante</th><th>Categoria</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th>${googleOn ? '<th class="r">Google</th>' : ''}<th>Desde</th><th></th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${x.enabled ? '' : ' · fora do ar no iFood'}</small></td><td>${esc(x.category || '—')}</td><td class="r">${fmt(x.rating_count)}</td><td class="r">${fmt(x.count_3m)}</td><td class="r">${trend(grow(x))}</td>${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}<td class="num">${dateOnly(x.created_at)}</td><td><button class="btn sm ghost" data-unfav="${x.id}">Remover</button></td></tr>`).join('')}
     </tbody></table></div></section>` : '<div class="panel"><div class="panel-b"><p class="empty">Nenhum favorito ainda. Abra a ficha de uma loja e clique em “Favoritar”.</p></div></div>');
-  $('#fav-csv')?.addEventListener('click', () => downloadCsv('favoritos.csv', [['restaurante', 'categoria', 'bairro', 'cidade', 'uf', 'avaliacoes', 'avaliacoes_3_meses_atras', 'nota_google', 'avaliacoes_google', 'link_ifood'],
-    ...rows.map(x => [x.name, x.category, x.district, x.city, x.state, x.rating_count, x.count_3m, x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, ifoodUrl(x)])]));
+  $('#fav-csv')?.addEventListener('click', () => downloadCsv('favoritos.csv', withoutGoogle([['restaurante', 'categoria', 'bairro', 'cidade', 'uf', 'avaliacoes', 'avaliacoes_3_meses_atras', 'nota_google', 'avaliacoes_google', 'link_ifood'],
+    ...rows.map(x => [x.name, x.category, x.district, x.city, x.state, x.rating_count, x.count_3m, x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, ifoodUrl(x)])])));
   view.querySelectorAll('[data-unfav]').forEach(b => b.addEventListener('click', async () => {
     b.disabled = true;
     try { await call({op: 'favorite', id: b.dataset.unfav, on: false}); if (D.id === b.dataset.unfav && D.data) D.data.favorite = false; viewFavorites() } catch (e){ fail(e); b.disabled = false }
