@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<script>window.RS_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/restaurantes-api"};</script>
+<title>Restaurantes · Brase</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23d9480f'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='19' fill='white' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Schibsted+Grotesk:wght@400..700&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" integrity="sha512-Zcn6bjR/8RZbLEpLIeOwNtzREBAJnUKESxces60Mpoj+2okopSAcSUIUOseddDm0cxnGQzxIR7vJgsLZbdLE3w==" crossorigin="anonymous" referrerpolicy="no-referrer">
+<style>
+[hidden]{display:none!important}
+:root{
+  --bg:#f1f2f4;--surface:#ffffff;--surface-2:#f8f9fa;--sunken:#e9ebee;
+  --ink:#14161b;--ink-2:#454a54;--muted:#7c818b;--line:#e1e3e7;--line-2:#ccd0d6;
+  --accent:#d9480f;--accent-hover:#bf3e0b;--accent-strong:#b23a0a;--accent-soft:#fcebe2;
+  --good:#12813a;--good-soft:#e1f2e6;--warn:#9c6300;--warn-soft:#fbefd2;--crit:#c42b2b;--crit-soft:#fbe3e3;
+  --s1:#2a78d6;--s2:#eb6834;
+  --grid:#e6e7ea;--axis:#c3c6cc;--hover:rgba(20,22,27,.05);
+  --shadow-sm:0 1px 2px rgba(18,20,26,.06);
+  --shadow:0 1px 2px rgba(18,20,26,.05),0 18px 40px -18px rgba(18,20,26,.28);
+  --f-display:"Archivo","Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-body:"Schibsted Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  /* rampa sequencial (faixa de preço), do mais claro ao mais escuro */
+  --q1:#a9c8f0;--q2:#76a7e6;--q3:#4385d8;--q4:#2563b8;--q5:#14427f;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0e1014;--surface:#171a20;--surface-2:#1b1f26;--sunken:#20242c;
+    --ink:#eef0f3;--ink-2:#b9bec8;--muted:#80868f;--line:#262a32;--line-2:#353a45;
+    --accent:#f0621f;--accent-hover:#ff7433;--accent-strong:#ff9a66;--accent-soft:#35190d;
+    --good:#3fcb6f;--good-soft:#11291a;--warn:#f0b33a;--warn-soft:#322510;--crit:#ff6b6b;--crit-soft:#361617;
+    --s1:#3987e5;--s2:#d95926;
+    --grid:#262a31;--axis:#3a3f49;--hover:rgba(255,255,255,.05);
+    --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px -18px rgba(0,0,0,.7);
+    --q1:#1b355a;--q2:#244f8a;--q3:#3473c4;--q4:#6fa3ea;--q5:#b5d2f6;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0e1014;--surface:#171a20;--surface-2:#1b1f26;--sunken:#20242c;
+  --ink:#eef0f3;--ink-2:#b9bec8;--muted:#80868f;--line:#262a32;--line-2:#353a45;
+  --accent:#f0621f;--accent-hover:#ff7433;--accent-strong:#ff9a66;--accent-soft:#35190d;
+  --good:#3fcb6f;--good-soft:#11291a;--warn:#f0b33a;--warn-soft:#322510;--crit:#ff6b6b;--crit-soft:#361617;
+  --s1:#3987e5;--s2:#d95926;
+  --grid:#262a31;--axis:#3a3f49;--hover:rgba(255,255,255,.05);
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 18px 40px -18px rgba(0,0,0,.7);
+  --q1:#1b355a;--q2:#244f8a;--q3:#3473c4;--q4:#6fa3ea;--q5:#b5d2f6;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--f-body);-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3,h4{margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--accent-strong)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* shell (o mesmo da Central Comercial) */
+.app{display:grid;grid-template-columns:232px minmax(0,1fr);min-height:100%}
+.nav{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:20px;padding:20px 12px 16px;border-right:1px solid var(--line);background:var(--surface);z-index:20}
+.brand{display:flex;align-items:center;gap:10px;padding:0 8px}
+.brand-mark{width:34px;height:34px;border-radius:9px;background:var(--accent);color:#fff;display:grid;place-items:center;font:800 18px/1 var(--f-display);font-stretch:125%;flex:none}
+.brand-name{font:800 17px/1 var(--f-display);font-stretch:120%;letter-spacing:-.01em}
+.brand-sub{font-size:10.5px;color:var(--muted);letter-spacing:.09em;text-transform:uppercase;margin-top:4px;font-weight:600}
+.nav-list{display:flex;flex-direction:column;gap:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;border:0;background:none;cursor:pointer;color:var(--ink-2);font-weight:500;text-align:left;width:100%;text-decoration:none}
+.nav-item svg{width:18px;height:18px;flex:none}
+.nav-item:hover{background:var(--sunken);color:var(--ink)}
+.nav-item[aria-current="page"]{background:var(--accent-soft);color:var(--accent-strong);font-weight:600}
+.nav-foot{margin-top:auto;display:grid;gap:8px;padding:14px 8px 0;border-top:1px solid var(--line)}
+.main{min-width:0;padding-block:24px 72px;padding-inline:28px;transition:opacity .2s}
+.main.refetch{opacity:.55;pointer-events:none}
+@media (max-width:860px){
+  .app{grid-template-columns:minmax(0,1fr)}
+  .nav{position:relative;height:auto;flex-direction:row;flex-wrap:wrap;align-items:center;padding:10px 16px 0;gap:10px;border-right:0;border-bottom:1px solid var(--line)}
+  .brand{padding:0}
+  .brand-sub{display:none}
+  .nav-list{order:3;flex-direction:row;overflow-x:auto;width:100%;gap:2px;scrollbar-width:none;padding-bottom:8px}
+  .nav-list::-webkit-scrollbar{display:none}
+  .nav-item{width:auto;white-space:nowrap;padding:7px 10px}
+  .nav-foot{margin:0 0 0 auto;border:0;padding:0;display:flex;align-items:center;gap:8px}
+  .nav-foot .hint{display:none}
+  .main{padding-inline:16px;padding-block:16px 56px}
+}
+
+/* tipografia e controles */
+.head{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 20px;margin-bottom:18px}
+.head h1{font:800 28px/1.05 var(--f-display);font-stretch:114%;letter-spacing:-.02em}
+.head p{margin-top:6px;color:var(--muted);max-width:720px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.hint{font-size:12.5px;color:var(--muted)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 13px;border-radius:8px;border:1px solid var(--line-2);background:var(--surface);cursor:pointer;font-weight:600;font-size:13px;white-space:nowrap;text-decoration:none;color:var(--ink)}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-hover);border-color:var(--accent-hover)}
+.btn.ghost{border-color:transparent;background:none}
+.btn.ghost:hover{background:var(--sunken)}
+.btn.sm{height:28px;padding:0 9px;font-size:12.5px}
+.btn.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent-strong)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.in{height:34px;padding:0 10px;border:1px solid var(--line-2);border-radius:8px;background:var(--surface);min-width:0;width:100%}
+textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
+.in:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.f{display:grid;gap:5px;font-size:12px;color:var(--muted);font-weight:600;min-width:0}
+.seg{display:inline-flex;background:var(--sunken);border-radius:9px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:none;padding:5px 12px;border-radius:7px;font-weight:600;font-size:12.5px;color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow-sm)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;min-width:0;margin-bottom:14px}
+.panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px 8px;flex-wrap:wrap}
+.panel-h h2{font:700 15px/1.2 var(--f-display);font-stretch:106%;display:flex;align-items:center;gap:8px}
+.panel-h .sub{font-size:12px;color:var(--muted)}
+.panel-b{padding:4px 16px 16px}
+.banner{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border-radius:10px;border:1px dashed var(--line-2);background:var(--surface-2);margin-bottom:14px;font-size:13px;color:var(--ink-2)}
+.banner.warn{border-color:color-mix(in srgb,var(--warn) 45%,transparent);background:var(--warn-soft)}
+.empty{padding:18px 4px;color:var(--muted);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:5px;height:22px;padding:0 7px;border-radius:6px;font-size:11.5px;font-weight:600;background:var(--sunken);color:var(--ink-2);white-space:nowrap}
+.chip.ok{background:var(--good-soft);color:var(--good)}
+.chip.bad{background:var(--crit-soft);color:var(--crit)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-bottom:14px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;display:grid;gap:5px;align-content:start}
+.kpi .l{font-size:12px;color:var(--muted);font-weight:600}
+.kpi .v{font:800 30px/1 var(--f-display);font-stretch:110%;letter-spacing:-.015em}
+.kpi .s{font-size:12px;color:var(--ink-2)}
+.up{color:var(--good);font-weight:700;white-space:nowrap}
+.down{color:var(--crit);font-weight:700;white-space:nowrap}
+.tbl-wrap{overflow-x:auto}
+table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:13px}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl th button{all:unset;cursor:pointer;display:inline-flex;gap:4px;align-items:center}
+.tbl th button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.tbl th[aria-sort] button{color:var(--ink)}
+.tbl td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl .r{text-align:right}
+.tbl td.nm{min-width:200px;font-weight:600}
+.tbl td.nm a{color:var(--ink);text-decoration:none}
+.tbl td.nm a:hover{text-decoration:underline}
+.tbl td.nm small{display:block;color:var(--muted);font-size:11.5px;font-weight:500}
+.tbl tr.me td{background:var(--accent-soft)}
+.links{display:flex;gap:4px;white-space:nowrap}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 16px 4px;overflow-x:auto;scrollbar-width:none}
+.tabs button{border:0;background:none;padding:9px 12px;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.modal-wrap{position:fixed;inset:0;z-index:2000;display:grid;place-items:center;padding:16px;background:rgba(8,10,14,.42);overflow-y:auto}
+.modal{background:var(--surface);border-radius:14px;box-shadow:var(--shadow);width:min(420px,100%);padding:20px;display:grid;gap:14px}
+.modal h2{font:800 20px/1.1 var(--f-display);font-stretch:110%}
+.modal .foot{display:flex;justify-content:flex-end;gap:8px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:3000;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+#toast.err{background:var(--crit);color:#fff}
+#tip{position:fixed;z-index:3000;pointer-events:none;background:var(--ink);color:var(--surface);font-size:12px;line-height:1.5;padding:7px 10px;border-radius:8px;white-space:pre-line;box-shadow:var(--shadow);font-variant-numeric:tabular-nums;max-width:280px}
+.skel{height:120px;border-radius:12px;background:linear-gradient(90deg,var(--sunken),var(--surface-2),var(--sunken));background-size:200% 100%;animation:sh 1.2s infinite;margin-bottom:14px}
+@keyframes sh{to{background-position:-200% 0}}
+
+/* busca */
+.search-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.search-row .in{flex:1 1 260px;width:auto}
+
+/* ficha */
+.r-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:16px}
+.r-logo{width:64px;height:64px;border-radius:12px;object-fit:cover;background:var(--sunken);flex:none;border:1px solid var(--line)}
+.r-title{min-width:0;flex:1 1 280px}
+.r-title h1{font:800 28px/1.05 var(--f-display);font-stretch:114%;letter-spacing:-.02em}
+.r-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.radius{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.src-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.src-grid .panel{margin-bottom:0}
+@media (max-width:1180px){.src-grid{grid-template-columns:minmax(0,1fr)}}
+.mark{width:24px;height:24px;border-radius:7px;display:inline-grid;place-items:center;font:800 11px/1 var(--f-display);color:#fff;flex:none}
+.mark.ifood{background:#ea1d2c}.mark.google{background:#1a73e8}.mark.cnpj{background:#12813a}
+.dl{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 12px;font-size:13px;margin:0}
+.dl dt{color:var(--muted);font-weight:600}
+.dl dd{margin:0;min-width:0;overflow-wrap:anywhere}
+.big{font:800 22px/1 var(--f-display);font-stretch:108%}
+.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.two .panel{margin-bottom:14px}
+@media (max-width:1080px){.two{grid-template-columns:minmax(0,1fr)}}
+.goals{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.goal{border:1px solid var(--line);border-radius:10px;padding:12px 14px;display:grid;gap:6px;background:var(--surface-2)}
+.goal h3{font:700 14px/1.2 var(--f-display);font-stretch:106%}
+.goal p{font-size:13px;color:var(--ink-2)}
+.map{height:440px;border-radius:10px;overflow:hidden;isolation:isolate;background:var(--sunken)}
+.legend{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:10px;align-items:center}
+.key{display:inline-flex;align-items:center;gap:6px}
+.key i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.key i.ln{width:16px;height:2px;border-radius:2px}
+.key i.bx{border-radius:2px}
+.map .leaflet-tile-pane{filter:saturate(.25) brightness(1.04)}
+.map.dark .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.9) saturate(.6)}
+.leaflet-tooltip{background:var(--ink);color:var(--surface);border:0;box-shadow:var(--shadow);font:12px/1.4 var(--f-body)}
+.leaflet-tooltip-top:before{border-top-color:var(--ink)}
+.dist-row{display:grid;grid-template-columns:minmax(90px,150px) minmax(0,1fr);gap:10px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.dist-row:last-child{border-bottom:0}
+.dist-l{font-size:13px;font-weight:600;overflow-wrap:anywhere}
+.dist-bars{display:grid;gap:3px}
+.dist-bar{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2);font-variant-numeric:tabular-nums;min-height:12px}
+.dist-bar b{height:8px;border-radius:0 4px 4px 0;display:block;min-width:2px}
+.dist-bar:hover b{filter:brightness(1.15)}
+.chart{width:100%;height:auto;display:block;overflow:visible}
+.chart text{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+.chart .grid{stroke:var(--grid);stroke-width:1}
+.chart .xh{stroke:var(--axis);stroke-width:1}
+.ln{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.res-list{display:grid;gap:6px;margin-top:12px;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="nav" id="nav">
+    <div class="brand"><div class="brand-mark">B</div><div><div class="brand-name">Brase</div><div class="brand-sub">Restaurantes</div></div></div>
+    <nav class="nav-list" aria-label="Seções">
+      <a class="nav-item" href="#/" data-route="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Restaurantes</a>
+      <a class="nav-item" href="#/regiao" data-route="/regiao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Região no Google</a>
+      <a class="nav-item" href="#/favoritos" data-route="/favoritos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>Favoritos</a>
+      <a class="nav-item" href="#/incluir" data-route="/incluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Incluir lojas</a>
+    </nav>
+    <div class="nav-foot">
+      <p class="hint">Dados do iFood, do Google e da Receita Federal.</p>
+      <button class="btn sm" type="button" id="logout">Sair</button>
+    </div>
+  </aside>
+  <main class="main" id="view"></main>
+</div>
+<div id="modal-host"></div>
+<div id="toast" role="status" hidden></div>
+<div id="tip" hidden></div>
+<noscript>Este app precisa de JavaScript.</noscript>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" integrity="sha512-BwHfrr4c9kmRkLw6iXFdzcdWV/PGkVgiIyIWLLlTSXzWQzxuSg4DiQUCpauz/EWjgk5TYQqX/kvn9pG1NpYfqg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.heat/0.2.0/leaflet-heat.js" integrity="sha512-KhIBJeCI4oTEeqOmRi2gDJ7m+JARImhUYgXWiOTIp9qqySpFUAJs09erGKem4E5IPuxxSTjavuurvBitBmwE0w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+'use strict';
+/* ---------- constantes ---------- */
+const API = (window.RS_HOST || {}).api || '';
+const CODE_KEY = 'brase-rs-code';
+// Pedidos estimados por avaliação: a mesma proporção que o Power Data usa na seção "Como Melhorar Seu Ranking".
+const ORDERS_PER_REVIEW = 2;
+const RADII = [1, 2, 3, 5, 10];
+const AREA_RADII = [0.5, 1, 2, 3, 5];
+const PAGE = 100;
+// Faixas de preço do iFood ($ a $$$$$).
+const PRICE = {CHEAPEST: 'Muito barato', CHEAP: 'Barato', MODERATE: 'Moderado', EXPENSIVE: 'Caro', MOST_EXPENSIVE: 'Muito caro'};
+const PRICE_ORDER = Object.keys(PRICE);
+const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+/* ---------- utilidades ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const view = $('#view');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const store = {
+  get(k){ try { return localStorage.getItem(k) } catch { return null } },
+  set(k, v){ try { localStorage.setItem(k, v) } catch {} },
+  del(k){ try { localStorage.removeItem(k) } catch {} },
+};
+const nf = new Intl.NumberFormat('pt-BR');
+const fmt = n => n == null || !isFinite(n) ? '—' : nf.format(Math.round(n));
+const dec = (n, d = 1) => n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (x, d = 1) => x == null || !isFinite(x) ? '—' : (x * 100).toLocaleString('pt-BR', {maximumFractionDigits: d}) + '%';
+const signed = x => x == null || !isFinite(x) ? '—' : (x > 0 ? '+' : '') + pct(x);
+const trend = x => x == null || !isFinite(x) ? '<span class="muted">—</span>' : x >= 0 ? `<span class="up">▲ ${signed(x)}</span>` : `<span class="down">▼ ${signed(x)}</span>`;
+const when = s => s ? new Date(s).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '—';
+const day = s => s ? s.split('-').reverse().join('/') : '—';
+const dateOnly = s => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
+const monthLabel = ym => { const [y, m] = ym.split('-'); return MONTHS[+m - 1] + '/' + y.slice(2) };
+const slug = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const ifoodUrl = m => `https://www.ifood.com.br/delivery/${slug(m.city)}-${slug(m.state)}/${[slug(m.name), slug(m.district)].filter(Boolean).join('-')}/${m.id}`;
+const phoneDigits = p => { let d = String(p ?? '').replace(/\D/g, ''); if (d.startsWith('55') && d.length >= 12) d = d.slice(2); return d.length >= 10 && d.length <= 11 ? d : '' };
+const fmtPhone = p => { const d = phoneDigits(p); if (!d) return p || ''; return `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` };
+const waUrl = (phone, name) => { const d = phoneDigits(phone); return d ? `https://wa.me/55${d}?text=${encodeURIComponent('Olá, ' + name)}` : '' };
+const fmtCnpj = c => String(c || '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5');
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const isDark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+const extLink = (href, label, title = '') => href ? `<a class="btn sm" href="${esc(href)}" target="_blank" rel="noopener noreferrer"${title ? ` title="${esc(title)}"` : ''}>${label}</a>` : '';
+
+let toastTimer;
+function toast(msg, kind = ''){
+  const t = $('#toast'); t.textContent = msg; t.className = kind; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true }, 4200);
+}
+
+// Tooltip único para barras, linhas e células com data-tip (texto puro, nunca HTML).
+const tip = $('#tip');
+function showTip(text, x, y){
+  tip.textContent = text; tip.hidden = false;
+  const r = tip.getBoundingClientRect();
+  tip.style.left = Math.min(innerWidth - r.width - 8, x + 14) + 'px';
+  tip.style.top = Math.max(8, y - r.height - 10) + 'px';
+}
+const hideTip = () => { tip.hidden = true };
+document.addEventListener('pointermove', e => {
+  const el = e.target.closest?.('[data-tip]');
+  if (el) showTip(el.dataset.tip, e.clientX, e.clientY); else if (!e.target.closest?.('.chart-hover')) hideTip();
+});
+document.addEventListener('focusin', e => {
+  const el = e.target.closest?.('[data-tip]');
+  if (el){ const r = el.getBoundingClientRect(); showTip(el.dataset.tip, r.right, r.top) }
+});
+document.addEventListener('focusout', hideTip);
+
+function downloadCsv(name, rows){
+  const cell = v => { const s = v == null ? '' : String(v); return /[;"\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s };
+  const text = '﻿' + rows.map(r => r.map(cell).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'text/csv;charset=utf-8'}));
+  a.download = name; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- servidor ---------- */
+let accessCode = store.get(CODE_KEY) || '';
+let googleOn = false;
+async function call(body){
+  if (!API) throw new Error('Falta o endereço do servidor (window.RS_HOST).');
+  let r;
+  try { r = await fetch(API, {method: 'POST', headers: {'content-type': 'application/json', 'x-rs-key': accessCode}, body: JSON.stringify(body)}) }
+  catch { throw new Error('Sem conexão com o servidor. Tente de novo.') }
+  const j = await r.json().catch(() => ({}));
+  if (r.status === 401){ store.del(CODE_KEY); accessCode = ''; throw Object.assign(new Error(j.error || 'Código de acesso inválido.'), {code: 'unauthorized'}) }
+  if (!r.ok) throw new Error(j.error || 'Erro ' + r.status);
+  return j;
+}
+function fail(e){
+  if (e.code === 'unauthorized'){ start(); return }
+  toast(e.message || String(e), 'err');
+}
+
+function loginScreen(msg){
+  return new Promise(resolve => {
+    const host = $('#modal-host');
+    host.innerHTML = `<div class="modal-wrap" style="background:var(--bg)"><form class="modal" id="login-form" aria-label="Entrar">
+      <div class="brand" style="padding:0"><div class="brand-mark">B</div><div><div class="brand-name">Brase</div><div class="brand-sub">Restaurantes</div></div></div>
+      <h2>Entrar</h2><p class="muted">Digite o código de acesso da equipe.</p>
+      <label class="f">Código de acesso<input class="in" type="password" name="code" id="login-code" required autocomplete="current-password"></label>
+      <p class="hint" id="login-msg">${esc(msg || '')}</p>
+      <div class="foot"><button class="btn primary">Entrar</button></div></form></div>`;
+    $('#login-code').focus();
+    $('#login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const code = String(new FormData(e.target).get('code') || '').trim();
+      if (code){ $('#login-msg').textContent = 'Entrando…'; resolve(code) }
+    });
+  });
+}
+async function start(){
+  for (let msg = ''; ; ){
+    if (!accessCode) accessCode = await loginScreen(msg);
+    try { googleOn = !!(await call({op: 'ping'})).google; break }
+    catch (e){ msg = e.code === 'unauthorized' ? 'Código inválido. Confira com o gestor.' : e.message; accessCode = '' }
+  }
+  store.set(CODE_KEY, accessCode);
+  $('#modal-host').innerHTML = '';
+  render();
+}
+$('#logout').addEventListener('click', () => { store.del(CODE_KEY); accessCode = ''; location.hash = '#/'; start() });
+
+/* ---------- rotas ---------- */
+function route(){
+  const [path, qs] = (location.hash.slice(1) || '/').split('?');
+  return {path: path || '/', q: new URLSearchParams(qs || '')};
+}
+function render(){
+  if (!accessCode) return;
+  const {path, q} = route();
+  const section = path.startsWith('/r/') ? '/' : path;
+  document.querySelectorAll('.nav-item').forEach(a => a.dataset.route === section ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+  hideTip();
+  if (path.startsWith('/r/')) return viewDetail(decodeURIComponent(path.slice(3)), Number(q.get('km')) || 5);
+  if (path === '/favoritos') return viewFavorites();
+  if (path === '/incluir') return viewInclude();
+  if (path === '/regiao') return viewArea(q);
+  viewSearch();
+}
+window.addEventListener('hashchange', render);
+const head = (title, sub = '', actions = '') => `<header class="head"><div><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`;
+const detailHref = (id, km) => `#/r/${id}${km && km !== 5 ? '?km=' + km : ''}`;
+
+/* ---------- busca ---------- */
+const S = {mode: 'nome', text: '', results: null};
+const MODES = {
+  nome: {label: 'Nome', ph: 'Ex.: Pizzaria Skalone', body: t => ({q: t})},
+  cnpj: {label: 'CNPJ', ph: '00.000.000/0000-00', body: t => ({cnpj: t})},
+  ifood: {label: 'Link ou ID do iFood', ph: 'https://www.ifood.com.br/delivery/…', body: t => ({merchant: t})},
+};
+function viewSearch(){
+  view.innerHTML = head('Restaurantes', 'Pesquise uma loja para ver a ficha com dados do iFood, do Google e do CNPJ, e o ranking por número de avaliações na região.') + `
+    <section class="panel"><div class="panel-b" style="padding-top:16px">
+      <form class="search-row" id="search-form">
+        <div class="seg" role="group" aria-label="Buscar por">${Object.entries(MODES).map(([k, m]) => `<button type="button" data-mode="${k}" aria-pressed="${S.mode === k}">${m.label}</button>`).join('')}</div>
+        <input class="in" id="q" name="q" value="${esc(S.text)}" placeholder="${esc(MODES[S.mode].ph)}" aria-label="Termo da busca" autocomplete="off">
+        <button class="btn primary">Buscar</button>
+      </form>
+      <p class="hint" style="margin-top:10px">A busca por nome e por CNPJ procura nas lojas que já estão na base. Para trazer uma loja nova, cole o link dela no iFood em “Link ou ID do iFood” ou use <a href="#/incluir">Incluir lojas</a>.</p>
+    </div></section>
+    <div id="results">${resultsHtml()}</div>`;
+  $('#search-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    S.text = $('#q').value.trim();
+    if (!S.text) return;
+    $('#results').innerHTML = '<div class="skel"></div>';
+    try {
+      S.results = (await call({op: 'search', ...MODES[S.mode].body(S.text)})).results;
+      if (S.mode === 'ifood' && S.results.length === 1){ location.hash = detailHref(S.results[0].id); return }
+    } catch (err){ S.results = null; fail(err) }
+    $('#results').innerHTML = resultsHtml();
+  });
+  view.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => {
+    S.mode = b.dataset.mode;
+    view.querySelectorAll('[data-mode]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $('#q').placeholder = MODES[S.mode].ph; $('#q').focus();
+  }));
+  $('#q').focus();
+}
+function resultsHtml(){
+  if (!S.results) return '';
+  if (!S.results.length) return `<div class="panel"><div class="panel-b"><p class="empty">Nenhuma loja encontrada na base. Se ela existe no iFood, cole o link da loja em “Link ou ID do iFood”.</p></div></div>`;
+  return `<section class="panel"><div class="panel-h"><h2>${fmt(S.results.length)} ${S.results.length === 1 ? 'loja' : 'lojas'}</h2></div><div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Restaurante</th><th>Categoria</th><th>Bairro</th><th>Cidade</th><th class="r">Avaliações</th></tr></thead><tbody>
+    ${S.results.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a></td><td>${esc(x.category || '—')}</td><td>${esc(x.district || '—')}</td><td>${esc([x.city, x.state].filter(Boolean).join('/'))}</td><td class="r">${fmt(x.rating_count)}</td></tr>`).join('')}
+    </tbody></table></div></section>`;
+}
+
+/* ---------- ficha do restaurante ---------- */
+const D = {id: null, km: 5, data: null, tab: 'cat', sort: {key: 'rank', dir: 1}, limit: PAGE, layer: 'lojas', seq: 0};
+async function viewDetail(id, km){
+  const same = D.id === id && D.data;
+  if (!same){
+    Object.assign(D, {tab: 'cat', sort: {key: 'rank', dir: 1}, limit: PAGE, layer: 'lojas', data: null});
+    view.innerHTML = head('Carregando ficha…', 'Lendo a loja no iFood, no Google e na Receita Federal.') + '<div class="skel"></div><div class="skel" style="height:220px"></div>';
+  } else view.classList.add('refetch');
+  D.id = id; D.km = km;
+  const seq = ++D.seq;
+  try {
+    const data = await call({op: 'detail', id, km});
+    if (seq !== D.seq) return;
+    D.data = data; googleOn = data.google_enabled;
+    drawDetail();
+  } catch (e){
+    if (seq !== D.seq) return;
+    fail(e);
+    if (!same) view.innerHTML = head('Não consegui abrir essa loja', esc(e.message)) + `<a class="btn" href="#/">Voltar para a busca</a>`;
+  } finally { if (seq === D.seq) view.classList.remove('refetch') }
+}
+
+// Posições e metas, com as mesmas contas da seção "Como Melhorar Seu Ranking" do Power Data.
+function analyze(d){
+  const m = d.merchant;
+  const all = d.nearby.slice().sort((a, b) => b.rating_count - a.rating_count).map((x, i) => ({...x, rank: i + 1}));
+  const cat = all.filter(x => x.category === m.category).map((x, i) => ({...x, rank: i + 1}));
+  const pos = list => { const i = list.findIndex(x => x.id === m.id); return i < 0 ? null : i + 1 };
+  const me = all.find(x => x.id === m.id);
+  const count3m = me ? me.count_3m : null;
+  const catReviews = cat.reduce((s, x) => s + (x.rating_count || 0), 0);
+  return {all, cat, posAll: pos(all), posCat: pos(cat), count3m, catReviews,
+    growth: count3m ? (m.rating_count / count3m - 1) : null};
+}
+
+function drawDetail(){
+  const d = D.data, m = d.merchant, a = analyze(d);
+  const kmLabel = `${dec(D.km, D.km % 1 ? 1 : 0)} km`;
+  const wa = waUrl(m.phone || m.google?.phone, m.name);
+  view.innerHTML = `
+    <div class="r-head">
+      ${m.logo ? `<img class="r-logo" src="${esc(m.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '<div class="r-logo"></div>'}
+      <div class="r-title"><h1>${esc(m.name)}</h1>
+        <div class="r-meta">${m.category ? `<span class="chip">${esc(m.category)}</span>` : ''}${m.chain ? `<span class="chip">Rede: ${esc(m.chain)}</span>` : ''}<span class="chip">${esc([m.district, [m.city, m.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}</span>${!m.enabled ? '<span class="chip bad">Fora do ar no iFood</span>' : ''}</div>
+      </div>
+      <div class="actions">
+        <button class="btn${d.favorite ? ' on' : ''}" data-a="fav" aria-pressed="${d.favorite}">${d.favorite ? '★ Favorito' : '☆ Favoritar'}</button>
+        ${extLink(ifoodUrl(m), 'Abrir no iFood ↗')}
+        ${extLink(wa, 'WhatsApp ↗', 'Abre uma conversa com “Olá, ' + m.name + '”')}
+        ${m.lat != null ? `<a class="btn" href="#/regiao?lat=${m.lat}&lon=${m.lon}&km=2&ref=${encodeURIComponent(m.name)}">Região no Google</a>` : ''}
+        <button class="btn" data-a="refresh" title="Lê de novo a loja no iFood, no Google e na Receita">Atualizar agora</button>
+      </div>
+    </div>
+    ${m.ifood_error ? `<div class="banner warn">Última leitura no iFood falhou: ${esc(m.ifood_error)}. Os dados abaixo são da leitura anterior.</div>` : ''}
+    <div class="radius"><span class="hint">Raio da análise</span><div class="seg" role="group" aria-label="Raio da análise">${RADII.map(k => `<button type="button" data-a="km" data-v="${k}" aria-pressed="${k === D.km}">${k} km</button>`).join('')}</div><span class="hint">Tudo abaixo considera as lojas da base num raio de ${kmLabel}.</span></div>
+    ${kpisHtml(d, a, kmLabel)}
+    <div class="src-grid">${ifoodCard(m, a)}${googleCard(m, d)}${cnpjCard(m)}</div>
+    ${goalsHtml(d, a, kmLabel)}
+    <section class="panel"><div class="panel-h"><h2>Mapa da região</h2>
+      <div class="seg" role="group" aria-label="Camada do mapa">${[['lojas', 'Lojas'], ['calor', 'Concentração de pedidos'], ['preco', 'Faixa de preço']].map(([k, l]) => `<button type="button" data-a="layer" data-v="${k}" aria-pressed="${D.layer === k}">${l}</button>`).join('')}</div></div>
+      <div class="panel-b"><div class="map" id="map" role="region" aria-label="Mapa das lojas no raio"></div><div class="legend" id="map-legend"></div></div></section>
+    <div class="two">
+      <section class="panel"><div class="panel-h"><h2>Categorias na região</h2><span class="sub">10 categorias com mais lojas em ${kmLabel}</span></div><div class="panel-b">${distHtml(d.nearby)}</div></section>
+      <section class="panel"><div class="panel-h"><h2>Evolução das avaliações</h2><span class="sub">últimos 6 meses</span></div><div class="panel-b">${historyHtml(d.history, m)}</div></section>
+    </div>
+    <section class="panel" id="ranking">${rankingHtml(a)}</section>
+    <p class="hint">Última leitura do iFood: ${when(m.ifood_checked_at)} · Google: ${when(m.google_checked_at)} · CNPJ: ${when(m.cnpj_checked_at)}. O coletor relê cada loja da base uma vez por dia.</p>`;
+  mountMap();
+  bindChart();
+}
+
+function kpisHtml(d, a, kmLabel){
+  const m = d.merchant, orders = (m.rating_count || 0) * ORDERS_PER_REVIEW, catOrders = a.catReviews * ORDERS_PER_REVIEW;
+  return `<div class="kpis">
+    <div class="kpi"><span class="l">Posição na categoria</span><span class="v">${a.posCat ? '#' + a.posCat : '—'}</span><span class="s">de ${fmt(a.cat.length)} lojas de ${esc(m.category || '—')} em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Posição geral</span><span class="v">${a.posAll ? '#' + a.posAll : '—'}</span><span class="s">de ${fmt(a.all.length)} lojas em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Avaliações no iFood</span><span class="v">${fmt(m.rating_count)}</span><span class="s">${a.count3m != null ? `3 meses atrás: ${fmt(a.count3m)} · ${trend(a.growth)}` : 'A comparação com 3 meses atrás aparece depois de 90 dias de coleta.'}</span></div>
+    <div class="kpi"><span class="l">Pedidos estimados</span><span class="v">${fmt(orders)}</span><span class="s">${catOrders ? `${dec(15 * orders / catOrders, 2)} a cada 15 pedidos de ${esc(m.category || 'categoria')} na região` : 'avaliações × ' + ORDERS_PER_REVIEW}</span></div>
+  </div>`;
+}
+
+function ifoodCard(m, a){
+  return `<section class="panel"><div class="panel-h"><h2><span class="mark ifood">iF</span>iFood</h2></div><div class="panel-b"><dl class="dl">
+    <dt>Avaliações</dt><dd><span class="big">${fmt(m.rating_count)}</span>${a.count3m != null ? ` <span class="hint">· ${trend(a.growth)} em 3 meses</span>` : ''}</dd>
+    <dt>Categoria</dt><dd>${esc(m.category || '—')}</dd>
+    <dt>Faixa de preço</dt><dd>${esc(PRICE[m.price_range] || m.price_range || '—')}</dd>
+    ${m.chain ? `<dt>Rede</dt><dd>${esc(m.chain)}</dd>` : ''}
+    <dt>Endereço</dt><dd>${esc([[m.street, m.street_number].filter(Boolean).join(', '), m.district, [m.city, m.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${m.zip ? ` · CEP ${esc(m.zip.replace(/^(\d{5})(\d{3})$/, '$1-$2'))}` : ''}</dd>
+    <dt>Telefone</dt><dd>${m.phone ? esc(fmtPhone(m.phone)) : '—'}</dd>
+    <dt>Na base desde</dt><dd>${dateOnly(m.first_seen)}</dd>
+  </dl><p class="hint" style="margin-top:10px">O iFood informa o número de avaliações, mas não a nota em estrelas, no endereço público que o coletor usa.</p></div></section>`;
+}
+
+function googleCard(m, d){
+  const g = m.google;
+  let body;
+  if (!g && !d.google_enabled) body = `<p class="empty">A chave do Google ainda não foi configurada no servidor (GOOGLE_PLACES_API_KEY). Veja o README do app.</p>`;
+  else if (!g) body = `<p class="empty">Ainda não consultado. Clique em “Atualizar agora”.</p>`;
+  else if (g.none) body = `<p class="empty">Não achei esta loja no Google Maps perto do endereço do iFood (até 400 m, com nome parecido).</p>`;
+  else body = `<dl class="dl">
+    <dt>Nota</dt><dd><span class="big">★ ${dec(g.rating)}</span> <span class="hint">em ${fmt(g.count)} avaliações</span></dd>
+    <dt>Categoria</dt><dd>${esc(g.category || '—')}</dd>
+    <dt>Preço</dt><dd>${esc(g.price || '—')}</dd>
+    <dt>Telefone</dt><dd>${g.phone ? esc(g.phone) : '—'}</dd>
+    <dt>Endereço</dt><dd>${esc(g.address || '—')}</dd>
+    <dt>Links</dt><dd class="links">${extLink(g.maps_url, 'Google Maps ↗')}${extLink(g.website, 'Site ↗')}</dd>
+  </dl><p class="hint" style="margin-top:10px">Lugar do Google a ${fmt(g.distance_m)} m do endereço do iFood.</p>`;
+  return `<section class="panel"><div class="panel-h"><h2><span class="mark google">G</span>Google</h2></div><div class="panel-b">${body}</div></section>`;
+}
+
+function cnpjCard(m){
+  const c = m.cnpj_data;
+  let body;
+  if (!m.cnpj) body = `<p class="empty">O iFood não informa o CNPJ desta loja.</p>`;
+  else if (!c) body = `<p class="empty">Não consegui consultar o CNPJ ${esc(fmtCnpj(m.cnpj))} agora. Tente “Atualizar agora” mais tarde.</p>`;
+  else if (c.missing) body = `<p class="empty">O CNPJ ${esc(fmtCnpj(m.cnpj))} não foi encontrado na base da Receita.</p>`;
+  else body = `<dl class="dl">
+    <dt>Situação</dt><dd><span class="chip ${c.situacao === 'ATIVA' ? 'ok' : 'bad'}">${esc(c.situacao || '—')}</span></dd>
+    <dt>Razão social</dt><dd>${esc(c.razao_social || '—')}</dd>
+    <dt>CNPJ</dt><dd>${esc(fmtCnpj(m.cnpj))}</dd>
+    ${c.nome_fantasia ? `<dt>Nome fantasia</dt><dd>${esc(c.nome_fantasia)}</dd>` : ''}
+    <dt>Porte</dt><dd>${esc(c.porte || '—')}${c.mei ? ' · MEI' : c.simples ? ' · Simples Nacional' : ''}</dd>
+    <dt>Abertura</dt><dd>${day(c.abertura)}</dd>
+    <dt>Atividade</dt><dd>${esc(c.atividade || '—')}</dd>
+    <dt>Telefones</dt><dd>${c.telefones?.length ? c.telefones.map(t => esc(fmtPhone(t))).join(' · ') : '—'}</dd>
+    ${c.email ? `<dt>E-mail</dt><dd>${esc(c.email.toLowerCase())}</dd>` : ''}
+  </dl>
+  ${c.socios?.length ? `<div class="tbl-wrap" style="margin-top:12px"><table class="tbl"><thead><tr><th>Sócio</th><th>Cargo</th><th>Entrada</th></tr></thead><tbody>${c.socios.map(s => `<tr><td>${esc(s.nome)}</td><td>${esc(s.cargo || '—')}</td><td class="num">${day(s.entrada)}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
+  return `<section class="panel"><div class="panel-h"><h2><span class="mark cnpj">CN</span>CNPJ</h2><span class="sub">Receita Federal (BrasilAPI)</span></div><div class="panel-b">${body}</div></section>`;
+}
+
+function goalsHtml(d, a, kmLabel){
+  const m = d.merchant, cat = a.cat, me = m.rating_count || 0;
+  if (!a.posCat) return `<section class="panel"><div class="panel-h"><h2>Como melhorar o ranking</h2></div><div class="panel-b"><p class="empty">Esta loja está fora do ranking (sem avaliações ou fora do ar no iFood).</p></div></section>`;
+  const per = ORDERS_PER_REVIEW, total = a.catReviews * per, mine = me * per;
+  const share = o => total ? dec(15 * o / total, 2) : '—';
+  // Para passar uma loja é preciso ter pelo menos 1 avaliação a mais que ela.
+  const goal = (title, target) => {
+    const reviews = target.rating_count - me + 1, orders = reviews * per;
+    return `<div class="goal"><h3>${title}</h3>
+      <p>Faltam <b>${fmt(orders)} pedidos</b> (${fmt(reviews)} avaliações)${mine ? `, <b>${signed(orders / mine)}</b> sobre hoje` : ''}.</p>
+      <p>Meta: ${fmt(mine + orders)} pedidos no total, ${share(mine + orders)} a cada 15 da categoria. Hoje o ${target.rank}º lugar é ${esc(target.name)}.</p></div>`;
+  };
+  const cards = [];
+  cards.push(`<div class="goal"><h3>Resumo</h3>
+    <p>Hoje são <b>${fmt(mine)} pedidos estimados</b> de ${fmt(total)} na categoria ${esc(m.category || '—')}: ${share(mine)} a cada 15 pedidos.</p>
+    <p>Posição <b>#${a.posCat}</b> de ${fmt(cat.length)} no raio de ${kmLabel}${a.growth != null ? `, ${a.growth >= 0 ? 'cresceu' : 'caiu'} ${pct(Math.abs(a.growth))} em 90 dias` : ''}.</p></div>`);
+  if (a.posCat > 1) cards.push(goal('Para subir 1 posição', cat[a.posCat - 2]));
+  if (a.posCat <= 10) cards.push(`<div class="goal"><h3>No top 10</h3><p>A loja já está entre as 10 com mais avaliações da categoria na região (posição #${a.posCat}).</p></div>`);
+  else cards.push(goal('Para entrar no top 10', cat[9]));
+  if (a.posCat > 2) cards.push(goal('Para ser a 1ª da região', cat[0]));
+  if (a.posCat === 1) cards.push(`<div class="goal"><h3>1ª da região</h3><p>Nenhuma loja de ${esc(m.category || '—')} tem mais avaliações neste raio. A 2ª colocada está ${cat[1] ? `${fmt((me - cat[1].rating_count) * per)} pedidos atrás` : 'sem concorrência'}.</p></div>`);
+  return `<section class="panel"><div class="panel-h"><h2>Como melhorar o ranking</h2><span class="sub">Pedidos estimados = avaliações × ${per}. Comparações com a mesma categoria em ${kmLabel}.</span></div><div class="panel-b"><div class="goals">${cards.join('')}</div></div></section>`;
+}
+
+function distHtml(nearby){
+  if (!nearby.length) return '<p class="empty">Nenhuma loja da base neste raio.</p>';
+  const by = new Map(); let reviews = 0;
+  for (const x of nearby){ const k = x.category || 'Sem categoria', o = by.get(k) || {n: 0, r: 0}; o.n++; o.r += x.rating_count || 0; reviews += x.rating_count || 0; by.set(k, o) }
+  const top = [...by.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([k, o]) => ({k, n: o.n / nearby.length, r: reviews ? o.r / reviews : 0, cn: o.n, cr: o.r}));
+  const max = Math.max(...top.map(t => Math.max(t.n, t.r))) || 1;
+  const bar = (v, color, label, t) => `<div class="dist-bar" data-tip="${esc(`${t.k}\n${label}: ${pct(v)} (${fmt(label.startsWith('Lojas') ? t.cn : t.cr)})`)}" tabindex="0"><b style="width:${(v / max * 82).toFixed(2)}%;background:var(${color})"></b>${pct(v)}</div>`;
+  return `<div class="legend" style="margin:0 0 8px"><span class="key"><i class="bx" style="background:var(--s1)"></i>Lojas (%)</span><span class="key"><i class="bx" style="background:var(--s2)"></i>Avaliações (%)</span></div>
+    ${top.map(t => `<div class="dist-row"><div class="dist-l">${esc(t.k)}</div><div class="dist-bars">${bar(t.n, '--s1', 'Lojas', t)}${bar(t.r, '--s2', 'Avaliações', t)}</div></div>`).join('')}
+    <p class="hint" style="margin-top:8px">Categoria com mais avaliações do que lojas (barra laranja maior) concentra a demanda da região.</p>`;
+}
+
+function historyHtml(history, m){
+  const pts = history.filter(h => h.mine != null || h.region_avg != null);
+  if (pts.length < 2) return `<p class="empty">A evolução aparece quando houver leituras de pelo menos 2 meses. O coletor lê cada loja uma vez por dia e guarda o histórico.</p>`;
+  const W = 600, H = 230, L = 44, R = 14, T = 12, B = 28;
+  const vals = pts.flatMap(h => [h.mine, h.region_avg]).filter(v => v != null);
+  const step = niceStep(Math.max(...vals) / 4), top = Math.max(step, Math.ceil(Math.max(...vals) / step) * step);
+  const x = i => L + (pts.length === 1 ? 0 : i * (W - L - R) / (pts.length - 1));
+  const y = v => T + (1 - v / top) * (H - T - B);
+  const path = key => { let s = ''; pts.forEach((h, i) => { if (h[key] == null) return; s += (s ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(h[key]).toFixed(1) }); return s };
+  const ticks = []; for (let v = 0; v <= top; v += step) ticks.push(v);
+  const last = pts.length - 1;
+  const dot = (key, color) => pts[last][key] == null ? '' : `<circle cx="${x(last)}" cy="${y(pts[last][key])}" r="4" fill="var(${color})" stroke="var(--surface)" stroke-width="2"/>`;
+  return `<div class="legend" style="margin:0 0 6px"><span class="key"><i class="ln" style="background:var(--s1)"></i>${esc(m.name)}</span><span class="key"><i class="ln" style="background:var(--s2)"></i>Média de ${esc(m.category || 'mesma categoria')} na região</span></div>
+    <div class="chart-hover" style="position:relative"><svg class="chart" id="hist" viewBox="0 0 ${W} ${H}" role="img" aria-label="Avaliações por mês: a loja e a média da categoria na região">
+      ${ticks.map(v => `<line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end">${compactNum(v)}</text>`).join('')}
+      ${pts.map((h, i) => `<text x="${x(i)}" y="${H - 8}" text-anchor="middle">${monthLabel(h.month)}</text>`).join('')}
+      <path class="ln" d="${path('region_avg')}" stroke="var(--s2)"/><path class="ln" d="${path('mine')}" stroke="var(--s1)"/>
+      ${dot('region_avg', '--s2')}${dot('mine', '--s1')}
+      <line class="xh" id="hist-x" y1="${T}" y2="${H - B}" visibility="hidden"/>
+      <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="hist-hit"/>
+    </svg></div>
+    <p class="hint">Se a linha azul fica acima da laranja, a loja evolui melhor que a média da região. Abaixo por vários meses é sinal de atenção.</p>
+    <details style="margin-top:6px"><summary class="hint">Ver em tabela</summary><table class="tbl" style="margin-top:6px"><thead><tr><th>Mês</th><th class="r">Loja</th><th class="r">Média da região</th><th class="r">Lojas na média</th></tr></thead><tbody>${pts.map(h => `<tr><td>${monthLabel(h.month)}</td><td class="r">${fmt(h.mine)}</td><td class="r">${dec(h.region_avg)}</td><td class="r">${fmt(h.region_n)}</td></tr>`).join('')}</tbody></table></details>`;
+}
+function niceStep(raw){ const p = 10 ** Math.floor(Math.log10(Math.max(raw, 1))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p }
+const compactNum = v => v >= 1000 ? (v / 1000).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + ' mil' : nf.format(v);
+
+// Mira vertical que acompanha o ponteiro e mostra os dois valores do mês mais próximo.
+function bindChart(){
+  const svg = $('#hist'), hit = $('#hist-hit');
+  if (!svg || !hit) return;
+  const pts = D.data.history.filter(h => h.mine != null || h.region_avg != null), line = $('#hist-x');
+  const move = e => {
+    const r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, sx = (e.clientX - r.left) * vb.width / r.width;
+    const L = 44, R = 14, span = vb.width - L - R, i = Math.max(0, Math.min(pts.length - 1, Math.round((sx - L) / span * (pts.length - 1))));
+    const px = L + i * span / (pts.length - 1);
+    line.setAttribute('x1', px); line.setAttribute('x2', px); line.setAttribute('visibility', 'visible');
+    const h = pts[i];
+    showTip(`${monthLabel(h.month)}\n${fmt(h.mine)} — ${D.data.merchant.name}\n${dec(h.region_avg)} — média da região (${fmt(h.region_n)} lojas)`, e.clientX, e.clientY);
+  };
+  hit.addEventListener('pointermove', move);
+  hit.addEventListener('pointerleave', () => { line.setAttribute('visibility', 'hidden'); hideTip() });
+}
+
+/* ranking */
+const RANK_COLS = [
+  {key: 'rank', label: '#', r: true},
+  {key: 'name', label: 'Restaurante'},
+  {key: 'category', label: 'Categoria'},
+  {key: 'rating_count', label: 'Avaliações', r: true},
+  {key: 'count_3m', label: '3 meses atrás', r: true},
+  {key: 'growth', label: 'Variação', r: true},
+  {key: 'google_rating', label: 'Google', r: true},
+  {key: 'district', label: 'Bairro'},
+  {key: 'km', label: 'Distância', r: true},
+  {key: 'contact', label: 'Contato', nosort: true},
+];
+function rankRows(a){
+  const list = (D.tab === 'cat' ? a.cat : a.all).map(x => ({...x, growth: x.count_3m ? x.rating_count / x.count_3m - 1 : null}));
+  const {key, dir} = D.sort;
+  return list.sort((p, q) => {
+    const u = p[key], v = q[key];
+    if (u == null && v == null) return 0; if (u == null) return 1; if (v == null) return -1;
+    return (typeof u === 'string' ? u.localeCompare(v, 'pt-BR') : u - v) * dir;
+  });
+}
+function rankingHtml(a){
+  const m = D.data.merchant, rows = rankRows(a), shown = rows.slice(0, D.limit);
+  const th = c => {
+    const sorted = D.sort.key === c.key;
+    const label = c.nosort ? c.label : `<button data-a="sort" data-v="${c.key}">${c.label}${sorted ? (D.sort.dir > 0 ? ' ↑' : ' ↓') : ''}</button>`;
+    return `<th class="${c.r ? 'r' : ''}"${sorted ? ` aria-sort="${D.sort.dir > 0 ? 'ascending' : 'descending'}"` : ''}>${label}</th>`;
+  };
+  const tr = x => {
+    const wa = waUrl(x.phone || x.google_phone, x.name);
+    return `<tr${x.id === m.id ? ' class="me"' : ''}>
+      <td class="r">${x.rank}</td>
+      <td class="nm"><a href="${detailHref(x.id, D.km)}">${esc(x.name)}</a><small>${esc([x.city, x.state].filter(Boolean).join('/'))}</small></td>
+      <td>${esc(x.category || '—')}</td>
+      <td class="r">${fmt(x.rating_count)}</td>
+      <td class="r">${fmt(x.count_3m)}</td>
+      <td class="r">${trend(x.growth)}</td>
+      <td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>
+      <td>${esc(x.district || '—')}</td>
+      <td class="r">${dec(x.km)} km</td>
+      <td><span class="links">${extLink(ifoodUrl(x), 'iFood ↗')}${extLink(wa, 'Zap ↗')}</span></td></tr>`;
+  };
+  return `<div class="panel-h"><h2>Ranking por número de avaliações</h2><div class="actions"><button class="btn sm" data-a="csv">Baixar CSV</button></div></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" data-a="tab" data-v="cat" aria-current="${D.tab === 'cat'}">Mesma categoria · ${fmt(a.cat.length)}</button>
+      <button role="tab" data-a="tab" data-v="all" aria-current="${D.tab === 'all'}">Geral · ${fmt(a.all.length)}</button>
+    </div>
+    ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>${RANK_COLS.map(th).join('')}</tr></thead><tbody>${shown.map(tr).join('')}</tbody></table></div>` : '<div class="panel-b"><p class="empty">Nenhuma loja neste raio.</p></div>'}
+    <div class="panel-b" style="padding-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      ${rows.length > D.limit ? `<button class="btn sm" data-a="more">Ver mais ${fmt(Math.min(PAGE, rows.length - D.limit))}</button>` : ''}
+      <span class="hint">Mostrando ${fmt(shown.length)} de ${fmt(rows.length)}. Clique no título da coluna para reordenar. “3 meses atrás” usa a leitura de 90 dias antes.</span></div>`;
+}
+function rankingCsv(){
+  const a = analyze(D.data), rows = rankRows(a);
+  downloadCsv(`ranking-${slug(D.data.merchant.name)}-${D.tab === 'cat' ? 'categoria' : 'geral'}-${D.km}km.csv`, [
+    ['posicao', 'restaurante', 'categoria', 'avaliacoes', 'avaliacoes_3_meses_atras', 'variacao_%', 'nota_google', 'avaliacoes_google', 'bairro', 'cidade', 'uf', 'distancia_km', 'telefone', 'link_ifood', 'whatsapp'],
+    ...rows.map(x => [x.rank, x.name, x.category, x.rating_count, x.count_3m, x.growth == null ? '' : (x.growth * 100).toFixed(1).replace('.', ','), x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, x.district, x.city, x.state, dec(x.km, 2), fmtPhone(x.phone || x.google_phone), ifoodUrl(x), waUrl(x.phone || x.google_phone, x.name)]),
+  ]);
+}
+
+/* mapa */
+// Mapa de fundo do OpenStreetMap; no modo escuro os blocos recebem um filtro (classe .dark no contêiner).
+const tiles = () => L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+let map = null;
+function mountMap(){
+  const el = $('#map'), legend = $('#map-legend'), d = D.data, m = d.merchant;
+  if (map){ map.remove(); map = null }
+  if (!window.L){ el.innerHTML = '<p class="empty" style="padding:16px">O mapa não carregou (sem acesso ao cdnjs).</p>'; return }
+  if (m.lat == null){ el.innerHTML = '<p class="empty" style="padding:16px">O iFood não informou a localização desta loja.</p>'; return }
+  el.classList.toggle('dark', isDark());
+  map = L.map(el, {preferCanvas: true, scrollWheelZoom: false});
+  tiles().addTo(map);
+  map.fitBounds(L.latLng(m.lat, m.lon).toBounds(D.km * 2000), {padding: [8, 8]});
+  L.circle([m.lat, m.lon], {radius: D.km * 1000, color: css('--accent'), weight: 1, fillOpacity: .03, interactive: false}).addTo(map);
+  const others = d.nearby.filter(x => x.id !== m.id && x.lat != null);
+  const surface = css('--surface'), s1 = css('--s1'), gray = css('--muted');
+  const label = x => esc(`${x.name} · ${fmt(x.rating_count)} avaliações · ${x.category || 'sem categoria'}`);
+  const open = x => () => { location.hash = detailHref(x.id, D.km) };
+  if (D.layer === 'calor'){
+    const max = Math.max(1, ...d.nearby.map(x => x.rating_count || 0));
+    const ramp = isDark() ? {0.25: '#5a2410', 0.55: '#d95926', 0.85: '#ff9a66', 1: '#ffd2b8'} : {0.25: '#fbd3bd', 0.55: '#eb6834', 0.85: '#b23a0a', 1: '#6e2205'};
+    if (L.heatLayer) L.heatLayer(d.nearby.filter(x => x.lat != null).map(x => [x.lat, x.lon, (x.rating_count || 0) / max]), {radius: 26, blur: 22, maxZoom: 15, max: 1, gradient: ramp}).addTo(map);
+    legend.innerHTML = `<span class="key"><i style="background:${isDark() ? '#5a2410' : '#fbd3bd'}"></i>Poucos pedidos</span><span class="key"><i style="background:${isDark() ? '#ffd2b8' : '#6e2205'}"></i>Muitos pedidos</span><span class="hint">Peso de cada loja = número de avaliações no iFood.</span>`;
+  } else if (D.layer === 'preco'){
+    const color = p => { const i = PRICE_ORDER.indexOf(p); return i < 0 ? gray : css(`--q${i + 1}`) };
+    others.forEach(x => L.circleMarker([x.lat, x.lon], {radius: 5, color: surface, weight: 1.5, fillColor: color(x.price_range), fillOpacity: .95}).bindTooltip(label(x) + ' · ' + esc(PRICE[x.price_range] || 'preço não informado')).on('click', open(x)).addTo(map));
+    legend.innerHTML = PRICE_ORDER.map((p, i) => `<span class="key"><i style="background:var(--q${i + 1})"></i>${PRICE[p]}</span>`).join('') + `<span class="key"><i style="background:var(--muted)"></i>Não informado</span>`;
+  } else {
+    others.forEach(x => {
+      const same = x.category === m.category;
+      L.circleMarker([x.lat, x.lon], {radius: same ? 6 : 4, color: surface, weight: 1.5, fillColor: same ? s1 : gray, fillOpacity: same ? .95 : .6}).bindTooltip(label(x)).on('click', open(x)).addTo(map);
+    });
+    legend.innerHTML = `<span class="key"><i style="background:var(--accent)"></i>Esta loja</span><span class="key"><i style="background:var(--s1)"></i>${esc(m.category || 'Mesma categoria')}</span><span class="key"><i style="background:var(--muted)"></i>Outras categorias</span><span class="hint">Clique num ponto para abrir a ficha.</span>`;
+  }
+  L.circleMarker([m.lat, m.lon], {radius: 9, color: surface, weight: 2.5, fillColor: css('--accent'), fillOpacity: 1}).bindTooltip(esc(m.name), {permanent: false}).addTo(map);
+}
+
+view.addEventListener('click', async e => {
+  const el = e.target.closest('[data-a]');
+  if (!el || !D.data || !route().path.startsWith('/r/')) return;
+  const act = el.dataset.a, v = el.dataset.v;
+  if (act === 'km'){ location.hash = detailHref(D.id, Number(v)); return }
+  if (act === 'tab'){ D.tab = v; D.limit = PAGE; D.sort = {key: 'rank', dir: 1}; $('#ranking').innerHTML = rankingHtml(analyze(D.data)); return }
+  if (act === 'sort'){ D.sort = D.sort.key === v ? {key: v, dir: -D.sort.dir} : {key: v, dir: ['rank', 'name', 'category', 'district', 'km'].includes(v) ? 1 : -1}; $('#ranking').innerHTML = rankingHtml(analyze(D.data)); $(`#ranking [data-v="${v}"]`)?.focus(); return }
+  if (act === 'more'){ D.limit += PAGE; $('#ranking').innerHTML = rankingHtml(analyze(D.data)); return }
+  if (act === 'csv'){ rankingCsv(); return }
+  if (act === 'layer'){ D.layer = v; view.querySelectorAll('[data-a="layer"]').forEach(b => b.setAttribute('aria-pressed', b.dataset.v === v)); mountMap(); return }
+  if (act === 'fav'){
+    el.disabled = true;
+    try { D.data.favorite = (await call({op: 'favorite', id: D.id, on: !D.data.favorite})).favorite; toast(D.data.favorite ? 'Adicionada aos favoritos.' : 'Removida dos favoritos.') } catch (err){ fail(err) }
+    el.disabled = false; el.classList.toggle('on', D.data.favorite); el.setAttribute('aria-pressed', D.data.favorite); el.textContent = D.data.favorite ? '★ Favorito' : '☆ Favoritar';
+    return;
+  }
+  if (act === 'refresh'){
+    el.disabled = true; el.textContent = 'Atualizando…'; view.classList.add('refetch');
+    try { D.data = await call({op: 'refresh', id: D.id, km: D.km}); drawDetail(); toast('Loja atualizada.') }
+    catch (err){ fail(err); el.disabled = false; el.textContent = 'Atualizar agora' }
+    finally { view.classList.remove('refetch') }
+  }
+});
+
+/* ---------- região no Google ---------- */
+const A = {lat: null, lon: null, km: 2, label: '', address: '', data: null};
+function viewArea(q){
+  if (q.get('lat') && q.get('lon')){ A.lat = Number(q.get('lat')); A.lon = Number(q.get('lon')); A.km = Number(q.get('km')) || A.km; A.label = q.get('ref') ? 'Ao redor de ' + q.get('ref') : ''; A.data = null }
+  view.innerHTML = head('Região no Google', 'Ranking dos restaurantes de uma região pelo número de avaliações no Google Maps. Cobre também lojas que não estão no iFood.') + `
+    ${googleOn ? '' : '<div class="banner warn">A chave do Google ainda não foi configurada no servidor (GOOGLE_PLACES_API_KEY). Sem ela dá para ver só o que já foi salvo.</div>'}
+    <section class="panel"><div class="panel-b" style="padding-top:16px;display:grid;gap:12px">
+      <form class="search-row" id="area-form"><input class="in" id="addr" value="${esc(A.address)}" placeholder="Endereço, bairro ou CEP (ex.: Av. Paulista, 1000, São Paulo)" aria-label="Endereço"><button class="btn">Ir para o endereço</button></form>
+      <div class="search-row"><span class="hint">Raio</span><div class="seg" role="group" aria-label="Raio">${AREA_RADII.map(k => `<button type="button" data-km="${k}" aria-pressed="${k === A.km}">${dec(k, k % 1 ? 1 : 0)} km</button>`).join('')}</div>
+        <button class="btn primary" id="area-update" ${A.lat == null ? 'disabled' : ''}>Buscar de novo no Google</button></div>
+      <p class="hint">Ir para o endereço faz 1 consulta ao Google. “Buscar de novo no Google” faz até 30 consultas pagas (10 tipos de restaurante × 3 páginas) e salva o resultado: ver de novo depois não custa nada.</p>
+    </div></section>
+    <div id="area-out">${A.lat == null ? '<p class="empty">Digite um endereço ou abra a região a partir da ficha de uma loja.</p>' : '<div class="skel"></div>'}</div>`;
+  $('#area-form').addEventListener('submit', e => { e.preventDefault(); A.address = $('#addr').value.trim(); if (A.address) loadArea({address: A.address}) });
+  view.querySelectorAll('[data-km]').forEach(b => b.addEventListener('click', () => { A.km = Number(b.dataset.km); view.querySelectorAll('[data-km]').forEach(x => x.setAttribute('aria-pressed', x === b)); if (A.lat != null) loadArea({}) }));
+  $('#area-update').addEventListener('click', () => {
+    if (confirm(`Buscar os restaurantes num raio de ${dec(A.km, A.km % 1 ? 1 : 0)} km no Google? São até 30 consultas pagas à API do Google.`)) loadArea({update: true});
+  });
+  if (A.lat != null) A.data ? drawArea() : loadArea({});
+}
+async function loadArea(extra){
+  const out = $('#area-out'); if (!out) return;
+  out.innerHTML = '<div class="skel"></div>';
+  try {
+    const r = await call({op: 'area', lat: A.lat, lon: A.lon, km: A.km, ...extra});
+    A.data = r; A.lat = r.center.lat; A.lon = r.center.lon; if (r.label) A.label = r.label;
+    $('#area-update')?.removeAttribute('disabled');
+    if (extra.update) toast(`Google: ${fmt(r.found)} lugares em ${fmt(r.calls)} consultas.`);
+    drawArea();
+  } catch (e){ fail(e); out.innerHTML = `<p class="empty">${esc(e.message)}</p>` }
+}
+let areaMap = null;
+function drawArea(){
+  const out = $('#area-out'), r = A.data; if (!out || !r) return;
+  const places = r.places.map((p, i) => ({...p, rank: i + 1, growth: p.count_3m ? p.rating_count / p.count_3m - 1 : null}));
+  out.innerHTML = `${A.label ? `<p class="hint" style="margin-bottom:10px">${esc(A.label)} · raio de ${dec(r.km, r.km % 1 ? 1 : 0)} km</p>` : ''}
+    <div class="kpis"><div class="kpi"><span class="l">Lugares salvos no raio</span><span class="v">${fmt(places.length)}</span></div>
+      <div class="kpi"><span class="l">Avaliações no Google</span><span class="v">${fmt(places.reduce((s, p) => s + (p.rating_count || 0), 0))}</span></div>
+      <div class="kpi"><span class="l">Também no iFood</span><span class="v">${fmt(places.filter(p => p.merchant_id).length)}</span><span class="s">ligados a uma loja da base</span></div></div>
+    <section class="panel"><div class="panel-h"><h2>Mapa</h2></div><div class="panel-b"><div class="map" id="area-map" role="region" aria-label="Mapa dos lugares"></div>
+      <div class="legend"><span class="key"><i style="background:var(--s1)"></i>Lugar do Google (tamanho = avaliações)</span><span class="key"><i style="background:var(--accent)"></i>Centro da busca</span></div></div></section>
+    <section class="panel"><div class="panel-h"><h2>Ranking por avaliações no Google</h2><button class="btn sm" id="area-csv">Baixar CSV</button></div>
+      ${places.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th class="r">#</th><th>Lugar</th><th>Categoria</th><th class="r">Nota</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th><th>Preço</th><th class="r">Distância</th><th>Contato</th></tr></thead><tbody>
+      ${places.map(p => `<tr><td class="r">${p.rank}</td><td class="nm">${p.merchant_id ? `<a href="${detailHref(p.merchant_id)}">${esc(p.name)}</a>` : esc(p.name)}<small>${esc(p.address || '')}</small></td><td>${esc(p.category || '—')}</td><td class="r">${p.rating != null ? '★ ' + dec(p.rating) : '—'}</td><td class="r">${fmt(p.rating_count)}</td><td class="r">${fmt(p.count_3m)}</td><td class="r">${trend(p.growth)}</td><td>${esc(p.price || '—')}</td><td class="r">${dec(p.km)} km</td>
+        <td><span class="links">${extLink(p.maps_url, 'Maps ↗')}${extLink(p.website, 'Site ↗')}${extLink(waUrl(p.phone, p.name), 'Zap ↗')}${p.merchant_id ? `<a class="btn sm" href="${detailHref(p.merchant_id)}">Ficha iFood</a>` : ''}</span></td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="panel-b"><p class="empty">Nada salvo neste raio ainda. ${googleOn ? 'Clique em “Buscar de novo no Google”.' : ''}</p></div>`}</section>`;
+  $('#area-csv').addEventListener('click', () => downloadCsv(`regiao-google-${dec(r.center.lat, 4)}_${dec(r.center.lon, 4)}-${r.km}km.csv`, [
+    ['posicao', 'lugar', 'categoria', 'nota', 'avaliacoes', 'avaliacoes_3_meses_atras', 'preco', 'endereco', 'telefone', 'site', 'google_maps', 'distancia_km'],
+    ...places.map(p => [p.rank, p.name, p.category, p.rating == null ? '' : String(p.rating).replace('.', ','), p.rating_count, p.count_3m, p.price, p.address, p.phone, p.website, p.maps_url, dec(p.km, 2)]),
+  ]));
+  if (areaMap){ areaMap.remove(); areaMap = null }
+  if (!window.L) return;
+  $('#area-map').classList.toggle('dark', isDark());
+  areaMap = L.map('area-map', {preferCanvas: true, scrollWheelZoom: false});
+  tiles().addTo(areaMap);
+  areaMap.fitBounds(L.latLng(r.center.lat, r.center.lon).toBounds(r.km * 2000), {padding: [8, 8]});
+  L.circle([r.center.lat, r.center.lon], {radius: r.km * 1000, color: css('--accent'), weight: 1, fillOpacity: .03, interactive: false}).addTo(areaMap);
+  const max = Math.max(1, ...places.map(p => p.rating_count || 0));
+  places.forEach(p => L.circleMarker([p.lat, p.lon], {radius: 4 + 8 * Math.sqrt((p.rating_count || 0) / max), color: css('--surface'), weight: 1.5, fillColor: css('--s1'), fillOpacity: .85})
+    .bindTooltip(esc(`${p.name} · ★ ${dec(p.rating)} · ${fmt(p.rating_count)} avaliações`)).addTo(areaMap));
+  L.circleMarker([r.center.lat, r.center.lon], {radius: 7, color: css('--surface'), weight: 2.5, fillColor: css('--accent'), fillOpacity: 1}).addTo(areaMap);
+}
+
+/* ---------- favoritos ---------- */
+async function viewFavorites(){
+  view.innerHTML = head('Favoritos', 'Lojas que a equipe acompanha. A lista é a mesma para todo mundo que usa o código de acesso.') + '<div class="skel"></div>';
+  let rows;
+  try { rows = (await call({op: 'favorites'})).results } catch (e){ fail(e); view.querySelector('.skel').outerHTML = `<p class="empty">${esc(e.message)}</p>`; return }
+  if (route().path !== '/favoritos') return;
+  const grow = x => x.count_3m ? x.rating_count / x.count_3m - 1 : null;
+  view.innerHTML = head('Favoritos', 'Lojas que a equipe acompanha. A lista é a mesma para todo mundo que usa o código de acesso.', rows.length ? '<button class="btn sm" id="fav-csv">Baixar CSV</button>' : '') + (rows.length ? `
+    <section class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Restaurante</th><th>Categoria</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th><th class="r">Google</th><th>Desde</th><th></th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${x.enabled ? '' : ' · fora do ar no iFood'}</small></td><td>${esc(x.category || '—')}</td><td class="r">${fmt(x.rating_count)}</td><td class="r">${fmt(x.count_3m)}</td><td class="r">${trend(grow(x))}</td><td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td><td class="num">${dateOnly(x.created_at)}</td><td><button class="btn sm ghost" data-unfav="${x.id}">Remover</button></td></tr>`).join('')}
+    </tbody></table></div></section>` : '<div class="panel"><div class="panel-b"><p class="empty">Nenhum favorito ainda. Abra a ficha de uma loja e clique em “Favoritar”.</p></div></div>');
+  $('#fav-csv')?.addEventListener('click', () => downloadCsv('favoritos.csv', [['restaurante', 'categoria', 'bairro', 'cidade', 'uf', 'avaliacoes', 'avaliacoes_3_meses_atras', 'nota_google', 'avaliacoes_google', 'link_ifood'],
+    ...rows.map(x => [x.name, x.category, x.district, x.city, x.state, x.rating_count, x.count_3m, x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, ifoodUrl(x)])]));
+  view.querySelectorAll('[data-unfav]').forEach(b => b.addEventListener('click', async () => {
+    b.disabled = true;
+    try { await call({op: 'favorite', id: b.dataset.unfav, on: false}); if (D.id === b.dataset.unfav && D.data) D.data.favorite = false; viewFavorites() } catch (e){ fail(e); b.disabled = false }
+  }));
+}
+
+/* ---------- incluir lojas ---------- */
+function viewInclude(){
+  view.innerHTML = head('Incluir lojas', 'Traga para a base lojas do iFood que ainda não estão nela. Depois de incluída, a loja é relida todo dia e entra nos rankings.') + `
+    <section class="panel"><div class="panel-b" style="padding-top:16px;display:grid;gap:10px">
+      <label class="f">Links ou IDs de lojas do iFood, um por linha (até 30 por vez)
+        <textarea class="in" id="links" rows="7" placeholder="https://www.ifood.com.br/delivery/sao-paulo-sp/nome-da-loja-bairro/0a1b2c3d-…"></textarea></label>
+      <p class="hint">No navegador, abra a loja em ifood.com.br e copie o endereço da página. O ID é o código no formato 0a1b2c3d-1234-… que aparece no fim do link.</p>
+      <div><button class="btn primary" id="include">Incluir</button></div>
+      <div id="include-out" class="res-list" aria-live="polite"></div>
+    </div></section>`;
+  $('#include').addEventListener('click', async () => {
+    const btn = $('#include'), out = $('#include-out'), links = $('#links').value;
+    if (!links.trim()) return;
+    btn.disabled = true; btn.textContent = 'Incluindo…'; out.innerHTML = '';
+    try {
+      const {results} = await call({op: 'include', links});
+      const ok = results.filter(r => r.ok).length;
+      out.innerHTML = `<p><b>${fmt(ok)} de ${fmt(results.length)}</b> ${results.length === 1 ? 'loja incluída' : 'lojas incluídas'}.</p>` + results.map(r => r.ok
+        ? `<div>✓ <a href="${detailHref(r.id)}">${esc(r.name)}</a> <span class="hint">${esc([r.category, [r.city, r.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}</span></div>`
+        : `<div>✕ <span class="num">${esc(r.id)}</span> <span class="hint">${esc(r.error)}</span></div>`).join('');
+      if (ok) $('#links').value = '';
+    } catch (e){ fail(e) }
+    btn.disabled = false; btn.textContent = 'Incluir';
+  });
+}
+
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (route().path.startsWith('/r/') && D.data) mountMap(); else if (route().path === '/regiao' && A.data) drawArea() });
+start();
+</script>
+</body>
+</html>
