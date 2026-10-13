@@ -81,7 +81,9 @@ select cron.schedule(
 
 Cada rodada relê até 40 lojas, com pausa entre elas: são até 1.920 lojas por dia. Com a base maior que isso, aumente a frequência ou o `limit`.
 
-### 5. Chave do Google (opcional, mas recomendada)
+### 5. Chave do Google (opcional)
+
+Sem a chave, o app esconde tudo o que é do Google: o bloco da ficha, a coluna de nota, a tela Região no Google e as colunas do Google nos CSVs. Tudo aparece sozinho quando a chave for configurada.
 
 1. Em [console.cloud.google.com](https://console.cloud.google.com), crie um projeto e ative o faturamento.
 2. Em **APIs e serviços › Biblioteca**, ative a **Places API (New)**.
