@@ -263,6 +263,7 @@ const nf = new Intl.NumberFormat('pt-BR');
 const fmt = n => n == null || !isFinite(n) ? '—' : nf.format(Math.round(n));
 const dec = (n, d = 1) => n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d});
 const pct = (x, d = 1) => x == null || !isFinite(x) ? '—' : (x * 100).toLocaleString('pt-BR', {maximumFractionDigits: d}) + '%';
+const lojas = n => `${fmt(n)} ${n === 1 ? 'loja' : 'lojas'}`;
 const signed = x => x == null || !isFinite(x) ? '—' : (x > 0 ? '+' : '') + pct(x);
 const trend = x => x == null || !isFinite(x) ? '<span class="muted">—</span>' : x >= 0 ? `<span class="up">▲ ${signed(x)}</span>` : `<span class="down">▼ ${signed(x)}</span>`;
 const when = s => s ? new Date(s).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'}) : '—';
@@ -528,8 +529,8 @@ function drawDetail(){
 function kpisHtml(d, a, kmLabel){
   const m = d.merchant, orders = (m.rating_count || 0) * ORDERS_PER_REVIEW, catOrders = a.catReviews * ORDERS_PER_REVIEW;
   return `<div class="kpis">
-    <div class="kpi"><span class="l">Posição na categoria</span><span class="v">${a.posCat ? '#' + a.posCat : '—'}</span><span class="s">de ${fmt(a.cat.length)} lojas de ${esc(m.category || '—')} em ${kmLabel}</span></div>
-    <div class="kpi"><span class="l">Posição geral</span><span class="v">${a.posAll ? '#' + a.posAll : '—'}</span><span class="s">de ${fmt(a.all.length)} lojas em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Posição na categoria</span><span class="v">${a.posCat ? '#' + a.posCat : '—'}</span><span class="s">de ${lojas(a.cat.length)} de ${esc(m.category || '—')} em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Posição geral</span><span class="v">${a.posAll ? '#' + a.posAll : '—'}</span><span class="s">de ${lojas(a.all.length)} em ${kmLabel}</span></div>
     <div class="kpi"><span class="l">Avaliações no iFood</span><span class="v">${fmt(m.rating_count)}</span><span class="s">${a.count3m != null ? `3 meses atrás: ${fmt(a.count3m)} · ${trend(a.growth)}` : 'A comparação com 3 meses atrás aparece depois de 90 dias de coleta.'}</span></div>
     <div class="kpi"><span class="l">Pedidos estimados</span><span class="v">${fmt(orders)}</span><span class="s">${catOrders ? `${dec(15 * orders / catOrders, 2)} a cada 15 pedidos de ${esc(m.category || 'categoria')} na região` : 'avaliações × ' + ORDERS_PER_REVIEW}</span></div>
   </div>`;
