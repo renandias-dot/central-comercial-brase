@@ -95,7 +95,7 @@ const GENERIC = new Set(('restaurante restaurantes pizzaria pizzas pizza lanchon
   'cozinha food foods express loja unidade shopping the de da do das dos e em no na ltda me eireli').split(' '));
 
 export function tokens(s: string){
-  return String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 1);
+  return String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length > 1);
 }
 
 // Parte das palavras distintivas do nome menor que aparece no outro (0 a 1).

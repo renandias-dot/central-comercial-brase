@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<script>window.RS_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/restaurantes-api"};</script>
+<script>window.RS_HOST = {"api":"https://kxabfippeekyxpcgjytx.supabase.co/functions/v1/restaurantes-api"};</script>
 <title>Restaurantes · Brase</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23d9480f'/%3E%3Ctext x='16' y='23' font-family='Arial' font-weight='900' font-size='19' fill='white' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -269,7 +269,7 @@ const when = s => s ? new Date(s).toLocaleString('pt-BR', {day: '2-digit', month
 const day = s => s ? s.split('-').reverse().join('/') : '—';
 const dateOnly = s => s ? new Date(s).toLocaleDateString('pt-BR') : '—';
 const monthLabel = ym => { const [y, m] = ym.split('-'); return MONTHS[+m - 1] + '/' + y.slice(2) };
-const slug = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const slug = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const ifoodUrl = m => `https://www.ifood.com.br/delivery/${slug(m.city)}-${slug(m.state)}/${[slug(m.name), slug(m.district)].filter(Boolean).join('-')}/${m.id}`;
 const phoneDigits = p => { let d = String(p ?? '').replace(/\D/g, ''); if (d.startsWith('55') && d.length >= 12) d = d.slice(2); return d.length >= 10 && d.length <= 11 ? d : '' };
 const fmtPhone = p => { const d = phoneDigits(p); if (!d) return p || ''; return `(${d.slice(0, 2)}) ${d.slice(2, -4)}-${d.slice(-4)}` };

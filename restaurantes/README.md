@@ -34,71 +34,37 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 
 > O uso dos dados do iFood por coleta automática não é autorizado pelos termos de uso do iFood. A decisão de usar foi da Brase.
 
-## Como colocar no ar
+## Onde está no ar
 
-Use o projeto Supabase da Central Comercial (`wndgqvkeguampmtmkmhq`) ou outro.
+- **App:** https://renandias-dot.github.io/central-comercial-brase/restaurantes/
+- **Supabase:** projeto `brase-restaurantes` (`kxabfippeekyxpcgjytx`, São Paulo), separado do projeto da Central Comercial.
+  - Banco: as duas migrações de `supabase/migrations` já foram aplicadas.
+  - Função `restaurantes-api` publicada sem verificação de JWT (o app entra com o código da equipe).
+  - Coleta agendada no pg_cron (`restaurantes-coleta`, a cada 30 minutos, até 40 lojas por rodada: 1.920 lojas por dia). Com a base maior que isso, aumente a frequência ou o `limit` em `20261013000100_restaurantes_coleta.sql`.
+  - A chave que o agendamento usa é gerada no próprio banco (tabela `rs_settings`) e não sai dele.
 
-### 1. Banco
+### Segredo da função
 
-No Supabase › **SQL Editor**, cole e rode o conteúdo de `supabase/migrations/20261013000000_restaurantes.sql`. Pode rodar de novo sem problema.
+Só um segredo é obrigatório: **`RESTAURANTES_ACCESS_CODE`**, o código de acesso da equipe (pode ser o mesmo da Central Comercial). No painel do Supabase: projeto brase-restaurantes › Edge Functions › Secrets › Add new secret. Sem ele, a função responde “Falta configurar o segredo RESTAURANTES_ACCESS_CODE” e a coleta também não roda.
 
-### 2. Segredos
+### Para refazer em outro projeto
 
-Escolha um código de acesso para a equipe (pode ser o mesmo da Central Comercial) e uma chave longa para o agendamento:
+1. Rode `supabase/migrations/20261013000000_restaurantes.sql` no SQL Editor. Pode rodar de novo sem problema.
+2. Troque o endereço da função em `supabase/migrations/20261013000100_restaurantes_coleta.sql` e rode também.
+3. Dentro da pasta `restaurantes/`: `supabase functions deploy restaurantes-api --project-ref SEU_PROJETO --no-verify-jwt`.
+4. Crie o segredo `RESTAURANTES_ACCESS_CODE`.
+5. Ajuste a linha `window.RS_HOST` no topo de `index.html` com o endereço da função.
 
-```bash
-supabase secrets set --project-ref wndgqvkeguampmtmkmhq \
-  RESTAURANTES_ACCESS_CODE="código-da-equipe" \
-  RESTAURANTES_CRON_KEY="uma-chave-longa-e-aleatória"
-```
-
-### 3. Função
-
-Dentro da pasta `restaurantes/`:
-
-```bash
-supabase functions deploy restaurantes-api --project-ref wndgqvkeguampmtmkmhq --no-verify-jwt
-```
-
-O `--no-verify-jwt` é necessário porque o app entra com o código da equipe, como a Central Comercial. Pelo painel também funciona: Edge Functions › Deploy a new function › editor, com os arquivos `index.ts` e `logic.ts`, e “Enforce JWT verification” desligado.
-
-### 4. Coleta diária
-
-Em Database › Extensions, ative **pg_cron** e **pg_net**. Depois rode no SQL Editor, trocando a chave:
-
-```sql
-select cron.schedule(
-  'restaurantes-coleta',
-  '*/30 * * * *',
-  $$ select net.http_post(
-       url := 'https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/restaurantes-api',
-       headers := jsonb_build_object('content-type', 'application/json', 'x-rs-cron', 'A_MESMA_RESTAURANTES_CRON_KEY'),
-       body := jsonb_build_object('op', 'collect', 'limit', 40),
-       timeout_milliseconds := 120000
-     ) $$
-);
-```
-
-Cada rodada relê até 40 lojas, com pausa entre elas: são até 1.920 lojas por dia. Com a base maior que isso, aumente a frequência ou o `limit`.
-
-### 5. Chave do Google (opcional)
+### Chave do Google (opcional)
 
 Sem a chave, o app esconde tudo o que é do Google: o bloco da ficha, a coluna de nota, a tela Região no Google e as colunas do Google nos CSVs. Tudo aparece sozinho quando a chave for configurada.
 
 1. Em [console.cloud.google.com](https://console.cloud.google.com), crie um projeto e ative o faturamento.
 2. Em **APIs e serviços › Biblioteca**, ative a **Places API (New)**.
 3. Em **Credenciais › Criar credenciais › Chave de API**, crie a chave. Em “Restrições de API”, limite a chave à **Places API (New)**. Não use restrição por site: a chave é usada pelo servidor, não pelo navegador.
-4. Guarde no servidor:
+4. Guarde como segredo `GOOGLE_PLACES_API_KEY` da função (Edge Functions › Secrets).
 
-```bash
-supabase secrets set --project-ref wndgqvkeguampmtmkmhq GOOGLE_PLACES_API_KEY="AIza…"
-```
-
-**Custo:** nota e avaliações caem na faixa “Text Search Enterprise”, com 1.000 consultas grátis por mês e depois US$ 35 por mil (tabela do Google em outubro de 2026). A ficha consulta o Google 1 vez por loja e guarda o resultado por 30 dias. “Buscar de novo no Google” na tela Região faz até 30 consultas. “Ir para o endereço” faz 1. Sem a chave o app funciona, só sem o bloco do Google.
-
-### 6. Endereço do app
-
-Se `restaurantes/index.html` for publicado em outro lugar, ajuste a linha `window.RS_HOST` no topo do arquivo com o endereço da função.
+**Custo:** nota e avaliações caem na faixa “Text Search Enterprise”, com 1.000 consultas grátis por mês e depois US$ 35 por mil (tabela do Google em outubro de 2026). A ficha consulta o Google 1 vez por loja e guarda o resultado por 30 dias. “Buscar de novo no Google” na tela Região faz até 30 consultas. “Ir para o endereço” faz 1.
 
 ## Testes
 
