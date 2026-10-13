@@ -2,8 +2,9 @@
 -- Rode uma vez no SQL Editor do Supabase (ou com `supabase db push` dentro da pasta restaurantes/).
 -- As tabelas ficam fechadas para a chave pública (RLS ligado e sem políticas): só a função lê e grava.
 
-create extension if not exists pg_trgm;
-create extension if not exists unaccent;
+create schema if not exists extensions;
+create extension if not exists pg_trgm with schema extensions;
+create extension if not exists unaccent with schema extensions;
 
 -- Lojas do iFood. id = merchant id do iFood (o UUID que aparece no link da loja).
 create table if not exists rs_merchants (
@@ -34,7 +35,7 @@ create table if not exists rs_merchants (
   cnpj_data jsonb,
   cnpj_checked_at timestamptz
 );
-create index if not exists rs_merchants_name_trgm on rs_merchants using gin (name gin_trgm_ops);
+create index if not exists rs_merchants_name_trgm on rs_merchants using gin (name extensions.gin_trgm_ops);
 create index if not exists rs_merchants_cnpj on rs_merchants (cnpj);
 create index if not exists rs_merchants_geo on rs_merchants (lat, lon);
 create index if not exists rs_merchants_due on rs_merchants (ifood_checked_at nulls first);
@@ -81,15 +82,31 @@ create table if not exists rs_favorites (
   created_at timestamptz not null default now()
 );
 
+-- Chave que o agendamento (pg_cron) manda para a função. É gerada aqui e não sai do banco.
+create table if not exists rs_settings (
+  key text primary key,
+  value text not null
+);
+insert into rs_settings (key, value)
+values ('cron_key', replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''))
+on conflict (key) do nothing;
+
+alter table rs_settings enable row level security;
 alter table rs_merchants enable row level security;
 alter table rs_counts enable row level security;
 alter table rs_places enable row level security;
 alter table rs_place_counts enable row level security;
 alter table rs_favorites enable row level security;
 
+-- Busca sem acento (a extensão unaccent fica no schema extensions).
+create or replace function rs_unaccent(t text)
+returns text language sql stable parallel safe set search_path = public, extensions as $$
+  select unaccent(t)
+$$;
+
 -- Distância em km entre dois pontos (fórmula de haversine).
 create or replace function rs_km(lat1 double precision, lon1 double precision, lat2 double precision, lon2 double precision)
-returns double precision language sql immutable parallel safe as $$
+returns double precision language sql immutable parallel safe set search_path = public as $$
   select 6371 * 2 * asin(least(1, sqrt(
     power(sin(radians(lat2 - lat1) / 2), 2) +
     cos(radians(lat1)) * cos(radians(lat2)) * power(sin(radians(lon2 - lon1) / 2), 2)
@@ -102,7 +119,7 @@ returns table (
   id uuid, name text, chain text, category text, price_range text, district text, city text, state text,
   lat double precision, lon double precision, phone text, rating_count integer, count_3m integer,
   google_rating double precision, google_count integer, google_phone text, km double precision
-) language sql stable as $$
+) language sql stable set search_path = public as $$
   select m.id, m.name, m.chain, m.category, m.price_range, m.district, m.city, m.state,
          m.lat, m.lon, m.phone, m.rating_count,
          (select c.rating_count from rs_counts c
@@ -123,7 +140,7 @@ $$;
 -- Em cada mês vale a última leitura daquele mês.
 create or replace function rs_history(p_id uuid, p_km double precision)
 returns table (month text, mine integer, region_avg double precision, region_n integer)
-language sql stable as $$
+language sql stable set search_path = public as $$
   with me as (select * from rs_merchants where id = p_id),
   peers as (
     select m.id from rs_merchants m, me
@@ -155,7 +172,7 @@ returns table (
   id text, name text, category text, rating double precision, rating_count integer, count_3m integer, price text,
   address text, lat double precision, lon double precision, website text, phone text, maps_url text,
   merchant_id uuid, km double precision
-) language sql stable as $$
+) language sql stable set search_path = public as $$
   select p.id, p.name, p.category, p.rating::double precision, p.rating_count,
          (select c.rating_count from rs_place_counts c
            where c.place_id = p.id and c.day <= current_date - 90
@@ -168,3 +185,15 @@ returns table (
      and rs_km(p_lat, p_lon, p.lat, p.lon) <= p_km
    order by p.rating_count desc nulls last
 $$;
+
+-- Só a função restaurantes-api (dona do banco) chama estas funções; a chave pública não.
+revoke execute on function rs_unaccent(text), rs_km(double precision, double precision, double precision, double precision),
+  rs_nearby(double precision, double precision, double precision, integer), rs_history(uuid, double precision),
+  rs_places_nearby(double precision, double precision, double precision) from public;
+do $$ begin
+  if exists (select 1 from pg_roles where rolname = 'anon') then
+    revoke execute on function rs_unaccent(text), rs_km(double precision, double precision, double precision, double precision),
+      rs_nearby(double precision, double precision, double precision, integer), rs_history(uuid, double precision),
+      rs_places_nearby(double precision, double precision, double precision) from anon, authenticated;
+  end if;
+end $$;

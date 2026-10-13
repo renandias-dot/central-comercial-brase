@@ -1,15 +1,14 @@
 // restaurantes-api — back-end do app Restaurantes (restaurantes/index.html).
 // Recebe POST em JSON {op, ...} com o código da equipe no cabeçalho x-rs-key.
 // Fontes: iFood (endpoint público de cada loja), Google Places API (New) e BrasilAPI (CNPJ da Receita Federal).
-// Segredos: RESTAURANTES_ACCESS_CODE (obrigatório), RESTAURANTES_CRON_KEY (coleta agendada),
-// GOOGLE_PLACES_API_KEY (opcional: sem ela o app funciona sem os dados do Google).
+// Segredos: RESTAURANTES_ACCESS_CODE (obrigatório) e GOOGLE_PLACES_API_KEY (opcional: sem ela o app funciona sem o Google).
+// A coleta agendada se identifica com a chave guardada na tabela rs_settings (cabeçalho x-rs-cron).
 import postgres from 'npm:postgres@3.4.5';
 import {bestMatch, clamp, merchantIdFrom, parseCnpj, parseIfood, parsePlace, sameKey} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 4, idle_timeout: 20});
 const ACCESS_CODE = env('RESTAURANTES_ACCESS_CODE');
-const CRON_KEY = env('RESTAURANTES_CRON_KEY');
 const GOOGLE_KEY = env('GOOGLE_PLACES_API_KEY');
 
 const HOUR = 3600e3, DAY = 24 * HOUR;
@@ -138,6 +137,8 @@ async function googleArea(lat: number, lon: number, km: number){
 /* ---------- operações ---------- */
 const MERCHANT_COLS = sql`id, name, chain, category, price_range, street, street_number, district, city, state, zip, lat, lon, phone, cnpj, logo, enabled, rating_count, first_seen, ifood_checked_at, ifood_error, google, google_checked_at, cnpj_data, cnpj_checked_at`;
 const LIST_COLS = sql`id, name, category, district, city, state, rating_count`;
+let cronKey = '';
+const loadCronKey = async () => cronKey ||= (await sql`select value from rs_settings where key = 'cron_key'`)[0]?.value ?? '';
 const loadMerchant = async (id: string) => (await sql`select ${MERCHANT_COLS} from rs_merchants where id = ${id}`)[0];
 
 const ops: Record<string, (b: any) => Promise<unknown>> = {
@@ -159,7 +160,7 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
     const like = '%' + term.replace(/[\\%_]/g, c => '\\' + c) + '%';
     return {results: await sql`
       select ${LIST_COLS} from rs_merchants
-       where unaccent(name) ilike unaccent(${like})
+       where rs_unaccent(name) ilike rs_unaccent(${like})
        order by enabled desc, rating_count desc nulls last limit 60`};
   },
 
@@ -275,8 +276,9 @@ Deno.serve(async req => {
   if (req.method !== 'POST') return reply(405, {error: 'Use POST.'});
   if (!ACCESS_CODE) return reply(500, {error: 'Falta configurar o segredo RESTAURANTES_ACCESS_CODE.'});
   const body = await req.json().catch(() => ({}));
-  const cron = !!CRON_KEY && sameKey(req.headers.get('x-rs-cron') ?? '', CRON_KEY);
-  if (!sameKey(req.headers.get('x-rs-key') ?? '', ACCESS_CODE) && !(cron && body.op === 'collect')) return reply(401, {error: 'Código de acesso inválido.'});
+  const cronHeader = req.headers.get('x-rs-cron') ?? '';
+  const cron = !!cronHeader && body.op === 'collect' && sameKey(cronHeader, await loadCronKey());
+  if (!sameKey(req.headers.get('x-rs-key') ?? '', ACCESS_CODE) && !cron) return reply(401, {error: 'Código de acesso inválido.'});
   const op = ops[body.op];
   if (!op) return reply(400, {error: 'Operação desconhecida.'});
   try { return reply(200, await op(body)) }
