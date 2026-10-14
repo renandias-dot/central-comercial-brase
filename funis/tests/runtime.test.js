@@ -101,7 +101,10 @@ test('campos: telefone com máscara e validação', () => {
   assert.equal(R.phoneMask('21959055007'), '(21) 95905-5007');
   assert.equal(R.phoneMask('+55 21 95905-5007'), '(21) 95905-5007');
   assert.equal(R.phoneMask('2133334444'), '(21) 3333-4444');
-  assert.equal(R.validateField({type: 'phone', required: true}, '(21) 9590'), 'Digite um telefone com DDD');
+  assert.equal(R.validateField({type: 'phone', required: true}, '(21) 9590'), 'Digite o celular com DDD');
+  assert.equal(R.validateField({type: 'phone', required: true}, '(20) 95905-5007'), 'Confira o DDD');
+  assert.equal(R.validateField({type: 'phone', required: true}, '(21) 85905-5007'), 'Confira o número do celular');
+  assert.equal(R.validateField({type: 'phone', required: true}, '+55 (21) 95905-5007'), '');
   assert.equal(R.validateField({type: 'phone', required: true}, '(21) 95905-5007'), '');
   assert.equal(R.validateField({type: 'email', required: true}, 'a@b'), 'Digite um e-mail válido');
   assert.equal(R.validateField({type: 'text', required: true}, '  '), 'Campo obrigatório');
@@ -195,4 +198,13 @@ test('componentes do InLead: nomes antigos viram os novos e arquivados somem', (
   for (const t of ['notification', 'quotes', 'compare', 'carousel', 'graphics', 'charts', 'script', 'date', 'height', 'weight']) assert.ok(R.COMPONENTS.some(c => c.type === t), t);
   const o = R.newLayer('options', 'video');
   assert.equal(o.content.introType, 'video');
+});
+
+test('Raio-X do iFood: componente e variáveis com os dados da loja', () => {
+  const l = R.newLayer('ifood');
+  assert.equal(l.type, 'ifood');
+  assert.ok(R.INPUT_TYPES.includes('ifood'));
+  const v = R.buildVars({answers: {x: {name: 'loja', type: 'ifood', value: 'https://ifood…', data: {avaliacoes: 312, posicao: 7, total: 24}}}});
+  assert.equal(v['loja.avaliacoes'], 312);
+  assert.equal(R.interpolate('Você está em {{loja.posicao}}º de {{loja.total}}', {answers: {x: {name: 'loja', type: 'ifood', value: '', data: {posicao: 7, total: 24}}}}), 'Você está em 7º de 24');
 });

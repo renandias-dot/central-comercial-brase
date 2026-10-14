@@ -13,7 +13,7 @@ const store = {
   del(k){ try { localStorage.removeItem(k) } catch {} },
   json(k, d){ try { const v = JSON.parse(localStorage.getItem(k)); return v == null ? d : v } catch { return d } },
 };
-const CODE_KEY = 'funis.code', LOCAL_KEY = 'funis.local.v1', SEED = ['brase-2'];
+const CODE_KEY = 'funis.code', LOCAL_KEY = 'funis.local.v1', SEED = ['brase-2', 'brase-2-otimizado'];
 const fmtInt = n => (+n || 0).toLocaleString('pt-BR');
 const fmtPct = (a, b) => b ? (Math.round((a / b) * 1000) / 10).toLocaleString('pt-BR') + '%' : '0%';
 const fmtDate = d => { if (!d) return ''; const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('pt-BR') };

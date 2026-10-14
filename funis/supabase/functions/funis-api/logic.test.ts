@@ -1,6 +1,7 @@
 // deno test funis/supabase/functions/funis-api/logic.test.ts
 import {assert, assertEquals, assertThrows} from 'jsr:@std/assert@1';
-import {buildPayload, encodeBody, isQualified, mergeSession, mergeWebhook, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, slugify, webhookDue, webhookForEditor, type Event} from './logic.ts';
+import {abandonDue, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
+import {evalRoles, interpolate} from './rules.ts';
 
 const brase = JSON.parse(await Deno.readTextFile(new URL('../../../data/brase-2.json', import.meta.url)));
 const pub = brase.published;
@@ -133,4 +134,126 @@ Deno.test('variáveis e qualificado como no InLead', () => {
   // parâmetros da URL guardados só na primeira visita
   const s = mergeSession(null, 'A1b2C3', [], null, pub, {utm_source: 'FB'});
   assertEquals(mergeSession(s, 'A1b2C3', [], null, pub, {utm_source: 'outro'}).params, {utm_source: 'FB'});
+});
+
+const sess = (o: Partial<Session> = {}): Session => ({id: 'A1b2C3', tracking: {}, params: {}, answers: {}, clicks: {}, steps: [], last_step: null, interacted: true, completed: false, ...o});
+const ICP = [[{variable: '@fat', compare: '>=', value: '10000'}]];
+const LS = {icp: ICP, score: [{when: ICP, points: 50, label: 'Fatura 10 mil+'}, {when: [[{variable: '@canal', compare: '==', value: '0'}]], points: 20, label: 'Vende no iFood'}, {when: [[{variable: '@lead.telefone_valido', compare: '==', value: 'sim'}]], points: 30}], hot: 70, abandon: {enabled: true, minutes: 15}};
+
+Deno.test('regras no servidor iguais às do funil (variáveis, contas e operadores do InLead)', () => {
+  const vars = {fat: '30000', canais: 'ifood|zap|ifood', nome: 'Ana', 'score.x': 745};
+  assertEquals(interpolate('Oi @nome, calc({{score.x}}/10)', vars), 'Oi Ana, 74.50');
+  assert(evalRoles(ICP, vars));
+  assert(evalRoles([[{variable: 'ifood', compare: 'count==', value: '@canais', number: 2}]], vars));
+  assert(!evalRoles([[{variable: '@fat', compare: '<', value: '10000'}]], vars));
+  assert(evalRoles([], vars), 'sem regra mostra');
+  assert(!evalRoles([], vars, false), 'sem regra de perfil, ninguém é do perfil');
+});
+
+Deno.test('nota do lead, perfil e quente', () => {
+  const s = sess({answers: {a: {name: 'fat', type: 'options', value: '30000'}, b: {name: 'canal', type: 'options', value: '0'}, c: {name: 'zap', type: 'field', title: 'Qual seu Whatsapp?', value: '(11) 98888-7777'}}});
+  s.phone = normPhone('(11) 98888-7777');
+  const m = leadMetrics(s, LS);
+  assertEquals(m, {icp: true, score: 100, hot: true, reasons: ['Fatura 10 mil+', 'Vende no iFood']});
+  const pobre = sess({answers: {a: {name: 'fat', type: 'options', value: '0'}}});
+  assertEquals(leadMetrics(pobre, LS).icp, false);
+  assertEquals(leadMetrics(pobre, LS).score, 0);
+  assertEquals(leadMetrics(pobre, null), {icp: null, score: null, hot: null, reasons: []});
+  const extra = payloadExtras(s, LS, 'abandono', 'Análise pré-aprovada');
+  assertEquals(extra, {nota_lead: 100, lead_no_perfil: true, lead_quente: true, telefone_valido: true, abandonou: true, etapa_abandono: 'Análise pré-aprovada'});
+});
+
+Deno.test('telefone: formato, DDD e celular', () => {
+  assertEquals(normPhone('(11) 98888-7777'), '5511988887777');
+  assert(validBrPhone('5511988887777'));
+  assert(!validBrPhone('5520988887777'), 'DDD 20 não existe');
+  assert(!validBrPhone('5511888887777'), 'celular com 9 dígitos começa com 9');
+  const s = mergeSession(null, 'A1b2C3', [{type: 'answer', step: pub.steps[7].id, layer: 'L5', answer: {name: 'L5Lzbe', type: 'field', title: 'Qual seu Whatsapp?', value: '(21) 99999-0000'}}, {type: 'answer', step: pub.steps[7].id, layer: 'E1', answer: {name: 'mail', type: 'field', title: 'E-mail', value: 'Ana@Exemplo.com '}}], null, pub);
+  assertEquals(s.phone, '5521999990000');
+  assertEquals(s.email, 'ana@exemplo.com');
+});
+
+Deno.test('abandono: só quem deixou o WhatsApp, não enviou e sumiu há X minutos', () => {
+  const old = new Date(Date.now() - 20 * 60e3).toISOString();
+  assert(abandonDue(sess({phone: '5511988887777', updated_at: old}), LS));
+  assert(!abandonDue(sess({phone: '5511988887777', updated_at: new Date().toISOString()}), LS), 'ainda pode estar digitando');
+  assert(!abandonDue(sess({updated_at: old}), LS), 'sem telefone');
+  assert(!abandonDue(sess({phone: '5511988887777', updated_at: old, webhook: {ok: false}}), LS), 'já tentou enviar');
+  assert(!abandonDue(sess({phone: '5511988887777', updated_at: old}), {...LS, abandon: {enabled: false}}));
+  // quem volta e termina depois do abandono vai de novo, completo; repetido não vai
+  const w = {enabled: true, url: 'https://x.com/h', trigger: 'component', component: 'VT19S2'};
+  assert(webhookDue(w, sess({webhook: {ok: true, kind: 'abandono'}}), sess(), [{type: 'click', name: 'VT19S2'}]));
+  assert(!webhookDue(w, sess({webhook: {ok: false, skipped: 'repetido'}}), sess(), [{type: 'click', name: 'VT19S2'}]));
+});
+
+Deno.test('venda da Kirvano ligada ao visitante', () => {
+  const k = {event: 'SALE_APPROVED', sale_id: 'S1', total_price: 'R$ 297,00', status: 'APPROVED', customer: {name: 'Ana', email: 'ANA@x.com', phone_number: '5511988887777'}, products: [{name: 'ZapFood', price: 'R$ 297,00'}], utm: {utm_source: 'FB', sck: 'fn-Ln0w4s', utm_content: 'IFood Escondeu|1202'}};
+  const s = parseSale(k);
+  assertEquals([s.status, s.value, s.saleId, s.code, s.email, s.phone, s.product, s.utm.utm_source], ['approved', 297, 'S1', 'Ln0w4s', 'ana@x.com', '5511988887777', 'ZapFood', 'FB']);
+  assertEquals(parseSale({event: 'SALE_REFUNDED', sale_id: 'S1', total_price: 'R$ 297,00'}).status, 'refunded');
+  assertEquals(parseSale({data: {status: 'paid', amount: 97.5, customer: {email: 'a@b.c'}}}).status, 'approved');
+  assertEquals(parseMoney('R$ 1.297,90'), 1297.9);
+});
+
+Deno.test('etapas do CRM por código ou telefone', () => {
+  const r = parseCrm([{codigo: 'Ln0w4s', etapa: 'Reunião Marcada'}, {telefone: '(11) 98888-7777', etapa: 'Fechado', valor: '2.500,00'}, {etapa: 'x'}]);
+  assertEquals(r, [{code: 'Ln0w4s', phone: '', stage: 'marcada', value: 0}, {code: '', phone: '5511988887777', stage: 'fechado', value: 2500}]);
+});
+
+Deno.test('relatório por anúncio: perfil, envios, abandono, reuniões, vendas, gasto e custos', () => {
+  assertEquals(splitUtm('IFood Escondeu|120244276786450151'), {name: 'IFood Escondeu', id: '120244276786450151'});
+  const ad = 'IFood Escondeu|120244276786450151';
+  const mk = (id: string, o: Partial<Session>) => sess({id, created_at: '2026-10-10T12:00:00Z', params: {utm_content: ad}, ...o});
+  const ss = [
+    mk('a', {answers: {f: {name: 'fat', type: 'options', value: '30000'}}, phone: '5511988887777', clicks: {b: {name: 'VT19S2'}}, crm: {stage: 'fechado', value: 1000}}),
+    mk('b', {answers: {f: {name: 'fat', type: 'options', value: '0'}}, phone: '5511977776666'}),
+    mk('c', {interacted: false}),
+    sess({id: 'd', created_at: '2026-10-11T12:00:00Z', params: {utm_content: 'Outro|999999999'}}),
+  ];
+  const r = aggregateAds(ss, {level: 'ad', settings: LS, submitNames: ['VT19S2'], sales: [{session_id: 'b', status: 'approved', value: 297}], spend: [{day: '2026-10-10', ad_id: '120244276786450151', ad_name: 'IFood Escondeu', spend: 100}, {day: '2026-10-10', ad_id: '555555555', ad_name: 'Sem visita', spend: 50}]});
+  const row = r.rows.find(x => x.id === '120244276786450151')!;
+  assertEquals([row.visits, row.started, row.contacts, row.submitted, row.abandoned, row.icp, row.meetings, row.won, row.sales, row.revenue, row.spend], [3, 2, 2, 1, 1, 1, 1, 1, 1, 1297, 100]);
+  assertEquals(row.cpIcp, 100); assertEquals(row.cpl, 100); assertEquals(row.roas, 12.97);
+  assert(r.rows.some(x => x.id === '555555555' && x.spend === 50 && x.visits === 0), 'anúncio que gastou e não trouxe visita aparece');
+  assertEquals(r.totals.spend, 150);
+});
+
+Deno.test('caminhos e tempo por etapa', () => {
+  const steps = [{id: 's1', title: 'Capa'}, {id: 's2', title: 'Dor'}, {id: 's3', title: 'Fim'}];
+  const r = aggregatePaths([
+    sess({timeline: [['s1', 1000], ['s2', 11000], ['s3', 41000]], completed: true}),
+    sess({timeline: [['s1', 0 + 5000], ['s2', 25000], ['s1', 30000, 1]]}),
+  ], steps);
+  const capa = r.steps.find(x => x.id === 's1')!, dor = r.steps.find(x => x.id === 's2')!;
+  assertEquals([capa.visitors, capa.medianSec, capa.exits], [2, 15, 1]);
+  assertEquals([dor.visitors, dor.backs], [2, 1]);
+  assertEquals(r.transitions[0], {from: 's1', to: 's2', fromTitle: 'Capa', toTitle: 'Dor', n: 2});
+});
+
+Deno.test('evento da API de Conversões com dados em SHA-256 e o mesmo event_id do Pixel', async () => {
+  const s = sess({id: 'Ln0w4s', created_at: '2026-10-10T12:00:00Z', phone: '5511988887777', params: {fbclid: 'IwAR1'}, tracking: {ip: '200.1.2.3', userAgent: 'UA', url: 'https://site/f/?f=brase-2', fbp: 'fb.1.1.2'}, answers: {n: {name: 'nome', type: 'field', title: 'Qual o seu nome?', value: 'Maria Souza'}}});
+  const e = await capiEvent({name: 'LeadQualificado', id: 'Ln0w4s-icp', s, time: 1790000000000});
+  const ud = e.user_data as Record<string, unknown>;
+  assertEquals(e.event_id, 'Ln0w4s-icp');
+  assertEquals(ud.ph, [await sha256('5511988887777')]);
+  assertEquals(ud.fn, [await sha256('maria')]);
+  assertEquals(ud.fbc, `fb.1.${Date.parse('2026-10-10T12:00:00Z')}.IwAR1`);
+  assertEquals([ud.client_ip_address, ud.fbp, e.event_time, e.action_source], ['200.1.2.3', 'fb.1.1.2', 1790000000, 'website']);
+  const p = await capiEvent({name: 'Purchase', id: 'venda-S1', s, value: 297});
+  assertEquals(p.custom_data, {value: 297, currency: 'BRL'});
+});
+
+Deno.test('Raio-X do iFood: posição na categoria e quanto falta para passar a próxima', () => {
+  assertEquals(merchantIdFrom('https://www.ifood.com.br/delivery/brasilia-df/texas-burger/0A11D629-C715-470B-ABC5-3E0FAF0BE4E5'), '0a11d629-c715-470b-abc5-3e0faf0be4e5');
+  const me = {id: 'm', name: 'Minha', category: 'Lanches', rating_count: 100, district: 'Centro', city: 'X'};
+  const near = [{id: 'a', name: 'A', category: 'Lanches', rating_count: 400}, {id: 'b', name: 'B', category: 'Lanches', rating_count: 150}, {id: 'p', name: 'Pizza', category: 'Pizza', rating_count: 999}, me];
+  const r = ifoodSummary({merchant: me, nearby: near}, 3)!;
+  assertEquals([r.avaliacoes, r.pedidos, r.posicao, r.total, r.proxima, r.falta, r.lider, r.confiavel], [100, 200, 3, 3, 'B', 102, 'A', false]);
+});
+
+Deno.test('importa leads do InLead sem reenviar ao CRM', () => {
+  const r = importRow({code: 'Ln0w4s', created_at: '2026-10-01T10:00:00Z', tracking: {utm_source: 'FB', userAgent: 'x'}, params: {utm_source: 'FB', f: 'x'}, steps: [pub.steps[0].id, 'nao-existe'],
+    answers: {L5: {name: 'L5Lzbe', type: 'field', title: 'Qual seu Whatsapp?', value: '(11) 98888-7777'}}, clicks: {B: {name: 'VT19S2'}}}, pub)!;
+  assertEquals([r.id, r.phone, r.steps.length, r.interacted, (r.webhook as {kind: string}).kind, r.params], ['Ln0w4s', '5511988887777', 1, true, 'importado', {utm_source: 'FB'}]);
+  assertEquals(importRow({code: 'x'}, pub), null);
 });

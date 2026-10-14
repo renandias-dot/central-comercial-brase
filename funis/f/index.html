@@ -127,6 +127,10 @@ function tracking(){
   if (document.referrer) t.referrer = document.referrer;
   t.url = location.href.split('#')[0];
   t.params = urlParams;
+  // cookies do Pixel da Meta (melhoram a correspondência dos eventos da API de Conversões)
+  const ck = n => (document.cookie.match(new RegExp('(?:^|; )' + n + '=([^;]*)')) || [])[1];
+  if (ck('_fbp')) t.fbp = decodeURIComponent(ck('_fbp'));
+  if (ck('_fbc')) t.fbc = decodeURIComponent(ck('_fbc'));
   return t;
 }
 function tracker(live){
@@ -172,10 +176,28 @@ function tracker(live){
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push(Object.assign({event: url ? 'FormSubmit' : 'StepView'}, url ? {url} : {}, {funnelName: f.title, funnelID: f.id || f.slug, stepName: st.title || '', stepID: ev.step, stepIndex: k + 1, userCode: T.code, params: urlParams, content}));
   };
+  // Lead no perfil (Configurações › Leads e dados): avisa o Pixel e o Tag Manager uma vez, com o mesmo event_id do servidor.
+  const S = f.settings || {}, icpRules = ((S.leads || {}).icp || []).filter(g => Array.isArray(g) && g.length);
+  let icpSent = false;
+  const checkIcp = ev => {
+    if (icpSent || !icpRules.length || !ev.vars || !FR.evalRoles(icpRules, {vars: ev.vars})) return;
+    icpSent = true;
+    if ((S.pixel || {}).icpEvent !== false) try { if (window.fbq) window.fbq('trackCustom', 'LeadQualificado', {}, {eventID: T.code + '-icp'}) } catch (e) {}
+    window.dataLayer = window.dataLayer || []; window.dataLayer.push({event: 'LeadQualificado', userCode: T.code});
+  };
+  // Marca o visitante no link do checkout (sck=fn-<código>): a venda avisada pelo checkout volta ligada a este lead.
+  const CHECKOUT = /(^|\.)(pay\.kirvano\.com|pay\.hotmart\.com|pay\.kiwify\.com\.br|checkout\.)/i;
+  const decorateUrl = url => {
+    if (S.checkoutMark === false) return url;
+    try { const u = new URL(url); if (CHECKOUT.test(u.hostname) && !u.searchParams.has('sck')) { u.searchParams.set('sck', 'fn-' + T.code); return u.toString() } } catch (e) {}
+    return url;
+  };
   app.innerHTML = '<div></div>';
   FR.mount(app.firstChild, f, {
     mode: 'live', params: urlParams, step: startAt,
-    onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url) },
+    eventId: k => T.code + '-' + k, decorateUrl,
+    onIfood: got.live && API ? (link, km) => api('public.ifood', {slug, link, km}).then(j => j.ifood) : null,
+    onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url); if (ev.type === 'answer') checkIcp(ev) },
     beforeRedirect: () => Promise.race([T.flush(true), new Promise(r => setTimeout(r, 1500))]),
   });
   addEventListener('pagehide', () => T.beacon());

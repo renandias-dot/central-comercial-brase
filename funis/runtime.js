@@ -90,6 +90,8 @@ function buildVars(ctx){
       if (a.label != null) out['label.' + a.name] = a.label;
       total += num(a.score);
     } else out[a.name] = Array.isArray(a.value) ? a.value.join('|') : (a.value == null ? '' : String(a.value));
+    // dados extras do componente (Raio-X do iFood): nome.avaliacoes, nome.posicao…
+    if (a.data) for (const k in a.data) out[a.name + '.' + k] = a.data[k];
   }
   if (!('score' in out)) out.score = total;
   return out;
@@ -269,12 +271,19 @@ function phoneMask(v){
   if (d.length <= 10) return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
+const DDDS = new Set('11 12 13 14 15 16 17 18 19 21 22 24 27 28 31 32 33 34 35 37 38 41 42 43 44 45 46 47 48 49 51 53 54 55 61 62 63 64 65 66 67 68 69 71 73 74 75 77 79 81 82 83 84 85 86 87 88 89 91 92 93 94 95 96 97 98 99'.split(' '));
 function validateField(content, value){
   const v = value == null ? '' : String(value).trim();
   const type = content.type || 'text';
   if (!v) return content.required ? 'Campo obrigatório' : '';
   if (type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return 'Digite um e-mail válido';
-  if (type === 'phone') { const d = onlyDigits(v); if (d.length < 10 || d.length > 13) return 'Digite um telefone com DDD' }
+  if (type === 'phone') {
+    // celular brasileiro: DDD que existe e, com 9 dígitos, começando por 9
+    const d = onlyDigits(v).replace(/^55(?=\d{10,11}$)/, '');
+    if (d.length < 10 || d.length > 11) return 'Digite o celular com DDD';
+    if (!DDDS.has(d.slice(0, 2))) return 'Confira o DDD';
+    if (d.length === 11 && d[2] !== '9') return 'Confira o número do celular';
+  }
   if (type === 'number' && !isFinite(num(v, NaN))) return 'Digite um número';
   if (content.min != null && content.min !== '' && type === 'number' && num(v) < num(content.min)) return 'Valor mínimo: ' + content.min;
   if (content.max != null && content.max !== '' && type === 'number' && num(v) > num(content.max)) return 'Valor máximo: ' + content.max;
@@ -405,12 +414,13 @@ const COMPONENTS = [
   {group: 'Argumentação', type: 'checklist', title: 'Checklist', icon: 'check'},
   {group: 'Gráficos', type: 'graphics', title: 'Métricas', icon: 'gauge'},
   {group: 'Gráficos', type: 'charts', title: 'Gráficos', icon: 'chart'},
+  {group: 'Personalização', type: 'ifood', title: 'Raio-X iFood', icon: 'search'},
   {group: 'Personalização', type: 'script', title: 'HTML/Script', icon: 'code'},
   {group: 'Personalização', type: 'clear', title: 'Espaço', icon: 'space'},
 ];
-const TYPE_TITLE = {text: 'Texto', image: 'Imagem', video: 'Vídeo', audio: 'Áudio', button: 'Botão', options: 'Opções', field: 'Campo', date: 'Data', height: 'Altura', weight: 'Peso', metric: 'Nível', timer: 'Timer', loading: 'Loading', price: 'Preço', faq: 'FAQ', clear: 'Espaço', alert: 'Alerta', notification: 'Notificação', arguments: 'Argumentos', quotes: 'Depoimentos', checklist: 'Checklist', compare: 'Antes/Depois', carousel: 'Carrossel', graphics: 'Métricas', charts: 'Gráficos', script: 'HTML/Script', group: 'Grupo'};
+const TYPE_TITLE = {text: 'Texto', image: 'Imagem', video: 'Vídeo', audio: 'Áudio', button: 'Botão', options: 'Opções', field: 'Campo', date: 'Data', height: 'Altura', weight: 'Peso', metric: 'Nível', timer: 'Timer', loading: 'Loading', price: 'Preço', faq: 'FAQ', clear: 'Espaço', alert: 'Alerta', notification: 'Notificação', arguments: 'Argumentos', quotes: 'Depoimentos', checklist: 'Checklist', compare: 'Antes/Depois', carousel: 'Carrossel', graphics: 'Métricas', charts: 'Gráficos', script: 'HTML/Script', group: 'Grupo', ifood: 'Raio-X iFood'};
 // Tipos que guardam resposta (contam como interação).
-const INPUT_TYPES = ['options', 'field', 'date', 'height', 'weight'];
+const INPUT_TYPES = ['options', 'field', 'date', 'height', 'weight', 'ifood'];
 // Nomes antigos deste app → nomes do InLead.
 const TYPE_ALIAS = {testimonials: 'quotes', beforeafter: 'compare', stats: 'graphics', chart: 'charts', html: 'script'};
 function normalizeLayer(l){
@@ -479,6 +489,8 @@ function newLayer(type, sub){
     case 'graphics': Object.assign(c, {cols: 'grid-cols-2', order: 'default', graphics: [{id: uid(), type: 'bar', style: 'theme', percent: 30, legend: "<p class='ql-align-center'>Fusce vitae tellus in risus sagittis condimentum</p>"}, {id: uid(), type: 'bar', style: 'theme', percent: 30, legend: "<p class='ql-align-center'>Fusce vitae tellus in risus sagittis condimentum</p>"}]}); L.design = {basis: 100}; break;
     case 'charts': Object.assign(c, {type: 'cartesian', datasetCount: 1, xAxis: ['Ontem', 'Hoje', 'Amanhã'], datasets: [{id: uid(), title: 'Conjunto A', datas: [{id: uid(), value: 10, tooltip: ''}, {id: uid(), value: 30, tooltip: 'Você', featured: true}, {id: uid(), value: 90, tooltip: ''}]}, {id: uid(), title: 'Conjunto B', datas: [{id: uid(), value: 20}, {id: uid(), value: 60, tooltip: 'Concorrente', featured: true}, {id: uid(), value: 80}]}]}); L.design = {basis: 100, color: 'gradient-invert', area: true, axisY: true, axisX: true, gridY: true, gridX: true}; break;
     case 'script': c.script = '<div style="text-align:center;padding:12px">Seu HTML aqui</div>'; L.design = {basis: 100}; break;
+    // Raio-X: a pessoa cola o link da loja no iFood e vê avaliações, pedidos estimados e a posição na região (app de Restaurantes).
+    case 'ifood': Object.assign(c, {name: 'ifood_' + uid(), title: 'Cole o link da sua loja no iFood', placeholder: 'https://www.ifood.com.br/delivery/…', help: 'No app do iFood: abra sua loja, toque em compartilhar e copie o link.', button: 'Ver o Raio-X da minha loja', km: 3, required: false}); L.design = {basis: 100, style: 'theme'}; break;
   }
   return L;
 }
@@ -721,6 +733,17 @@ textarea.fnr-input{min-height:110px;resize:vertical}
 .fnr-opt.is-on .fnr-oval{background:var(--fn-theme);color:var(--fn-theme-ink)}
 .fnr-html{width:100%}
 .fnr-end{display:grid;place-items:center;text-align:center;gap:8px;padding:40px 0;color:var(--fn-title)}
+.fnr-consent,.fnr-consent p,.fnr-consent span{font-size:11.5px;line-height:1.35;color:var(--fn-muted)!important;margin:0}
+.fnr-help{font-size:11.5px;color:var(--fn-muted)}
+.fnr-ifood{display:grid;gap:10px}
+.fnr-xray{position:relative;display:grid;gap:10px;padding:14px;border-radius:var(--fn-radius);background:var(--fn-card);box-shadow:inset 0 0 0 1px var(--fn-line);color:var(--fn-content);font-size:.88em}
+.fnr-xray .tag{position:absolute;top:8px;right:10px;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--fn-muted)}
+.fnr-xray .hd{display:flex;gap:10px;align-items:center}.fnr-xray .hd img{width:40px;height:40px;border-radius:10px;object-fit:cover}
+.fnr-xray .hd b{display:block;color:var(--fn-title);font-size:1.05em}.fnr-xray .hd small{color:var(--fn-muted)}
+.fnr-xray .nums{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+.fnr-xray .nums div{padding:8px;border-radius:calc(var(--fn-radius) - 4px);background:color-mix(in srgb,var(--fn-theme) 10%,transparent);text-align:center}
+.fnr-xray .nums b{display:block;font:800 1.3em/1.1 var(--fn-font-title);color:var(--fn-title)}.fnr-xray .nums small{font-size:.78em;color:var(--fn-muted)}
+.fnr-xray p{margin:0}.fnr-xray p b{color:var(--fn-title)}
 @media (prefers-reduced-motion:reduce){.fnr *{animation:none!important;transition:none!important}}
 `;
 function injectCss(){
@@ -832,6 +855,17 @@ function chartHtml(c, d, X){
   const axis = d.axisX !== false && c.type !== 'pie' ? `<line x1="${pad}" x2="${W - pad}" y1="${H - pad}" y2="${H - pad}" stroke="var(--fn-line)"/>` : '';
   const legend = ds.length > 1 || c.type === 'pie' ? `<div class="lg">${(c.type === 'pie' ? xs : ds.map(s => s.title)).map((t, i) => `<span><i style="background:${c.type === 'pie' ? (i ? tone('var(--fn-theme)', Math.max(25, 100 - i * 25), 'var(--fn-bg)') : 'var(--fn-theme)') : cols[i % 3]}"></i>${esc(t || '')}</span>`).join('')}</div>` : '';
   return `<div class="fnr-chart2">${c.title ? `<div class="tt">${esc(interpolate(c.title, X))}</div>` : ''}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico">${grid}${axis}${body}</svg>${c.type !== 'pie' && xs.length ? `<div class="xs">${xs.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}${legend}</div>`;
+}
+
+/* ----- Raio-X do iFood ----- */
+const IFOOD_SAMPLE = {nome: 'Sua loja (exemplo)', categoria: 'Lanches', bairro: 'Centro', avaliacoes: 312, pedidos: 624, raio: 3, posicao: 7, total: 24, confiavel: true, lider: 'Loja líder', lider_pedidos: 2480, proxima: 'Loja da frente', falta: 38};
+const fmtInt = n => Math.round(num(n)).toLocaleString('pt-BR');
+function ifoodCard(d, sample){
+  const pos = d.confiavel ? `<div><b>${fmtInt(d.posicao)}º</b><small>de ${fmtInt(d.total)} em ${esc(d.categoria || 'sua categoria')} a ${fmtInt(d.raio)} km</small></div>` : '';
+  return `<div class="fnr-xray">${sample ? '<span class="tag">exemplo</span>' : ''}<div class="hd">${d.logo ? `<img src="${esc(d.logo)}" alt="">` : ''}<div><b>${esc(d.nome)}</b><small>${esc([d.categoria, d.bairro].filter(Boolean).join(' · '))}</small></div></div>
+    <div class="nums"><div><b>${fmtInt(d.avaliacoes)}</b><small>avaliações</small></div><div><b>${fmtInt(d.pedidos)}</b><small>pedidos estimados</small></div>${pos}</div>
+    ${d.falta > 0 && d.proxima ? `<p>Faltam <b>~${fmtInt(d.falta)} pedidos</b> para passar <b>${esc(d.proxima)}</b>.</p>` : ''}
+    ${d.confiavel && d.lider ? `<p>A 1ª da região (<b>${esc(d.lider)}</b>) tem ~${fmtInt(d.lider_pedidos)} pedidos.</p>` : ''}</div>`;
 }
 
 /* ================= montagem ================= */
@@ -996,6 +1030,15 @@ function mount(el, funnel, opts){
         return edit ? `<div class="fnr-ph">HTML/Script<br><small>${esc(String(code || '').slice(0, 80))}</small></div>` : `<div class="fnr-html" data-html></div>`;
       }
       case 'date': case 'height': case 'weight': return renderField(layer, step);
+      case 'ifood': {
+        const a = R.answers[layer.id], data = a && a.data ? a.data : (edit || mode === 'preview' && !opts.onIfood ? IFOOD_SAMPLE : null);
+        const st = btnStyle(d);
+        return `<div class="fnr-ifood"><div class="fnr-field"><label for="f-${esc(layer.id)}">${esc(interpolate(c.title || '', X))}${c.required ? '' : ' <span style="opacity:.6">(opcional)</span>'}</label>
+          <input id="f-${esc(layer.id)}" class="fnr-input" data-act="ifood-link" inputmode="url" autocomplete="url" placeholder="${esc(c.placeholder || '')}" value="${esc(a ? displayValue(a.value) : (R.ifoodLink && R.ifoodLink[layer.id]) || '')}">
+          ${c.help ? `<small class="fnr-help">${esc(c.help)}</small>` : ''}<div class="fnr-err"></div></div>
+          <button type="button" class="fnr-btn st-${esc(d.style || 'theme')}" data-act="ifood" style="${st}">${esc(c.button || 'Ver o Raio-X')}</button>
+          <div class="fnr-ifood-res">${data ? ifoodCard(data, data === IFOOD_SAMPLE) : ''}</div></div>`;
+      }
       case 'group': return '';
       default: return edit ? `<div class="fnr-ph">Componente “${esc(layer.type)}”</div>` : '';
     }
@@ -1051,7 +1094,8 @@ function mount(el, funnel, opts){
       const minDate = type === 'date' && c.disablePast ? ` min="${new Date().toISOString().slice(0, 10)}"` : '';
       input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}"${minDate} ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
     }
-    return `<div class="fnr-field">${label}${input}<div class="fnr-err"></div></div>`;
+    const consent = c.consent ? `<div class="fnr-consent">${rich(c.consent, ctx())}</div>` : '';
+    return `<div class="fnr-field">${label}${input}<div class="fnr-err"></div>${consent}</div>`;
   }
 
   /* ----- etapa ----- */
@@ -1199,7 +1243,8 @@ function mount(el, funnel, opts){
   /* ----- interação ----- */
   function layerOf(target){ const w = target.closest('.fnr-l'); if (!w) return null; const step = stepAt(R.index); const raw = step.layers.find(l => l.id === w.dataset.lid); return {w, step, layer: raw && normalizeLayer(raw)} }
   function runScript(code){ if (!code || !live) return; try { new Function(code)() } catch (e) { console.warn('Script do componente falhou:', e) } }
-  function firePixel(ev){ if (!ev || !live) return; try { if (window.fbq) window.fbq('track', ev) } catch (e) {} }
+  // eventID igual ao que o servidor manda pela API de Conversões (a Meta junta os dois e não conta em dobro)
+  function firePixel(ev, key){ if (!ev || !live) return; try { if (window.fbq) window.fbq('track', ev, {}, opts.eventId && key ? {eventID: opts.eventId(key)} : undefined) } catch (e) {} }
   function onClick(e){
     const t = e.target.closest('[data-act]'); if (!t) return;
     const act = t.dataset.act;
@@ -1208,6 +1253,7 @@ function mount(el, funnel, opts){
     const {step, layer} = hit;
     if (act === 'opt') { e.preventDefault(); chooseOption(step, layer, t.dataset.oid, t); return }
     if (act === 'button') { e.preventDefault(); pressButton(step, layer, t); return }
+    if (act === 'ifood') { e.preventDefault(); runIfood(step, layer, hit.w, t); return }
     if (act === 'price') {
       // o cartão de preço aciona o próximo botão da etapa
       const k = step.layers.indexOf(layer), btn = step.layers.slice(k + 1).concat(step.layers.slice(0, k)).find(l => l.type === 'button' && evalRoles(l.roles, ctx()));
@@ -1215,18 +1261,29 @@ function mount(el, funnel, opts){
     }
   }
   function onInput(e){
-    const t = e.target, act = t.dataset && t.dataset.act; if (act !== 'field' && act !== 'range') return;
+    const t = e.target, act = t.dataset && t.dataset.act;
+    if (act === 'ifood-link') { const hit = layerOf(t); if (hit) { (R.ifoodLink = R.ifoodLink || {})[hit.layer.id] = t.value; const f = hit.w.querySelector('.fnr-field'); f.classList.remove('has-err'); f.querySelector('.fnr-err').textContent = '' } return }
+    if (act !== 'field' && act !== 'range') return;
     const hit = layerOf(t); if (!hit) return;
     const c = hit.layer.content;
     if (act === 'range') { const out = hit.w.querySelector('output'); if (out) out.firstChild.textContent = t.value; R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: hit.layer.type, title: c.title || '', value: t.value}); return }
     if (c.type === 'phone' || c.mask === 'phone') { const pos = t.value.length; t.value = phoneMask(t.value); if (t.value.length !== pos) try { t.setSelectionRange(t.value.length, t.value.length) } catch (er) {} }
     R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: hit.layer.type, title: c.title || '', value: t.value});
     const f = hit.w.querySelector('.fnr-field'); if (f && f.classList.contains('has-err')) { const msg = validateField(c, t.value); if (!msg) { f.classList.remove('has-err'); f.querySelector('.fnr-err').textContent = '' } }
+    // Guarda a resposta válida enquanto a pessoa digita (sem esperar sair do campo): assim o WhatsApp
+    // de quem desiste no formulário não se perde (veja "abandono" em Configurações › Leads e dados).
+    const lid = hit.layer.id, val = t.value;
+    clearTimeout((R.capT = R.capT || {})[lid]);
+    if (String(val).trim() && !validateField(Object.assign({}, c, {required: false}), val)) R.capT[lid] = setTimeout(() => {
+      if (R.destroyed || !R.answers[lid] || R.answers[lid].value !== val || (R.saved = R.saved || {})[lid] === val) return;
+      R.saved[lid] = val; setAnswer(hit.step, hit.layer, {value: c.type === 'phone' ? phoneMask(val) : String(val).trim()});
+    }, 1200);
   }
   function onChange(e){
     const t = e.target, act = t.dataset && t.dataset.act; if (act !== 'field' && act !== 'range') return;
     const hit = layerOf(t); if (!hit) return;
     const v = t.value; if (act === 'field' && !String(v).trim()) return;
+    (R.saved = R.saved || {})[hit.layer.id] = v;
     setAnswer(hit.step, hit.layer, {value: v});
   }
   function chooseOption(step, layer, oid, el2){
@@ -1239,7 +1296,7 @@ function mount(el, funnel, opts){
     if (ans) setAnswer(step, layer, ans); else delete R.answers[layer.id];
     R.root.querySelectorAll(`.fnr-l[data-lid="${layer.id}"] .fnr-opt`).forEach(b => { const on = ids.includes(b.dataset.oid); b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on) });
     const w = R.root.querySelector(`.fnr-l[data-lid="${layer.id}"]`); if (w) w.classList.remove('has-err');
-    runScript(o.script); firePixel(o.pixelEvent);
+    runScript(o.script); firePixel(o.pixelEvent, o.id);
     // Como no InLead: na escolha única o funil avança na hora, a não ser que a opção espere o botão (awaitSubmit).
     if (c.multiple || c.awaitSubmit) return;
     const others = visibleLayers(step).filter(l => l.id !== layer.id && INPUT_TYPES.includes(l.type) && needsAnswer(l));
@@ -1252,6 +1309,7 @@ function mount(el, funnel, opts){
     const a = R.answers[l.id];
     if (l.type === 'options') return l.content.required !== false && !(a && a.ids && a.ids.length);
     if (l.type === 'height' || l.type === 'weight') return false;
+    if (l.type === 'ifood') return !!l.content.required && !(a && a.data);
     if (l.type === 'field' || l.type === 'date') return !!validateField(Object.assign({}, l.content, l.type === 'date' ? {type: 'date'} : {}), a ? a.value : '');
     return false;
   }
@@ -1267,6 +1325,10 @@ function mount(el, funnel, opts){
         const msg = validateField(l.content, v);
         const box = w.querySelector('.fnr-field'); box.classList.toggle('has-err', !!msg); box.querySelector('.fnr-err').textContent = msg;
         if (msg) { ok = false; first = first || inp } else if (String(v).trim()) setAnswer(step, l, {value: l.content.type === 'phone' ? phoneMask(v) : String(v).trim()});
+      } else if (l.type === 'ifood') {
+        const link = String((R.ifoodLink && R.ifoodLink[l.id]) || '').trim(), box = w.querySelector('.fnr-field');
+        if (needsAnswer(l)) { ok = false; first = first || w.querySelector('input'); box.classList.add('has-err'); box.querySelector('.fnr-err').textContent = link ? 'Toque no botão para analisar a loja' : 'Cole o link da sua loja no iFood' }
+        else if (link && !(R.answers[l.id] && R.answers[l.id].data)) setAnswer(step, l, {value: link});
       } else if (l.type === 'options' && needsAnswer(l)) {
         ok = false; w.classList.add('has-err'); first = first || w;
         const box = w.querySelector('.fnr-opts'); if (box && box.animate) box.animate([{transform: 'translateX(0)'}, {transform: 'translateX(-6px)'}, {transform: 'translateX(6px)'}, {transform: 'translateX(0)'}], {duration: 280});
@@ -1275,11 +1337,26 @@ function mount(el, funnel, opts){
     if (first && first.focus) try { first.focus() } catch (e) {}
     return ok;
   }
+  async function runIfood(step, layer, w, btn){
+    const link = String((R.ifoodLink && R.ifoodLink[layer.id]) || w.querySelector('input').value || '').trim();
+    const box = w.querySelector('.fnr-field'), err = box.querySelector('.fnr-err'), res = w.querySelector('.fnr-ifood-res');
+    if (!link) { box.classList.add('has-err'); err.textContent = 'Cole o link da sua loja no iFood'; return }
+    if (!opts.onIfood) { res.innerHTML = ifoodCard(IFOOD_SAMPLE, true); return }
+    const label = btn.textContent; btn.disabled = true; btn.textContent = 'Analisando sua loja…';
+    try {
+      const d = await opts.onIfood(link, num(layer.content.km, 3));
+      if (R.destroyed) return;
+      setAnswer(step, layer, {value: link, data: d});
+      res.innerHTML = ifoodCard(d);
+      box.classList.remove('has-err'); err.textContent = '';
+    } catch (e) { box.classList.add('has-err'); err.textContent = (e && e.message) || 'Não consegui analisar essa loja agora.' }
+    finally { btn.disabled = false; btn.textContent = label }
+  }
   function pressButton(step, layer, btnEl){
     if (R.busy) return;
     const c = layer.content;
     if (!validateStep(step)) return;
-    runScript(c.script); firePixel(c.pixelEvent);
+    runScript(c.script); firePixel(c.pixelEvent, layer.id);
     if (c.name) R.clicks[c.name] = true;
     R.lastInteract = c.name || layer.id;
     // Destino: modelo de link (WhatsApp, Kirvano…) ou o destino com as variáveis trocadas.
@@ -1294,7 +1371,8 @@ function mount(el, funnel, opts){
     if (to.back) return back();
     if (to.url) {
       // Como no InLead, o link externo leva todos os parâmetros da URL atual (UTMs, fbclid…).
-      const url = buildRedirect(to.url, R.params);
+      let url = buildRedirect(to.url, R.params);
+      if (opts.decorateUrl) try { url = opts.decorateUrl(url, info) || url } catch (e) {}
       emit('complete', {step: step.id, stepIndex: R.index, url});
       if (!live) { if (opts.onPreviewRedirect) opts.onPreviewRedirect(url); return }
       const leave = () => { if (info && info.item && info.item.target) window.open(url, '_blank', 'noopener'); else window.location.href = url };
