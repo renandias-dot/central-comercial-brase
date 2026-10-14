@@ -450,8 +450,8 @@ function resultsHtml(){
   if (!S.results) return '';
   if (!S.results.length) return `<div class="panel"><div class="panel-b"><p class="empty">Nenhuma loja encontrada na base. Se ela existe no iFood, cole o link da loja em “Link ou ID do iFood”.</p></div></div>`;
   return `<section class="panel"><div class="panel-h"><h2>${fmt(S.results.length)} ${S.results.length === 1 ? 'loja' : 'lojas'}</h2></div><div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>Restaurante</th><th>Categoria</th><th>Bairro</th><th>Cidade</th><th class="r">Avaliações</th></tr></thead><tbody>
-    ${S.results.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a></td><td>${esc(x.category || '—')}</td><td>${esc(x.district || '—')}</td><td>${esc([x.city, x.state].filter(Boolean).join('/'))}</td><td class="r">${fmt(x.rating_count)}</td></tr>`).join('')}
+    <thead><tr><th>Restaurante</th><th class="r">Avaliações</th><th>Categoria</th></tr></thead><tbody>
+    ${S.results.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}</small></td><td class="r">${fmt(x.rating_count)}</td><td>${esc(x.category || '—')}</td></tr>`).join('')}
     </tbody></table></div></section>`;
 }
 
@@ -675,11 +675,11 @@ function bindChart(){
 const RANK_COLS = [
   {key: 'rank', label: '#', r: true},
   {key: 'name', label: 'Restaurante'},
-  {key: 'category', label: 'Categoria'},
   {key: 'rating_count', label: 'Avaliações', r: true},
   {key: 'count_3m', label: '3 meses atrás', r: true},
   {key: 'growth', label: 'Variação', r: true},
   {key: 'stars', label: 'Nota', r: true},
+  {key: 'category', label: 'Categoria'},
   {key: 'google_rating', label: 'Google', r: true},
   {key: 'district', label: 'Bairro'},
   {key: 'km', label: 'Distância', r: true},
@@ -707,11 +707,11 @@ function rankingHtml(a){
     return `<tr${x.id === m.id ? ' class="me"' : ''}>
       <td class="r">${x.rank}</td>
       <td class="nm"><a href="${detailHref(x.id, D.km)}">${esc(x.name)}</a><small>${esc([x.city, x.state].filter(Boolean).join('/'))}</small></td>
-      <td>${esc(x.category || '—')}</td>
       <td class="r">${fmt(x.rating_count)}</td>
       <td class="r">${fmt(x.count_3m)}</td>
       <td class="r">${trend(x.growth)}</td>
       <td class="r">${x.stars != null ? '★ ' + dec(x.stars) : '—'}</td>
+      <td>${esc(x.category || '—')}</td>
       ${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}
       <td>${esc(x.district || '—')}</td>
       <td class="r">${dec(x.km)} km</td>
@@ -867,8 +867,8 @@ async function viewFavorites(){
   if (route().path !== '/favoritos') return;
   const grow = x => x.count_3m ? x.rating_count / x.count_3m - 1 : null;
   view.innerHTML = head('Favoritos', 'Lojas que a equipe acompanha. A lista é a mesma para todo mundo que usa o código de acesso.', rows.length ? '<button class="btn sm" id="fav-csv">Baixar CSV</button>' : '') + (rows.length ? `
-    <section class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Restaurante</th><th>Categoria</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th>${googleOn ? '<th class="r">Google</th>' : ''}<th>Desde</th><th></th></tr></thead><tbody>
-    ${rows.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${x.enabled ? '' : ' · fora do ar no iFood'}</small></td><td>${esc(x.category || '—')}</td><td class="r">${fmt(x.rating_count)}</td><td class="r">${fmt(x.count_3m)}</td><td class="r">${trend(grow(x))}</td>${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}<td class="num">${dateOnly(x.created_at)}</td><td><button class="btn sm ghost" data-unfav="${x.id}">Remover</button></td></tr>`).join('')}
+    <section class="panel"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Restaurante</th><th class="r">Avaliações</th><th class="r">3 meses atrás</th><th class="r">Variação</th><th>Categoria</th>${googleOn ? '<th class="r">Google</th>' : ''}<th>Desde</th><th></th></tr></thead><tbody>
+    ${rows.map(x => `<tr><td class="nm"><a href="${detailHref(x.id)}">${esc(x.name)}</a><small>${esc([x.district, [x.city, x.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${x.enabled ? '' : ' · fora do ar no iFood'}</small></td><td class="r">${fmt(x.rating_count)}</td><td class="r">${fmt(x.count_3m)}</td><td class="r">${trend(grow(x))}</td><td>${esc(x.category || '—')}</td>${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}<td class="num">${dateOnly(x.created_at)}</td><td><button class="btn sm ghost" data-unfav="${x.id}">Remover</button></td></tr>`).join('')}
     </tbody></table></div></section>` : '<div class="panel"><div class="panel-b"><p class="empty">Nenhum favorito ainda. Abra a ficha de uma loja e clique em “Favoritar”.</p></div></div>');
   $('#fav-csv')?.addEventListener('click', () => downloadCsv('favoritos.csv', withoutGoogle([['restaurante', 'categoria', 'bairro', 'cidade', 'uf', 'avaliacoes', 'avaliacoes_3_meses_atras', 'nota_google', 'avaliacoes_google', 'link_ifood'],
     ...rows.map(x => [x.name, x.category, x.district, x.city, x.state, x.rating_count, x.count_3m, x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, ifoodUrl(x)])])));
