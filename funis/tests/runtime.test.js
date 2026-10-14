@@ -208,3 +208,19 @@ test('Raio-X do iFood: componente e variáveis com os dados da loja', () => {
   assert.equal(v['loja.avaliacoes'], 312);
   assert.equal(R.interpolate('Você está em {{loja.posicao}}º de {{loja.total}}', {answers: {x: {name: 'loja', type: 'ifood', value: '', data: {posicao: 7, total: 24}}}}), 'Você está em 7º de 24');
 });
+
+test('teste A/B: variante fixa por visitante, forçada pelo link e em @teste.nome', () => {
+  const f = {settings: {ab: [{name: 'Capa', variants: 'atual, v1'}, {name: 'off', variants: 'a,b', enabled: false}, {name: 'uma', variants: 'só'}]}};
+  const n = {atual: 0, v1: 0};
+  for (let i = 0; i < 1000; i++) n[R.abAssign(f, 'v' + i, {}).teste_capa]++;
+  assert.ok(n.atual > 400 && n.v1 > 400, JSON.stringify(n));
+  assert.deepStrictEqual(R.abAssign(f, 'abc123', {}), R.abAssign(f, 'abc123', {}));
+  assert.deepStrictEqual(Object.keys(R.abAssign(f, 'x', {})), ['teste_capa'], 'teste desligado ou com uma variante não entra');
+  assert.strictEqual(R.abAssign(f, 'x', {teste_capa: 'v1'}).teste_capa, 'v1');
+  assert.notStrictEqual(R.abAssign(f, 'x', {teste_capa: 'inventada'}).teste_capa, 'inventada');
+  const vars = R.buildVars({params: {teste_capa: 'v1'}});
+  assert.strictEqual(vars['teste.capa'], 'v1');
+  assert.ok(R.evalRoles([[{variable: '@teste.capa', compare: '==', value: 'v1'}]], {vars}));
+  assert.ok(!R.evalRoles([[{variable: '@teste.capa', compare: '!=', value: 'v1'}]], {vars}));
+  assert.ok(R.evalRoles([[{variable: '@teste.capa', compare: '!=', value: 'v1'}]], {vars: {}}), 'sem variante (página antiga), a capa atual aparece');
+});

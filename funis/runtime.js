@@ -76,7 +76,7 @@ function buildVars(ctx){
   if (!ctx) return {};
   if (ctx.vars) return ctx.vars;
   const out = {}, answers = ctx.answers || {}, params = ctx.params || {};
-  for (const k in params) out['tracking.' + k] = params[k];
+  for (const k in params) { out['tracking.' + k] = params[k]; if (/^teste_\w+$/.test(k)) out['teste.' + k.slice(6)] = params[k] }
   if (ctx.screen) out['tracking.screen'] = ctx.screen;
   if (ctx.platform) out['tracking.platform'] = ctx.platform;
   for (const name in ctx.clicks || {}) out[name] = 'clicked';
@@ -94,6 +94,21 @@ function buildVars(ctx){
     if (a.data) for (const k in a.data) out[a.name + '.' + k] = a.data[k];
   }
   if (!('score' in out)) out.score = total;
+  return out;
+}
+/* ================= teste A/B (funil › settings.ab) ================= */
+// Cada visitante cai numa variante fixa, sorteada pelo código dele; vai nos parâmetros como teste_<nome> (relatórios e
+// webhook) e nas regras como @teste.<nome>. ?teste_<nome>=<variante> no link força uma variante (para conferir).
+const abName = n => String(n == null ? '' : n).trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
+const abVariants = t => (Array.isArray(t && t.variants) ? t.variants : String((t && t.variants) || '').split(',')).map(v => String(v).trim()).filter(Boolean);
+function abTests(funnel){ return ((funnel && funnel.settings && funnel.settings.ab) || []).filter(t => t && t.enabled !== false && abName(t.name) && abVariants(t).length > 1) }
+function hashStr(s){ let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
+function abAssign(funnel, code, params){
+  const out = {};
+  for (const t of abTests(funnel)) {
+    const name = abName(t.name), k = 'teste_' + name, vs = abVariants(t), forced = params && params[k];
+    out[k] = forced && vs.includes(forced) ? forced : vs[hashStr(String(code) + ':' + name) % vs.length];
+  }
   return out;
 }
 function totalScore(answers){ let t = 0; for (const id in answers || {}) t += num(answers[id] && answers[id].score); return t }
@@ -542,7 +557,7 @@ function outlets(funnel, step){
 }
 
 /* ================= DOM (navegador) ================= */
-if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS};
+if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 
 const CSS = `
 .fnr{--fn-theme:#6366f1;font-family:var(--fn-font-text);font-size:var(--fn-size);color:var(--fn-content);background:var(--fn-bg);position:relative;min-height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;line-height:1.4;overflow-wrap:break-word}
@@ -1408,5 +1423,5 @@ function mount(el, funnel, opts){
   };
 }
 
-return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS};
+return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 });

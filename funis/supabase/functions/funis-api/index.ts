@@ -3,7 +3,8 @@
 // FUNIS_ACCESS_CODE existir, exigem esse código no cabeçalho x-fn-key (sem o segredo, o editor fica aberto).
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {evalRoles} from './rules.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -186,7 +187,8 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
       if (e.type === 'answer' && e.answer && Array.isArray(e.answer.ids)) for (const oid of e.answer.ids) { const o = (c.options || []).find((x: Row) => x.id === oid); if (o && o.pixelEvent) capi.push({name: String(o.pixelEvent), id: `${sid}-${oid}`}) }
     }
     const px = (f.published.settings && f.published.settings.pixel) || {};
-    if (px.icpEvent !== false && leadMetrics(next, leadsOf(f.published)).icp) capi.push({name: 'LeadQualificado', id: `${sid}-icp`});
+    // "Só quando…" (pixel.icpWhen): espera também essa condição, ex.: o lead no perfil clicar no botão do formulário.
+    if (px.icpEvent !== false && leadMetrics(next, leadsOf(f.published)).icp && evalRoles(px.icpWhen, ruleVars(next), true)) capi.push({name: 'LeadQualificado', id: `${sid}-icp`});
     if (capi.length) waitUntil(capiSend(f, next, capi));
     waitUntil(sweep(f.id));
     if (webhookDue(f.webhook, prev, next, events)) {

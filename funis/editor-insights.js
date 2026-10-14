@@ -21,11 +21,13 @@ function leadInsight(l){
   let score = 0; const reasons = [];
   for (const r of rules) if (!hasGroups(r.when) || FR.evalRoles(r.when, {vars})) { score += Number(r.points); if (r.label) reasons.push(r.label + ' (+' + r.points + ')') }
   score = Math.max(0, Math.min(100, Math.round(score)));
-  return {icp: hasGroups(ls.icp) ? FR.evalRoles(ls.icp, {vars}) : null, score: rules.length ? score : null, hot: rules.length && Number(ls.hot) > 0 ? score >= Number(ls.hot) : null, reasons};
+  const tags = (ls.tags || []).filter(t => t && String(t.label || '').trim() && hasGroups(t.when) && FR.evalRoles(t.when, {vars})).map(t => String(t.label).trim());
+  return {icp: hasGroups(ls.icp) ? FR.evalRoles(ls.icp, {vars}) : null, score: rules.length ? score : null, hot: rules.length && Number(ls.hot) > 0 ? score >= Number(ls.hot) : null, reasons, tags};
 }
 const STAGE_NAMES = {novo: 'Lead Novo', print: 'Print Enviado', qualificando: 'Qualificando', agendando: 'Agendando', marcada: 'Reunião Marcada', feita: 'Reunião Feita', fechado: 'Fechado', perdido: 'Perdido', desqualificado: 'Desqualificado', frio: 'Frio', morno: 'Morno'};
 // Colunas extras da tabela de respostas.
-function insightHead(){ return ['Nota', 'Perfil', 'WhatsApp', 'Envio', 'CRM', 'Venda'] }
+function insightHead(){ return ['Nota', 'Perfil', 'Etiquetas', 'Teste A/B', 'WhatsApp', 'Envio', 'CRM', 'Venda'] }
+const abOf = l => Object.entries(l.params || {}).filter(([k]) => /^teste_/.test(k)).map(([k, v]) => k.slice(6) + ': ' + v).join(' · ');
 function insightCells(l, data){
   const m = leadInsight(l), phones = data._phones || (data._phones = (data.leads || []).reduce((a, x) => { if (x.phone) a[x.phone] = (a[x.phone] || 0) + 1; return a }, {}));
   const sales = (data.sales || []).filter(s => s.session_id === l.id);
@@ -35,6 +37,7 @@ function insightCells(l, data){
   return [
     m.score == null ? '' : `<b class="num"${m.hot ? ' style="color:var(--ok, #15803d)"' : ''} title="${attr(m.reasons.join(' · '))}">${m.score}</b>${m.hot ? ' 🔥' : ''}`,
     m.icp == null ? '' : m.icp ? '<span class="chip ok">no perfil</span>' : '<span class="chip">fora</span>',
+    m.tags.map(t => `<span class="chip acc">${esc(t)}</span>`).join(' '), esc(abOf(l)),
     zap, envio,
     l.crm && l.crm.stage ? esc(STAGE_NAMES[l.crm.stage] || l.crm.stage) : '',
     sales.length ? sales.map(s => `<span class="chip${s.status === 'approved' ? ' ok' : s.status === 'refunded' ? ' bad' : ''}">${s.status === 'approved' ? money(s.value) : s.status === 'refunded' ? 'reembolso' : esc(s.status)}</span>`).join(' ') : '',
@@ -45,6 +48,8 @@ function insightDrawer(l, data){
   const rows = [];
   if (m.score != null) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Nota do lead</span><b>${m.score}${m.hot ? ' 🔥 quente' : ''}</b></div>${m.reasons.length ? `<p class="hint">${esc(m.reasons.join(' · '))}</p>` : ''}`);
   if (m.icp != null) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Perfil</span>${m.icp ? '<span class="chip ok">no perfil</span>' : '<span class="chip">fora do perfil</span>'}</div>`);
+  if (m.tags.length) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Etiquetas</span><span>${m.tags.map(t => `<span class="chip acc">${esc(t)}</span>`).join(' ')}</span></div>`);
+  if (abOf(l)) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Teste A/B</span><span>${esc(abOf(l))}</span></div>`);
   if (l.phone) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">WhatsApp</span><span>+${esc(l.phone)} ${validPhone(l.phone) ? '<span class="chip ok">válido</span>' : '<span class="chip bad">confira</span>'}</span></div>`);
   if (l.crm && l.crm.stage) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">CRM</span><span>${esc(STAGE_NAMES[l.crm.stage] || l.crm.stage)}${l.crm.value ? ' · ' + money(l.crm.value) : ''}</span></div>`);
   for (const s of sales) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Venda${s.product ? ' · ' + esc(s.product) : ''}</span><span>${s.status === 'approved' ? money(s.value) : esc(s.status)} · ${esc(fmtDateTime(s.created_at))}</span></div>`);
@@ -61,6 +66,7 @@ const AD_COLS = [
   ['cpl', 'Custo/envio', r => money(r.cpl)], ['cpIcp', 'Custo/lead no perfil', r => money(r.cpIcp)], ['cpMeeting', 'Custo/reunião', r => money(r.cpMeeting)], ['cpSale', 'Custo/venda', r => money(r.cpSale)],
   ['roas', 'ROAS', r => r.roas == null ? '—' : r.roas.toLocaleString('pt-BR', {maximumFractionDigits: 2}) + 'x'],
 ];
+const levelOpts = () => LEVEL_OPTS.concat(FR.abTests(D).map(t => ['ab:' + FR.abName(t.name), 'Teste: ' + FR.abName(t.name), 'teste_' + FR.abName(t.name)]));
 async function loadAds(force){
   needServer();
   const key = [REC.id, UI.leads.period, INS.level, JSON.stringify(D.settings.leads || {})].join('|');
@@ -73,11 +79,11 @@ async function adsHtml(){
   if (!DB.server) return '<div class="panel"><div class="empty">Os números por anúncio precisam do servidor configurado.</div></div>';
   const r = await loadAds();
   const {k, d} = INS.sort, rows = r.rows.slice().sort((a, b) => ((a[k] ?? -1) - (b[k] ?? -1)) * d);
-  const t = r.totals, lvl = LEVEL_OPTS.find(x => x[0] === INS.level);
+  const t = r.totals, lvl = levelOpts().find(x => x[0] === INS.level) || ['', 'Variante', r.param];
   const noSpend = !t.spend, noRules = !hasGroups((D.settings.leads || {}).icp);
   const sel = rows.find(x => x.key === INS.sel) || null;
-  return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg">${LEVEL_OPTS.map(([v, l]) => `<button data-a="ads-level" data-v="${v}" aria-pressed="${INS.level === v}">${l}</button>`).join('')}</span>
-      <span class="hint">agrupado por <code>${lvl[2]}</code> do link do anúncio · clique numa linha para ver o dia a dia</span><span style="flex:1"></span><button class="btn sm" data-a="ads-csv">${IC.download}CSV</button></div>
+  return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg">${levelOpts().map(([v, l]) => `<button data-a="ads-level" data-v="${v}" aria-pressed="${INS.level === v}">${l}</button>`).join('')}</span>
+      <span class="hint">${/^ab:/.test(INS.level) ? `agrupado pela variante do teste (<code>${lvl[2]}</code>) · Inícios mostra quanto cada capa faz começar` : `agrupado por <code>${lvl[2]}</code> do link do anúncio`} · clique numa linha para ver o dia a dia</span><span style="flex:1"></span><button class="btn sm" data-a="ads-csv">${IC.download}CSV</button></div>
     ${noSpend || noRules ? `<div class="banner" style="margin-bottom:10px">${noSpend ? 'Sem gasto no período: importe a planilha do Gerenciador de Anúncios ou ligue a busca automática em Configurações › Pixel/Scripts para ver os custos. ' : ''}${noRules ? 'Defina a regra de perfil em Configurações › Leads e dados para ver quantos leads no perfil cada anúncio traz.' : ''}</div>` : ''}
     <div class="tbl-wrap"><table class="tbl ads"><thead><tr><th class="sticky">${lvl[1]}</th>${AD_COLS.map(([c, l]) => `<th data-a="ads-sort" data-v="${c}" style="cursor:pointer">${l}${INS.sort.k === c ? (d < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(x => `<tr data-a="ads-row" data-key="${attr(x.key)}"${x.key === INS.sel ? ' class="on"' : ''}><td class="sticky" title="${attr(x.key)}">${esc(x.name)}${x.id ? `<span class="nm">${esc(x.id)}</span>` : ''}</td>${AD_COLS.map(([, , f]) => `<td class="num">${f(x)}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${AD_COLS.length + 1}" class="empty">Sem acessos no período.</td></tr>`}</tbody>
@@ -124,7 +130,7 @@ async function pathsHtml(){
 function rulesBuilder(path, roles, addLabel){
   const vs = typeof allVars === 'function' ? allVars() : [];
   const label = Object.fromEntries(FR.ROLE_OPERATORS);
-  const list = `<datalist id="fn-vars-cfg">${vs.map(x => `<option value="@${attr(x.name)}">${esc(x.stepTitle)}</option>`).join('')}<option value="@score">pontuação total</option><option value="@lead.telefone_valido">WhatsApp válido (sim/nao)</option><option value="@lead.completo">completou (sim/nao)</option><option value="@lead.etapas">número de etapas vistas</option><option value="@tracking.utm_content">anúncio (utm_content)</option><option value="@tracking.utm_campaign">campanha (utm_campaign)</option></datalist>`;
+  const list = `<datalist id="fn-vars-cfg">${vs.map(x => `<option value="@${attr(x.name)}">${esc(x.stepTitle)}</option>`).join('')}<option value="@score">pontuação total</option><option value="@lead.telefone_valido">WhatsApp válido (sim/nao)</option><option value="@lead.completo">completou (sim/nao)</option><option value="@lead.etapas">número de etapas vistas</option><option value="@tracking.utm_content">anúncio (utm_content)</option><option value="@tracking.utm_campaign">campanha (utm_campaign)</option>${FR.abTests(D).map(t => `<option value="@teste.${attr(FR.abName(t.name))}">teste A/B · ${esc(FR.abVariants(t).join(', '))}</option>`).join('')}</datalist>`;
   const valIn = (g, c, cond) => {
     const vdef = vs.find(x => '@' + x.name === cond.variable);
     if (vdef && vdef.type === 'options' && ['==', '!='].includes(cond.compare)) return `<select class="in" data-rr="${path}|${g}.${c}.value"><option value="">—</option>${vdef.values.map(([v, lb]) => `<option value="${attr(v)}"${String(cond.value) === v ? ' selected' : ''}>${esc(v)} · ${esc(lb.slice(0, 34))}</option>`).join('')}</select>`;
@@ -177,7 +183,16 @@ function leadsDataHtml(){
       ${P.num(F('hot'), 'Lead quente a partir da nota', {min: 0, max: 100, hint: 'Vai no webhook como lead_quente: true para o SDR atender primeiro.'})}</div>
     <div class="psec"><span class="eyebrow">Quem deixou o WhatsApp e não enviou</span>${P.tog(F('abandon.enabled'), 'Mandar para o webhook como abandono')}${P.num(F('abandon.minutes'), 'Depois de quantos minutos sem atividade', {min: 5})}
       <p class="hint">O WhatsApp é guardado enquanto a pessoa digita. Vai com <code>abandonou: true</code> e a etapa onde parou. Se ela voltar e enviar, vai de novo, completo. Pela LGPD, use o texto de consentimento no campo de WhatsApp (aba Conteúdo do campo).</p></div>
-    <div class="psec"><span class="eyebrow">Repetidos</span>${P.num(F('dedupeDays'), 'Não mandar de novo o mesmo telefone por (dias)', {min: 0, hint: '0 = desligado. Evita lead duplicado no CRM quando a pessoa refaz o funil.'})}</div>`;
+    <div class="psec"><span class="eyebrow">Repetidos</span>${P.num(F('dedupeDays'), 'Não mandar de novo o mesmo telefone por (dias)', {min: 0, hint: '0 = desligado. Evita lead duplicado no CRM quando a pessoa refaz o funil.'})}</div>
+    <div class="psec"><span class="eyebrow">Etiquetas para o SDR</span><p class="hint">Cada etiqueta que vale para o lead vai no webhook, no campo <code>etiquetas</code> (ex.: “DI, prioridade alta, Já pagou agência”), e aparece na aba Leads.</p>
+      <div style="display:grid;gap:8px">${(ls.tags || []).map((r, i) => `<div class="item"><div class="item-h"><b>Etiqueta ${i + 1}</b><button class="btn sm icon ghost" type="button" data-a="tag-del" data-i="${i}" title="Remover">${IC.trash}</button></div>
+        ${P.text(F(`tags.${i}.label`), 'Etiqueta')}${rulesBuilder(`leads.tags.${i}.when`, r.when, 'Quando…')}</div>`).join('')}
+      <button class="btn sm" type="button" data-a="tag-add" style="justify-self:start">${IC.plus}Adicionar etiqueta</button></div></div>
+    <div class="psec"><span class="eyebrow">Testes A/B</span><p class="hint">Cada visitante cai numa variante fixa (sorteada pelo código dele) e fica nela se voltar. Mostre um componente só numa variante com a condição <code>@teste.nome</code> é igual a <code>variante</code> (aba Avançado do componente). Compare em Leads › Anúncios › Teste. Para conferir uma variante, abra o funil com <code>?teste_nome=variante</code> no link.</p>
+      <div style="display:grid;gap:8px">${(D.settings.ab || []).map((t, i) => `<div class="item"><div class="item-h"><b>Teste ${i + 1}</b><button class="btn sm icon ghost" type="button" data-a="ab-del" data-i="${i}" title="Remover">${IC.trash}</button></div>
+        <div class="g2">${P.text('F:settings.ab.' + i + '.name', 'Nome (ex.: capa)')}${P.text('F:settings.ab.' + i + '.variants', 'Variantes, separadas por vírgula')}</div>${P.tog('F:settings.ab.' + i + '.enabled', 'Ligado', {defOn: true})}
+        ${FR.abName(t.name) ? `<p class="hint">Condição: <code>@teste.${esc(FR.abName(t.name))}</code> · parâmetro no webhook: <code>teste_${esc(FR.abName(t.name))}</code></p>` : ''}</div>`).join('')}
+      <button class="btn sm" type="button" data-a="ab-add" style="justify-self:start">${IC.plus}Novo teste A/B</button></div></div>`;
 }
 
 /* ================= Configurações › Integrações e Meta ================= */
@@ -207,6 +222,7 @@ function metaHtml(){
   const secret = (k, label, set, ph) => `<label class="f">${esc(label)}<input class="in" type="password" data-int="${k}" placeholder="${set ? '•••••••• (guardado no servidor; deixe vazio para manter)' : ph || ''}" autocomplete="off"></label>`;
   return `<div class="psec"><span class="eyebrow">API de Conversões da Meta</span>
       ${P.tog(F('capi'), 'Mandar os eventos também pelo servidor (API de Conversões)')}${P.tog(F('icpEvent'), 'Avisar “LeadQualificado” quando o lead entra no perfil', {defOn: true})}
+      <div class="psec" style="margin:6px 0 0;padding:0;border:0"><span class="eyebrow">Só quando… (opcional)</span><p class="hint">Sem condição, o evento sai assim que o lead entra no perfil. Com condição, espera também ela, ex.: <code>@VT19S2</code> é igual a <code>clicked</code> (o lead no perfil enviou o formulário). Assim a Meta aprende com quem de fato deixou o WhatsApp.</p>${rulesBuilder('pixel.icpWhen', (D.settings.pixel || {}).icpWhen, 'Adicionar condição')}</div>
       <p class="hint">O mesmo evento sai do navegador (Pixel) e do servidor com o mesmo código, então a Meta não conta duas vezes. O servidor manda telefone, e-mail e nome em SHA-256, IP, navegador, fbc e fbp. Eventos: os de botões e opções (aba Avançado), LeadQualificado e Purchase (vendas do checkout).</p>
       ${DB.server ? `${secret('capiToken', 'Token da API de Conversões', it && it.capiTokenSet, 'Gerenciador de Eventos › Configurações › Gerar token')}<label class="f">Código de teste (opcional)<input class="in" data-int="capiTest" value="${attr((it && it.capiTest) || '')}" placeholder="TEST12345"></label>` : '<div class="banner warn">Precisa do servidor configurado.</div>'}</div>
     <div class="psec"><span class="eyebrow">Gasto dos anúncios</span><p class="hint">Com o gasto, a aba Leads › Anúncios mostra custo por envio, por lead no perfil, por reunião, por venda e ROAS.</p>
@@ -347,6 +363,10 @@ Object.assign(ACT, {
   'rr-group': t => { mutate(() => ensureRoles(t.dataset.p).push([{variable: '', compare: '==', value: ''}]), {canvas: false}); renderConfigBody() },
   'rr-del': t => { mutate(() => { const r = ensureRoles(t.dataset.p); r[+t.dataset.g].splice(+t.dataset.c, 1); const k = r.findIndex(g => !g.length); if (k >= 0) r.splice(k, 1) }, {canvas: false}); renderConfigBody() },
   'score-add': () => { mutate(() => { const ls = leadsCfg(); (ls.score = ls.score || []).push({label: '', points: 10, when: [[{variable: '', compare: '==', value: ''}]]}) }, {canvas: false}); renderConfigBody() },
+  'tag-add': () => { mutate(() => { const ls = leadsCfg(); (ls.tags = ls.tags || []).push({label: '', when: [[{variable: '', compare: '==', value: ''}]]}) }, {canvas: false}); renderConfigBody() },
+  'tag-del': t => { mutate(() => leadsCfg().tags.splice(+t.dataset.i, 1), {canvas: false}); renderConfigBody() },
+  'ab-add': () => { mutate(() => { (D.settings.ab = D.settings.ab || []).push({name: D.settings.ab.length ? 'teste' + (D.settings.ab.length + 1) : 'capa', variants: 'atual, v1', enabled: true}) }, {canvas: false}); renderConfigBody() },
+  'ab-del': t => { mutate(() => D.settings.ab.splice(+t.dataset.i, 1), {canvas: false}); renderConfigBody() },
   'score-del': t => { mutate(() => leadsCfg().score.splice(+t.dataset.i, 1), {canvas: false}); renderConfigBody() },
   'leads-model': () => braseModel(),
   'int-save': () => saveInt().catch(e => toast(e.message, 'err')),
