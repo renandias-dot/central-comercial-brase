@@ -30,6 +30,8 @@ function download(name, text, type){
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type: type || 'application/json'})); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove() }, 500);
 }
 function publicUrl(slug){
+  // "public" aceita {slug} (ex.: https://diagnostico.brasemarketing.com.br/{slug}) ou um endereço base (…/funis/f/).
+  if (HOST.public && HOST.public.includes('{slug}')) return HOST.public.replace('{slug}', encodeURIComponent(slug));
   if (HOST.public) return HOST.public.replace(/\/?$/, '/') + (HOST.public.includes('?') ? '' : '?f=') + slug;
   return new URL('f/?f=' + encodeURIComponent(slug), location.href.split('#')[0]).toString();
 }
