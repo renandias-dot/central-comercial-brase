@@ -187,7 +187,7 @@ Object.assign(ACT, {
   lrefresh: () => { LEADS.cache = null; renderLeads($('#ed-main')) },
   lmore: async () => { const d = await loadLeads(true); paintLeads(d) },
   lexport: exportCsv,
-  lreset: async () => { if (!(await confirmBox('Resetar os dados deste funil?', 'Todos os acessos e respostas serão apagados. Os leads que já foram para o CRM continuam lá. Não dá para desfazer.', 'Apagar tudo', true))) return; await DB.reset(REC.id); LEADS.cache = null; toast('Dados apagados'); renderLeads($('#ed-main')) },
+  lreset: async () => { if (!(await confirmBox('Resetar os dados deste funil?', 'Todos os acessos e respostas serão apagados. Os leads que já foram para o CRM continuam lá. Não dá para desfazer.', 'Apagar tudo', true))) return; await DB.reset(REC.id, REC.slug); LEADS.cache = null; toast('Dados apagados'); renderLeads($('#ed-main')) },
   lead: t => leadDrawer(LEADS.cache.leads[+t.dataset.k]),
   'close-drawer': closeDrawer,
   lresend: async t => { const r = await DB.resend(REC.id, t.dataset.id); toast(r.ok ? 'Reenviado (HTTP ' + r.status + ')' : 'Falhou: ' + (r.error || 'HTTP ' + r.status), r.ok ? '' : 'err'); LEADS.cache = null },
@@ -213,7 +213,10 @@ function renderConfigBody(){
     case 'geral': h = `<h2>Geral</h2>${P.text('R:title', 'Título')}<label class="f">Endereço (slug)<div class="row"><span class="hint" style="white-space:nowrap">${esc(publicUrl('').replace(/\?f=$/, '?f='))}</span><input class="in" data-p="R:slug" value="${attr(REC.slug)}"></div><span class="hint">Letras minúsculas, números e hífen. Mudar o endereço quebra os links antigos já divulgados.</span></label>
       <label class="f">Link público<div class="row"><input class="in" readonly value="${attr(publicUrl(REC.slug))}"><button class="btn" data-a="copy" data-v="${attr(publicUrl(REC.slug))}">${IC.copy}Copiar</button></div></label>
       ${P.area('F:description', 'Descrição interna (opcional)', {rows: 2})}
-      <div class="row" style="flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line)"><button class="btn" data-a="cfg-export">${IC.download}Exportar funil (JSON)</button><button class="btn danger" data-a="cfg-delete">${IC.trash}Excluir funil</button></div>`; break;
+      <div class="row" style="flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line)"><button class="btn" data-a="cfg-export">${IC.download}Exportar funil (JSON)</button><button class="btn danger" data-a="cfg-delete">${IC.trash}Excluir funil</button></div>
+      ${DB.server ? `<div class="psec"><span class="eyebrow">Código de acesso do editor</span><p class="hint">Vale para todos os funis e para toda a equipe. Use uma frase longa ou um gerador de senhas; quem estiver com o código antigo precisa entrar de novo.</p>
+        <div class="g2"><label class="f">Novo código<input class="in" type="password" id="acc-new" autocomplete="new-password" placeholder="pelo menos 12 caracteres"></label><label class="f">Repita o novo código<input class="in" type="password" id="acc-new2" autocomplete="new-password"></label></div>
+        <div class="row"><button class="btn" data-a="access-change">Trocar código</button></div></div>` : ''}`; break;
     case 'dominio': h = `<h2>Domínio</h2><p class="muted">O funil fica no ar no endereço abaixo, publicado pelo GitHub Pages junto com a Central Comercial.</p><pre class="code">${esc(publicUrl(REC.slug))}</pre>
       <div class="banner" style="display:grid;gap:6px"><b>Para usar um domínio próprio (ex.: diagnostico.brase.com.br)</b><span>1. No GitHub, em Settings › Pages, informe o domínio em “Custom domain”.</span><span>2. No provedor do domínio, crie um registro CNAME apontando para <code>renandias-dot.github.io</code>.</span><span>3. Em <code>funis/index.html</code>, preencha <code>"public"</code> na linha <code>window.FN_HOST</code> com <code>https://seu-dominio/funis/f/</code> para os links do editor usarem o domínio novo.</span></div>
       <p class="hint">Os parâmetros do anúncio vão no fim do link (…&amp;utm_source=FB&amp;utm_campaign=…). Para abrir direto numa etapa, use <code>&amp;step=</code> com o ID da etapa (como no InLead) ou <code>&amp;etapa=3</code> (número da etapa).</p>`; break;
@@ -273,7 +276,7 @@ function paintWebhookState(){ const el = $('#wh-state'); if (el) el.textContent 
 Object.assign(ACT, {
   cfgtab: t => { UI.cfg = t.dataset.v; renderConfig($('#ed-main')) },
   'cfg-export': () => download(REC.slug + '.json', JSON.stringify(exportRecord(Object.assign({}, REC, {draft: D})), null, 1) + '\n'),
-  'cfg-delete': async () => { if (!(await confirmBox('Excluir “' + REC.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true))) return; await DB.remove(REC.id); SAVE.dirty = false; toast('Funil excluído'); location.hash = '#/' },
+  'cfg-delete': async () => { if (!(await confirmBox('Excluir “' + REC.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true))) return; await DB.remove(REC.id, REC.slug); SAVE.dirty = false; toast('Funil excluído'); location.hash = '#/' },
   'wh-map-add': () => { WH.data.mapping = WH.data.mapping || []; WH.data.mapping.push({key: '', name: '', mode: 'label'}); WH.dirty = true; renderConfigBody() },
   'wh-map-del': t => { WH.data.mapping.splice(+t.dataset.i, 1); WH.dirty = true; renderConfigBody() },
   'wh-save': async () => { const saved = await DB.saveWebhook(REC.id, WH.data); REC.webhook = clone(saved || WH.data); WH.data = Object.assign({}, WH.data, saved || {}); if (saved && saved.tokenSet) WH.data.token = ''; WH.dirty = false; toast('Webhook salvo'); renderConfig($('#ed-main')) },

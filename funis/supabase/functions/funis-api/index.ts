@@ -1,10 +1,11 @@
 // funis-api — back-end do app Funis (funis/index.html e funis/f/index.html).
-// Recebe POST {op, ...}. As operações "public.*" são da página do funil; as demais são do editor e, se o segredo
-// FUNIS_ACCESS_CODE existir, exigem esse código no cabeçalho x-fn-key (sem o segredo, o editor fica aberto).
+// Recebe POST {op, ...}. As operações "public.*" são da página do funil; as demais são do editor e exigem o código de
+// acesso no cabeçalho x-fn-key: o segredo FUNIS_ACCESS_CODE, se existir, ou o código guardado (sal + hash) em fn_config,
+// que a equipe troca pelo editor. Sem nenhum dos dois, o editor fica aberto.
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -27,6 +28,30 @@ const json = (v: unknown) => (sql as any).json(v);
 const waitUntil = (p: Promise<unknown>) => { try { (globalThis as any).EdgeRuntime?.waitUntil(p) } catch { /* fora do Supabase: só deixa rodar */ } };
 
 type Row = Record<string, any>;
+
+/* ---------- código de acesso do editor ---------- */
+let codeCache: {at: number; v: {salt: string; hash: string} | null} = {at: 0, v: null};
+async function storedCode(){
+  if (Date.now() - codeCache.at < 30e3) return codeCache.v;
+  const [r] = await sql`select v from fn_config where k = 'access'`;
+  codeCache = {at: Date.now(), v: r && r.v && r.v.hash ? r.v : null};
+  return codeCache.v;
+}
+async function accessOk(key: string){
+  if (ACCESS_CODE) return sameKey(key, ACCESS_CODE);
+  const c = await storedCode();
+  if (!c) return true;
+  return !!key && sameKey(await sha256(c.salt + ':' + key), c.hash);
+}
+async function setCode(code: string){
+  const salt = crypto.randomUUID().replace(/-/g, '');
+  await sql`insert into fn_config (k, v) values ('access', ${json({salt, hash: await sha256(salt + ':' + code), at: new Date().toISOString()})})
+    on conflict (k) do update set v = excluded.v, updated_at = now()`;
+  codeCache = {at: 0, v: null};
+}
+// Apagar exige repetir o endereço do funil (proteção contra chamada por engano).
+function confirmSlug(f: Row, b: Row){ if (String(b.confirm || '') !== f.slug) throw bad('Para apagar, confirme com o endereço do funil.') }
+
 async function funnelById(id: string){
   if (!/^[0-9a-f-]{36}$/i.test(String(id))) throw bad('Funil não encontrado.', 404);
   const [f] = await sql`select * from fn_funnels where id = ${id}`;
@@ -302,7 +327,7 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
     return {published_at: r.published_at};
   },
   async 'funnels.unpublish'(b){ await funnelById(b.id); await sql`update fn_funnels set published = null, published_at = null where id = ${b.id}`; return {ok: true} },
-  async 'funnels.delete'(b){ await funnelById(b.id); await sql`delete from fn_funnels where id = ${b.id}`; return {ok: true} },
+  async 'funnels.delete'(b){ const f = await funnelById(b.id); confirmSlug(f, b); await sql`delete from fn_funnels where id = ${b.id}`; return {ok: true} },
   async 'webhook.save'(b){
     const f = await funnelById(b.id);
     let w; try { w = mergeWebhook(f.webhook, b.webhook || {}) } catch (e) { throw bad(errText(e)) }
@@ -413,7 +438,15 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
     return {received: Array.isArray(b.leads) ? b.leads.length : 0, valid: rows.length, added};
   },
   async 'crm.import'(b){ const f = await funnelById(b.id); return {matched: await applyCrm(f.id, Array.isArray(b.rows) ? b.rows : [])} },
-  async 'leads.reset'(b){ await funnelById(b.id); await sql`delete from fn_sessions where funnel_id = ${b.id}`; return {ok: true} },
+  async 'leads.reset'(b){ const f = await funnelById(b.id); confirmSlug(f, b); await sql`delete from fn_sessions where funnel_id = ${b.id}`; return {ok: true} },
+  // Troca o código de acesso (quem chega aqui já passou pelo código atual). Com o segredo FUNIS_ACCESS_CODE, vale o segredo.
+  async 'access.change'(b){
+    if (ACCESS_CODE) throw bad('O código está definido no Supabase (segredo FUNIS_ACCESS_CODE); troque por lá.');
+    const code = String(b.code || '');
+    if (code.length < 12) throw bad('Use pelo menos 12 caracteres.');
+    await setCode(code);
+    return {ok: true};
+  },
   async upload(b){
     if (!SUPABASE_URL || !SERVICE_KEY) throw bad('Armazenamento indisponível.', 500);
     const type = String(b.type || '');
@@ -468,7 +501,7 @@ Deno.serve(async req => {
   const op = String(body.op || '');
   try {
     if (PUBLIC[op]) return reply(200, await PUBLIC[op](body, req));
-    if (ACCESS_CODE && !sameKey(req.headers.get('x-fn-key') ?? '', ACCESS_CODE)) return reply(401, {error: 'Código de acesso inválido.'});
+    if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
     const fn = ops[op];
     if (!fn) return reply(400, {error: 'Operação desconhecida.'});
     return reply(200, await fn(body));
