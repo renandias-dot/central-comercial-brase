@@ -46,7 +46,7 @@ const PERIODS = [['day', '24 horas'], ['week', '7 dias'], ['month', '30 dias'], 
 function leadColumns(){
   const out = [];
   D.steps.forEach((s, i) => {
-    const cols = s.layers.filter(l => ['options', 'field', 'button'].includes(l.type)).map(l => ({step: s, i, layer: l, key: l.id, type: l.type, name: l.content.name || l.id, title: l.type === 'button' ? 'Botão' : l.type === 'options' ? 'Opções' : (FR.TYPE_TITLE[l.type] || l.type)}));
+    const cols = s.layers.filter(l => (FR.INPUT_TYPES.includes(l.type) || l.type === 'button') && !l.archived).map(l => ({step: s, i, layer: l, key: l.id, type: l.type, name: l.content.name || l.id, title: l.type === 'button' ? 'Botão' : l.type === 'options' ? 'Opções' : (FR.TYPE_TITLE[l.type] || l.type)}));
     out.push({step: s, i, cols});
   });
   return out;
@@ -75,7 +75,7 @@ async function renderLeads(main){
 }
 function kpis(st){
   const k = (l, v, s, ic) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
-  return `<div class="kpis">${k('Visitas e acessos', fmtInt(st.visits), 'Visitantes que acessaram o funil')}${k('Leads adquiridos', fmtInt(st.leads), 'Iniciaram alguma interação')}${k('Taxa de interação', fmtPct(st.leads, st.visits), 'Visitantes que interagiram')}${k('Leads qualificados', fmtInt(st.qualified), 'Passaram por mais de 50% das etapas')}${k('Fluxos completos', fmtInt(st.complete), 'Chegaram ao fim ou clicaram no link final')}</div>`;
+  return `<div class="kpis">${k('Visitas e acessos', fmtInt(st.visits), 'Visitantes que acessaram o funil')}${k('Leads adquiridos', fmtInt(st.leads), 'Iniciaram alguma interação')}${k('Taxa de interação', fmtPct(st.leads, st.visits), 'Visitantes que interagiram')}${k('Leads qualificados', fmtInt(st.qualified), 'Responderam mais de 70% das etapas ou completaram')}${k('Fluxos completos', fmtInt(st.complete), 'Chegaram ao fim ou clicaram no link final')}</div>`;
 }
 function paintLeads(data){
   const body = $('#leads-body'); if (!body) return;
@@ -113,7 +113,7 @@ function resultsHtml(st){
       const total = Object.values(counts).reduce((a, b) => a + b, 0);
       const rows = (l.content.options || []).map(o => ({label: FR.plainLabel(o.label) || String(o.value), n: counts[String(o.value != null && o.value !== '' ? o.value : FR.plainLabel(o.label))] || 0}));
       blocks.push(`<section class="panel"><div class="panel-h"><h2>${i + 1} · ${esc(s.title)}</h2><span class="hint">${fmtInt(total)} resposta(s) · <code>${esc(l.content.name || '')}</code></span></div><div class="panel-b">${total ? barsHtml(rows, total) : '<div class="empty">Sem respostas no período.</div>'}</div></section>`);
-    } else if (l.type === 'field') {
+    } else if (FR.INPUT_TYPES.includes(l.type)) {
       const n = (st.fields || {})[l.id] || 0;
       blocks.push(`<section class="panel"><div class="panel-h"><h2>${i + 1} · ${esc(s.title)}</h2><span class="hint"><code>${esc(l.content.name || '')}</code></span></div><div class="panel-b"><b class="num" style="font-size:22px">${fmtInt(n)}</b> <span class="muted">preencheram “${esc(l.content.title || 'campo')}”</span></div></section>`);
     }
@@ -196,7 +196,7 @@ function renderConfig(main){
   main.innerHTML = `<div class="cfg"><div class="cfg-box"><nav class="cfg-nav">${CFG_TABS.map(([k, l, ic]) => `<button data-a="cfgtab" data-v="${k}"${UI.cfg === k ? ' aria-current="page"' : ''}>${ic}${l}${k === 'webhook' && WH.data.enabled ? '<span class="dot" title="Ativado"></span>' : k === 'filtro' && (D.settings.filter || {}).enabled ? '<span class="dot" title="Ativado"></span>' : ''}</button>`).join('')}</nav><div class="cfg-body" id="col-props"></div></div></div>`;
   renderConfigBody();
 }
-function namedComponents(){ const out = []; D.steps.forEach((s, i) => s.layers.forEach(l => { if (['options', 'field', 'button'].includes(l.type) && l.content.name) out.push({name: l.content.name, type: l.type, label: `${i + 1} · ${s.title} — ${l.type === 'button' ? 'Botão “' + (l.content.label || '') + '”' : l.type === 'options' ? 'Opções' : (l.content.title || 'Campo')}`}) })); return out }
+function namedComponents(){ const out = []; D.steps.forEach((s, i) => s.layers.forEach(l => { if ((FR.INPUT_TYPES.includes(l.type) || l.type === 'button') && l.content.name) out.push({name: l.content.name, type: l.type, label: `${i + 1} · ${s.title} — ${l.type === 'button' ? 'Botão “' + (l.content.label || '') + '”' : l.type === 'options' ? 'Opções' : (l.content.title || 'Campo')}`}) })); return out }
 function renderConfigBody(){
   const el = $('#col-props'); if (!el) return; wireProps();
   const S = k => 'F:settings.' + k;
@@ -208,7 +208,7 @@ function renderConfigBody(){
       <div class="row" style="flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--line)"><button class="btn" data-a="cfg-export">${IC.download}Exportar funil (JSON)</button><button class="btn danger" data-a="cfg-delete">${IC.trash}Excluir funil</button></div>`; break;
     case 'dominio': h = `<h2>Domínio</h2><p class="muted">O funil fica no ar no endereço abaixo, publicado pelo GitHub Pages junto com a Central Comercial.</p><pre class="code">${esc(publicUrl(REC.slug))}</pre>
       <div class="banner" style="display:grid;gap:6px"><b>Para usar um domínio próprio (ex.: diagnostico.brase.com.br)</b><span>1. No GitHub, em Settings › Pages, informe o domínio em “Custom domain”.</span><span>2. No provedor do domínio, crie um registro CNAME apontando para <code>renandias-dot.github.io</code>.</span><span>3. Em <code>funis/index.html</code>, preencha <code>"public"</code> na linha <code>window.FN_HOST</code> com <code>https://seu-dominio/funis/f/</code> para os links do editor usarem o domínio novo.</span></div>
-      <p class="hint">Os parâmetros do anúncio vão no fim do link (…&amp;utm_source=FB&amp;utm_campaign=…). Para abrir direto numa etapa, use <code>&amp;etapa=3</code> (número da etapa).</p>`; break;
+      <p class="hint">Os parâmetros do anúncio vão no fim do link (…&amp;utm_source=FB&amp;utm_campaign=…). Para abrir direto numa etapa, use <code>&amp;step=</code> com o ID da etapa (como no InLead) ou <code>&amp;etapa=3</code> (número da etapa).</p>`; break;
     case 'pixel': h = `<h2>Pixel/Scripts</h2><div class="banner">Códigos que rodam quando a página do funil abre. Para eventos em momentos específicos, use “Evento do Pixel” ou “Script” na aba Avançado de botões e opções.</div>
       ${P.text(S('pixel.facebook'), 'Facebook Pixel ID', {ph: '1234567890', hint: 'Dispara PageView ao abrir. Vários pixels: separe por vírgula.'})}${P.text(S('pixel.ga4'), 'Google Analytics ID', {ph: 'G-XXXXXXXXXX'})}${P.text(S('pixel.gtm'), 'Google Tag Manager ID', {ph: 'GTM-XXXXXX'})}${P.text(S('pixel.gsv'), 'Google Site Verification', {ph: 'XXXXXXXXXXXX'})}
       ${P.area(S('scripts.head'), 'Head', {rows: 6, code: true, ph: 'Digite seu script…'})}${P.area(S('scripts.body'), 'Body', {rows: 6, code: true, ph: 'Digite seu script…'})}<p class="hint">Publique o funil para as mudanças valerem na página.</p>`; break;
@@ -227,25 +227,35 @@ function webhookHtml(){
   return `<div class="row" style="justify-content:space-between;align-items:flex-start;gap:16px"><div><h2>Webhooks</h2><p class="hint" style="margin-top:4px">Envia cada lead em tempo real para outra ferramenta (o CRM da Central Comercial, NicoChat, planilha…).</p></div>${P.tog(W('enabled'), 'Webhook ativado')}</div>
     ${DB.server ? '' : '<div class="banner warn">O envio é feito pelo servidor. No modo local dá para preparar a configuração, mas nada é enviado.</div>'}
     ${P.text(W('url'), 'API URL', {ph: 'https://…'})}
-    <label class="f">TOKEN<input class="in" type="password" data-p="W:token" value="${attr(w.token || '')}" placeholder="${tokenMasked ? '•••••••• (guardado no servidor; deixe vazio para manter)' : 'Opcional'}" autocomplete="off"><span class="hint">Vai no cabeçalho <code>Authorization: Bearer …</code>. Fica só no servidor: nunca aparece na página do funil.</span></label>
+    <label class="f">TOKEN<input class="in" type="password" data-p="W:token" value="${attr(w.token || '')}" placeholder="${tokenMasked ? '•••••••• (guardado no servidor; deixe vazio para manter)' : 'Opcional'}" autocomplete="off"><span class="hint">Vai nos cabeçalhos <code>Authorization: Bearer …</code> e <code>Api-Token</code>, como no InLead. Fica só no servidor: nunca aparece na página do funil.</span></label>
     <div class="g2">${P.sel(W('method'), 'Método', [['POST', 'POST'], ['PUT', 'PUT'], ['PATCH', 'PATCH']])}${P.sel(W('contentType'), 'Content-Type', [['JSON', 'JSON'], ['FORM', 'Formulário (x-www-form-urlencoded)']])}</div>
-    <div class="g2">${P.sel(W('trigger'), 'Gatilho de envio', [['component', 'Clique em componente'], ['complete', 'Ao completar o funil'], ['lead', 'Ao preencher um telefone ou e-mail']], {hint: ''})}${w.trigger === 'component' ? `<label class="f">ID/Name do componente${compSel(W('component'), w.component, c => c.type === 'button')}</label>` : '<span></span>'}</div>
+    <div class="g2" style="align-items:start">${P.sel(W('trigger'), 'Gatilho de envio', [['component', 'Clique em componente'], ['complete', 'Ao completar o funil'], ['lead', 'Ao preencher um telefone ou e-mail']], {hint: ''})}${w.trigger === 'component' ? P.text(W('component'), 'ID/Name do componente', {list: 'wh-comps', ph: 'VT19S2', hint: 'Vários: separe por vírgula. Como no InLead, sai quando a pessoa avança depois de clicar num deles (botão ou opção).'}) + `<datalist id="wh-comps">${comps.map(c => `<option value="${attr(c.name)}">${esc(c.label)}</option>`).join('')}</datalist>` : '<span></span>'}</div>
     <div class="psec"><span class="eyebrow">Campos para o CRM</span><p class="hint">Além de todas as respostas (com a chave = ID/Name de cada componente), o envio leva estes campos com os nomes que o CRM da Central entende.</p>
       ${(w.mapping || []).map((m, i) => `<div class="g3" style="grid-template-columns:1fr 1.6fr 110px auto;align-items:end"><label class="f">Campo<input class="in" data-p="W:mapping.${i}.key" value="${attr(m.key || '')}" list="crm-keys"></label><label class="f">Componente${compSel('W:mapping.' + i + '.name', m.name, c => c.type !== 'button')}</label><label class="f">Enviar<select class="in" data-p="W:mapping.${i}.mode"><option value="label"${m.mode !== 'value' ? ' selected' : ''}>Texto</option><option value="value"${m.mode === 'value' ? ' selected' : ''}>Valor</option></select></label><button class="btn icon ghost" data-a="wh-map-del" data-i="${i}" aria-label="Remover">${IC.trash}</button></div>`).join('')}
       <datalist id="crm-keys">${CRM_KEYS.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</datalist>
       <button class="btn sm" data-a="wh-map-add" style="justify-self:start">${IC.plus}Adicionar campo</button></div>
     <div class="psec"><span class="eyebrow">Exemplo de dados</span><pre class="code">${esc(JSON.stringify(sampleWebhook(w), null, 2))}</pre>
-      <table class="tbl" style="width:100%"><tbody><tr><td><code>code</code></td><td style="white-space:normal">Código único de cada visitante (o mesmo da aba Leads).</td></tr><tr><td>outros dados</td><td style="white-space:normal">Uma chave para cada componente respondido, com o ID/Name definido nele, mais os parâmetros do anúncio (utm, fbclid).</td></tr></tbody></table></div>
+      <table class="tbl" style="width:100%"><tbody><tr><td><code>code</code></td><td style="white-space:normal">Código único de cada visitante (o mesmo da aba Leads).</td></tr><tr><td>variáveis</td><td style="white-space:normal">Como no InLead: uma chave por componente (ID/Name) com o valor da resposta (múltipla escolha com <code>|</code>), <code>score.</code> e <code>responses.</code> de cada pergunta, <code>clicked</code> nos botões clicados e <code>tracking.</code> com os parâmetros da URL.</td></tr><tr><td>parâmetros</td><td style="white-space:normal">Todos os parâmetros do link do funil (utm, fbclid…), com o nome original.</td></tr><tr><td>extras</td><td style="white-space:normal">Os campos do CRM acima, <code>funil</code>, <code>data</code> e <code>pagina</code> (só deste app).</td></tr></tbody></table></div>
     <div class="row" style="flex-wrap:wrap;position:sticky;bottom:0;background:var(--surface);padding:10px 0;border-top:1px solid var(--line)"><span id="wh-state" class="hint"></span><span style="flex:1"></span><button class="btn" data-a="wh-test">Testar envio</button><button class="btn primary" data-a="wh-save">Salvar webhook</button></div>`;
 }
+// Exemplo no mesmo formato do servidor (veja buildPayload em funis-api/logic.ts): {...variáveis, ...parâmetros, code} + extras.
 function sampleWebhook(w){
-  const out = {code: 'gh4T3d', funil: REC.slug};
+  const params = {utm_source: 'FB', utm_campaign: 'Campanha|120200000000000000', utm_content: 'Anúncio|120200000000000002', fbclid: 'IwAR…'};
+  const out = {}, labels = {};
+  for (const k in params) out['tracking.' + k] = params[k];
+  out['tracking.screen'] = '390x844';
+  let total = 0;
   D.steps.forEach(s => s.layers.forEach(l => {
-    if (l.type === 'options' && l.content.name) { const o = (l.content.options || [])[0]; if (o) out[l.content.name] = FR.plainLabel(o.label) }
-    if (l.type === 'field' && l.content.name) out[l.content.name] = {phone: '(21) 90000-0000', email: 'joao@exemplo.com'}[l.content.type] || 'João da Silva';
+    const n = l.content && l.content.name; if (!n) return;
+    if (l.type === 'options') { const o = (l.content.options || [])[0]; if (!o) return; out[n] = String(o.value ?? FR.plainLabel(o.label)); labels[n] = FR.plainLabel(o.label); out['score.' + n] = +o.score || 0; total += +o.score || 0; out['responses.' + n] = (l.content.options || []).map((x, k) => k ? '*' : String(x.value ?? '')).join('|') }
+    else if (l.type === 'field') out[n] = {phone: '(21) 90000-0000', email: 'joao@exemplo.com'}[l.content.type] || 'João da Silva';
+    else if (FR.INPUT_TYPES.includes(l.type)) out[n] = l.type === 'date' ? '2026-10-14' : String(l.content.value ?? '');
+    else if (l.type === 'button' && String(w.component || '').split(',').map(x => x.trim()).includes(n)) out[n] = 'clicked';
   }));
-  (w.mapping || []).forEach(m => { if (!m.key) return; const v = out[m.name]; if (v == null) return; if (m.mode === 'value') { const L = findByName(m.name); const o = L && (L.content.options || [])[0]; out[m.key] = o ? o.value : v } else out[m.key] = v });
-  Object.assign(out, {utm_source: 'FB', utm_campaign: 'Campanha|120200000000000000', utm_medium: 'Conjunto|120200000000000001', utm_content: 'Anúncio|120200000000000002', data: new Date().toISOString()});
+  out.score = total;
+  Object.assign(out, params, {code: 'gh4T3d'});
+  (w.mapping || []).forEach(m => { if (!m.key || out[m.name] == null) return; out[m.key] = m.mode === 'value' || !(m.name in labels) ? out[m.name] : labels[m.name] });
+  Object.assign(out, {funil: REC.slug, data: new Date().toISOString()});
   return out;
 }
 function findByName(n){ for (const s of D.steps) for (const l of s.layers) if (l.content && l.content.name === n) return l; return null }

@@ -36,6 +36,8 @@ let slug = qs.get('f') || qs.get('funil') || '';
 if (!slug) { for (const [k, v] of qs) { if (v === '' && /^[a-z0-9][a-z0-9-]*$/i.test(k)) { slug = k; break } } }
 if (!slug && location.hash.length > 1) slug = decodeURIComponent(location.hash.slice(1));
 slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
+// Parâmetros que seguem para os links externos e o webhook (como no InLead): todos, menos o endereço do funil neste app.
+const urlParams = Object.assign({}, params); delete urlParams.f; delete urlParams.funil; if (urlParams[slug] === '') delete urlParams[slug];
 const app = document.getElementById('app');
 const show = (title, text) => { app.innerHTML = `<div class="msg"><div><b>${FR.esc(title)}</b>${FR.esc(text || '')}</div></div>` };
 
@@ -106,13 +108,16 @@ function blocked(f){
 }
 
 /* ---------- registro das respostas ---------- */
+// Código do visitante: como no InLead, vale 14 dias — quem volta nesse prazo continua o mesmo lead (e o acesso conta uma vez).
+const VISITOR_DAYS = 14;
 function session(){
-  const key = 'fn-sess:' + slug;
-  try { const s = JSON.parse(sessionStorage.getItem(key) || 'null'); if (s && s.id) return s } catch (e) {}
+  const key = 'fn-visitor:' + slug;
+  try { const s = JSON.parse(localStorage.getItem(key) || 'null'); if (s && s.id && Date.now() - s.at < VISITOR_DAYS * 864e5) return s } catch (e) {}
   const s = {id: FR.uid(6), at: Date.now()};
-  try { sessionStorage.setItem(key, JSON.stringify(s)) } catch (e) {}
+  try { localStorage.setItem(key, JSON.stringify(s)) } catch (e) {}
   return s;
 }
+const saveSession = sess => { try { localStorage.setItem('fn-visitor:' + slug, JSON.stringify(sess)) } catch (e) {} };
 function tracking(){
   const t = {};
   ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'utm_id', 'fbclid', 'gclid', 'src', 'sck'].forEach(k => { if (params[k]) t[k] = params[k] });
@@ -121,11 +126,12 @@ function tracking(){
   t.userAgent = navigator.userAgent; t.language = (navigator.languages || [navigator.language]).join(',');
   if (document.referrer) t.referrer = document.referrer;
   t.url = location.href.split('#')[0];
+  t.params = urlParams;
   return t;
 }
 function tracker(live){
   const sess = session(), queue = []; let sentTracking = !!sess.tracked, timer = 0, inflight = Promise.resolve();
-  const payload = () => { const evs = queue.splice(0); const b = {slug, session: sess.id, events: evs}; if (!sentTracking) { b.tracking = tracking(); sentTracking = true; sess.tracked = 1; try { sessionStorage.setItem('fn-sess:' + slug, JSON.stringify(sess)) } catch (e) {} } return b };
+  const payload = () => { const evs = queue.splice(0); const b = {slug, session: sess.id, events: evs}; if (!sentTracking) { b.tracking = tracking(); sentTracking = true; sess.tracked = 1; saveSession(sess) } return b };
   function flush(keepalive){
     clearTimeout(timer);
     if (!live || !queue.length) return inflight;
@@ -134,6 +140,7 @@ function tracker(live){
     return inflight;
   }
   return {
+    code: sess.id,
     push(ev){ if (!live) return; queue.push(ev); clearTimeout(timer); timer = setTimeout(() => flush(true), ev.type === 'click' || ev.type === 'complete' ? 0 : 500) },
     flush,
     beacon(){ if (!live || !queue.length) return; const b = JSON.stringify(Object.assign({op: 'public.track'}, payload())); try { if (!navigator.sendBeacon(API, new Blob([b], {type: 'text/plain'}))) throw 0 } catch (e) { fetch(API, {method: 'POST', body: b, keepalive: true, headers: {'content-type': 'text/plain;charset=UTF-8'}}).catch(() => {}) } },
@@ -151,11 +158,24 @@ function tracker(live){
   if (blocked(f)) { const to = f.settings.filter.redirect; if (to) location.replace(to); else show('Página indisponível', ''); return }
   setup(f);
   const T = tracker(got.live && !!API);
-  const startAt = params.etapa != null ? (/^\d+$/.test(params.etapa) ? Math.max(0, +params.etapa - 1) : params.etapa) : 0;
+  // ?step=<id da etapa> (InLead) ou ?etapa=<número ou id>
+  const startAt = params.step ? params.step : params.etapa != null ? (/^\d+$/.test(params.etapa) ? Math.max(0, +params.etapa - 1) : params.etapa) : 0;
+  // Tag Manager: StepView a cada etapa e FormSubmit ao sair por um link, com os mesmos campos do InLead.
+  const layerPush = (ev, url) => {
+    const content = {};
+    for (const [k, v] of Object.entries(ev.vars || {})) {
+      if (k.includes('.')) { const [a, b] = k.split('.'); if (typeof content[a] !== 'object') content[a] = {}; content[a][b] = v }
+      else if (k === 'score') { content.score_total = v; if (typeof content.score !== 'object') content.score = {} }
+      else content[k] = v;
+    }
+    const k = f.steps.findIndex(s => s.id === ev.step), st = f.steps[k] || {};
+    window.dataLayer = window.dataLayer || [];
+    window.dataLayer.push(Object.assign({event: url ? 'FormSubmit' : 'StepView'}, url ? {url} : {}, {funnelName: f.title, funnelID: f.id || f.slug, stepName: st.title || '', stepID: ev.step, stepIndex: k + 1, userCode: T.code, params: urlParams, content}));
+  };
   app.innerHTML = '<div></div>';
   FR.mount(app.firstChild, f, {
-    mode: 'live', params, step: startAt,
-    onEvent: ev => T.push(ev),
+    mode: 'live', params: urlParams, step: startAt,
+    onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url) },
     beforeRedirect: () => Promise.race([T.flush(true), new Promise(r => setTimeout(r, 1500))]),
   });
   addEventListener('pagehide', () => T.beacon());

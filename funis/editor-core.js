@@ -80,7 +80,7 @@ const IC = {
   faq: I('<circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/>'), price: I('<circle cx="12" cy="12" r="10"/><path d="M16 8h-6a2 2 0 0 0 0 4h4a2 2 0 0 1 0 4H8M12 18V6"/>'),
   check: I('<path d="M20 6 9 17l-5-5"/>'), compare: I('<path d="M12 3v18M5 7H3v10h2M19 7h2v10h-2M8 10l-3 2 3 2M16 10l3 2-3 2"/>'),
   carousel: I('<rect x="6" y="4" width="12" height="16" rx="2"/><path d="M2 7v10M22 7v10"/>'), chart: I('<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>'),
-  gauge: I('<path d="m12 14 4-4M3.3 19a10 10 0 1 1 17.4 0"/>'), space: I('<path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/>'),
+  gauge: I('<path d="m12 14 4-4M3.3 19a10 10 0 1 1 17.4 0"/>'), bell: I('<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0"/>'), space: I('<path d="M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4"/>'),
   layout: I('<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>'),
 };
 
@@ -196,14 +196,15 @@ function uniqueSlug(db, s){ let base = slugify(s), k = base, n = 2; while (Objec
 const PERIOD_MS = {day: 864e5, week: 7 * 864e5, month: 30 * 864e5};
 function filterPeriod(list, p){ const ms = PERIOD_MS[p]; if (!ms) return list.slice(); const t = Date.now() - ms; return list.filter(s => new Date(s.created_at).getTime() >= t) }
 function localStats(db, id){ const l = db.leads[id] || []; return {visits: l.length, leads: l.filter(s => s.interacted).length, complete: l.filter(s => s.completed).length} }
-// Mesmas contas do servidor (veja funis-api): acessos, leads (interagiram), qualificados (+50% das etapas), completos.
+// Mesmas contas do servidor (veja funis-api): acessos, leads (interagiram), qualificados (como no InLead: respostas e cliques
+// passam de 70% do número de etapas, ou completou), completos.
 function computeStats(list, rec){
   const f = rec && (rec.published || rec.draft) || {steps: []}, total = f.steps.length || 1;
   const s = {visits: list.length, leads: 0, qualified: 0, complete: 0, steps: {}, answers: {}, fields: {}, daily: {}};
   for (const x of list) {
     if (x.interacted) s.leads++;
     if (x.completed) s.complete++;
-    if ((x.steps || []).length > total / 2) s.qualified++;
+    if (x.completed || Object.keys(x.answers || {}).length + Object.keys(x.clicks || {}).length > 0.7 * total) s.qualified++;
     for (const st of new Set(x.steps || [])) s.steps[st] = (s.steps[st] || 0) + 1;
     for (const lid in x.answers || {}) {
       const a = x.answers[lid];
@@ -334,6 +335,8 @@ async function route(){
       try { REC = await DB.get(h[1]) } catch (e) { toast(e.message, 'err'); location.hash = '#/'; return }
       D = REC.draft = REC.draft || FR.newFunnel(REC.title);
       if (!Array.isArray(D.steps)) D.steps = [];
+      // nomes antigos de componentes (deste app) viram os do InLead
+      D.steps.forEach(st => { st.layers = (st.layers || []).map(FR.normalizeLayer) });
       D.design = Object.assign({}, FR.DEFAULT_DESIGN, D.design || {}); D.settings = Object.assign({pixel: {}, scripts: {}, seo: {}, filter: {}}, D.settings || {});
       HIST.undo = []; HIST.redo = []; Object.assign(SAVE, {dirty: false, err: '', at: null});
       Object.assign(UI, {step: 0, sel: null, flow: null, designStep: 0}); LEADS.cache = null;
@@ -477,7 +480,7 @@ function checkFunnel(f){
   f.steps.forEach((s, i) => {
     if (!s.layers.length) out.push(`Etapa ${i + 1} (${s.title}) está vazia.`);
     for (const o of FR.outlets(f, s)) if (o.dest !== 'next' && !ids.has(o.dest) && !FR.isUrl(o.dest) && !/^[\w-]+(\.[\w-]+)+/.test(o.dest)) out.push(`Etapa ${i + 1}: “${o.label.slice(0, 40)}” leva a uma etapa que não existe mais.`);
-    for (const l of s.layers) if (['options', 'field'].includes(l.type)) { const n = l.content.name; if (!n) out.push(`Etapa ${i + 1}: um componente está sem nome.`); else if (names[n]) out.push(`O nome “${n}” está repetido (etapas ${names[n]} e ${i + 1}).`); else names[n] = i + 1 }
+    for (const l of s.layers) if (FR.INPUT_TYPES.includes(l.type) && !l.archived) { const n = l.content.name; if (!n) out.push(`Etapa ${i + 1}: um componente está sem nome.`); else if (names[n]) out.push(`O nome “${n}” está repetido (etapas ${names[n]} e ${i + 1}).`); else names[n] = i + 1 }
     const hasInput = s.layers.some(l => l.type === 'options' || l.type === 'button' || l.type === 'loading');
     if (!hasInput && i < f.steps.length - 1) out.push(`Etapa ${i + 1} (${s.title}) não tem botão nem opções: o visitante não sai dela.`);
   });

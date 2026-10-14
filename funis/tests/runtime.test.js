@@ -25,7 +25,9 @@ test('variáveis: {{score.x}}, {{score}}, {{x}} e calc() no texto', () => {
   assert.equal(R.interpolate('{{score.tempo}}', ctx), '250');
   assert.equal(R.interpolate('{{score}}', ctx), '250');
   assert.equal(R.interpolate('Olá {{nome}}', ctx), 'Olá Ana');
-  assert.equal(R.interpolate('{{promo}}', ctx), 'Não tenho promoção');
+  // como no InLead: {{nome}} é o valor da opção; o texto escolhido fica em {{label.nome}}
+  assert.equal(R.interpolate('{{promo}}', ctx), 'nao');
+  assert.equal(R.interpolate('{{label.promo}}', ctx), 'Não tenho promoção');
   assert.equal(R.interpolate('{{value.promo}}', ctx), 'nao');
   assert.equal(R.interpolate('calc({{score.tempo}}+{{score.adicional}}) de 1000', ctx), '250 de 1000');
   assert.equal(R.interpolate('<b>{{nome}}</b>', {answers: {x: {name: 'nome', type: 'field', value: '<i>'}}}, {html: true}), '<b>&lt;i&gt;</b>');
@@ -127,4 +129,70 @@ test('componentes novos têm conteúdo de exemplo e ids únicos', () => {
   const l = R.newLayer('options'), d = R.reId(l);
   assert.notEqual(d.id, l.id);
   assert.notEqual(d.content.options[0].id, l.content.options[0].id);
+});
+
+test('variáveis com @, como no InLead (e-mail fica intacto)', () => {
+  const ctx = {answers: {c: {name: 'nome', type: 'field', value: 'Ana'}}};
+  assert.equal(R.interpolate('Oi @nome!', ctx), 'Oi Ana!');
+  assert.equal(R.interpolate('contato@nome.com', ctx), 'contato@nome.com');
+  assert.equal(R.interpolate('@@nome', ctx), '@@nome');
+  assert.equal(R.interpolate('Oi @sumiu.', ctx), 'Oi .');
+});
+
+test('calc: inteiro fica inteiro, decimal com duas casas (InLead)', () => {
+  const ctx = {answers: {a: ans('x', '1', 745)}};
+  assert.equal(R.interpolate('calc({{score.x}}/10)', ctx), '74.50');
+  assert.equal(R.interpolate('calc({{score.x}}+5)', ctx), '750');
+});
+
+test('respostas guardadas como no InLead: valor, score, responses, tracking e clique', () => {
+  const answers = {m: {name: 'canais', type: 'options', value: ['ifood', 'zap'], score: 3, ids: ['a', 'c'], responses: 'ifood|*|zap'}};
+  const v = R.buildVars({answers, params: {utm_source: 'meta'}, clicks: {enviar: true}, screen: '390x844'});
+  assert.equal(v.canais, 'ifood|zap');
+  assert.equal(v['score.canais'], 3);
+  assert.equal(v['responses.canais'], 'ifood|*|zap');
+  assert.equal(v['tracking.utm_source'], 'meta');
+  assert.equal(v['tracking.screen'], '390x844');
+  assert.equal(v.enviar, 'clicked');
+  assert.equal(R.interpolate('{{url.utm_source}}', {params: {utm_source: 'meta'}}), 'meta');
+});
+
+test('regras: contém, aparece N vezes e porcentagem (múltipla escolha)', () => {
+  const answers = {m: {name: 'canais', type: 'options', value: ['ifood', 'zap', 'ifood'], score: 0}};
+  const ctx = {answers};
+  assert.equal(R.evalRoles([[{variable: '@canais', compare: 'includes', value: 'zap'}]], ctx), true);
+  assert.equal(R.evalRoles([[{variable: 'ifood', compare: 'count==', value: '@canais', number: 2}]], ctx), true);
+  assert.equal(R.evalRoles([[{variable: 'ifood', compare: 'count>=', value: '@canais', number: 3}]], ctx), false);
+  assert.equal(R.evalRoles([[{variable: 'zap', compare: 'count<', value: '@canais', number: 2}]], ctx), true);
+  assert.equal(R.evalRoles([[{variable: 'ifood', compare: 'percent>', value: '@canais', number: 50}]], ctx), true);
+  assert.equal(R.evalRoles([[{variable: 'zap', compare: 'percent<', value: '@canais', number: 30}]], ctx), false);
+  // números com vírgula viram número dos dois lados
+  assert.equal(R.evalRoles([[{variable: '@fat', compare: '>', value: '1.000'}]], {answers: {f: {name: 'fat', type: 'field', value: '1.234,56'}}}), true);
+  assert.equal(R.ROLE_OPERATORS.length, 13);
+});
+
+test('link externo leva os parâmetros da URL atual (UTMs) e ganha https://', () => {
+  assert.equal(R.buildRedirect('wa.me/5511999999999?text=oi', {utm_source: 'meta', fbclid: 'x'}), 'https://wa.me/5511999999999?utm_source=meta&fbclid=x&text=oi');
+  assert.equal(R.buildRedirect('https://pay.kirvano.com/abc?utm_source=site', {utm_source: 'meta'}), 'https://pay.kirvano.com/abc?utm_source=site');
+  assert.equal(R.buildRedirect('https://a.com/p#topo', {}), 'https://a.com/p#topo');
+});
+
+test('modelos de link do botão: WhatsApp e checkout com dados do lead', () => {
+  const answers = {n: {name: 'nome', type: 'field', value: 'Ana Souza'}, t: {name: 'telefone', type: 'field', value: '(11) 98888-7777'}, e: {name: 'email', type: 'field', value: 'ana@x.com'}};
+  const ctx = {answers};
+  assert.equal(R.toE164('(11) 98888-7777'), '5511988887777');
+  const wa = R.buttonHref({model: {type: 'whatsapp', phone: '11 98888-7777', message: 'Oi, sou {{nome}}'}}, ctx);
+  assert.equal(wa, 'https://wa.me/5511988887777?text=Oi%2C%20sou%20Ana%20Souza');
+  const kv = R.buttonHref({model: {type: 'kirvano', code: 'abc', name: '{{nome}}', email: '{{email}}', phone: '{{telefone}}'}}, ctx);
+  assert.match(kv, /^https:\/\/pay\.kirvano\.com\/abc\?/);
+  assert.match(kv, /email=ana%40x\.com/);
+  assert.ok(Object.keys(R.LINK_MODELS).length >= 19);
+});
+
+test('componentes do InLead: nomes antigos viram os novos e arquivados somem', () => {
+  assert.equal(R.normalizeLayer({type: 'testimonials', content: {}}).type, 'quotes');
+  assert.equal(R.normalizeLayer({type: 'html', content: {html: '<b>x</b>'}}).type, 'script');
+  for (const t of ['notification', 'quotes', 'compare', 'carousel', 'graphics', 'charts', 'script', 'date', 'height', 'weight']) assert.ok(R.COMPONENTS.some(c => c.type === t), t);
+  const o = R.newLayer('options', 'video');
+  assert.equal(o.content.introType, 'video');
 });

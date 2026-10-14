@@ -3,7 +3,7 @@
 // o código da equipe no cabeçalho x-fn-key.
 // Segredos: FUNIS_ACCESS_CODE (obrigatório). SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
-import {SESSION_RE, SLUG_RE, buildPayload, encodeBody, mergeSession, mergeWebhook, periodStart, sameKey, sampleSession, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type Session, type Webhook} from './logic.ts';
+import {SESSION_RE, SLUG_RE, buildPayload, encodeBody, mergeSession, mergeWebhook, periodStart, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type Session, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 4, idle_timeout: 20});
@@ -38,13 +38,14 @@ async function freeSlug(base: string, except?: string){
     s = `${root.slice(0, 55)}-${n++}`;
   }
 }
-const sessionCols = sql(['id', 'created_at', 'updated_at', 'tracking', 'answers', 'clicks', 'steps', 'last_step', 'interacted', 'completed', 'webhook']);
+const sessionCols = sql(['id', 'created_at', 'updated_at', 'tracking', 'params', 'answers', 'clicks', 'steps', 'last_step', 'interacted', 'completed', 'webhook']);
 
 /* ---------- webhook ---------- */
 async function sendWebhook(w: Webhook, payload: Record<string, unknown>){
   const {body, type} = encodeBody(payload, w.contentType);
   const headers: Record<string, string> = {'content-type': type, 'user-agent': 'Brase-Funis/1'};
-  if (w.token) headers.authorization = 'Bearer ' + w.token;
+  // Como no InLead: o token vai em Authorization (Bearer) e em Api-Token.
+  if (w.token) { headers.authorization = 'Bearer ' + w.token; headers['api-token'] = w.token }
   try {
     const r = await fetch(String(w.url), {method: w.method || 'POST', headers, body, signal: AbortSignal.timeout(15000)});
     const text = (await r.text()).slice(0, 4000);
@@ -75,18 +76,19 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
     const [f] = await sql`select id, slug, published, webhook from fn_funnels where slug = ${slug} and published is not null`;
     if (!f) throw bad('Funil não encontrado.', 404);
     const [cur] = await sql`select ${sessionCols} from fn_sessions where funnel_id = ${f.id} and id = ${sid}`;
-    let tracking = null;
+    let tracking = null, params = null;
     if (b.tracking && !cur) {
       tracking = sanitizeTracking(b.tracking);
+      params = sanitizeParams(b.tracking.params);
       const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || '';
       if (ip) tracking.ip = ip.slice(0, 64);
     }
-    const next = mergeSession((cur as Session) || null, sid, events, tracking, f.published);
+    const next = mergeSession((cur as Session) || null, sid, events, tracking, f.published, params);
     await sql`
-      insert into fn_sessions (funnel_id, id, tracking, answers, clicks, steps, last_step, interacted, completed)
-      values (${f.id}, ${sid}, ${json(next.tracking)}, ${json(next.answers)}, ${json(next.clicks)}, ${next.steps}, ${next.last_step}, ${next.interacted}, ${next.completed})
+      insert into fn_sessions (funnel_id, id, tracking, params, answers, clicks, steps, last_step, interacted, completed)
+      values (${f.id}, ${sid}, ${json(next.tracking)}, ${json(next.params || {})}, ${json(next.answers)}, ${json(next.clicks)}, ${next.steps}, ${next.last_step}, ${next.interacted}, ${next.completed})
       on conflict (funnel_id, id) do update set
-        tracking = excluded.tracking, answers = excluded.answers, clicks = excluded.clicks, steps = excluded.steps,
+        tracking = excluded.tracking, params = excluded.params, answers = excluded.answers, clicks = excluded.clicks, steps = excluded.steps,
         last_step = excluded.last_step, interacted = excluded.interacted, completed = excluded.completed, updated_at = now()`;
     if (webhookDue(f.webhook, (cur as Session) || null, next, events)) {
       next.created_at = cur ? new Date(cur.created_at).toISOString() : new Date().toISOString();

@@ -67,75 +67,116 @@ function replaceCalc(text, fmt = fmtNum){
   }
 }
 
-/* ================= respostas e variáveis ================= */
-// answers: { [layerId]: {step, name, type, value, label, score, values?, labels?} }
-function varIndex(funnel, answers){
-  const byName = {};
-  for (const id in answers || {}) { const a = answers[id]; if (a && a.name) byName[a.name] = a }
-  return byName;
+/* ================= respostas e variáveis (mesmo formato do InLead) ================= */
+// answers: { [layerId]: {step, name, type, value, label, score, ids?, responses?} }
+// Variáveis, como o InLead guarda: opções → nome = valor(es) unidos por "|", score.nome = soma dos pontos,
+// responses.nome = valor de cada opção marcada e "*" nas outras; campo → nome = texto; botão → nome = "clicked";
+// parâmetros do link → tracking.<parâmetro>, tracking.screen, tracking.platform.
+function buildVars(ctx){
+  if (!ctx) return {};
+  if (ctx.vars) return ctx.vars;
+  const out = {}, answers = ctx.answers || {}, params = ctx.params || {};
+  for (const k in params) out['tracking.' + k] = params[k];
+  if (ctx.screen) out['tracking.screen'] = ctx.screen;
+  if (ctx.platform) out['tracking.platform'] = ctx.platform;
+  for (const name in ctx.clicks || {}) out[name] = 'clicked';
+  let total = 0;
+  for (const id in answers) {
+    const a = answers[id]; if (!a || !a.name) continue;
+    if (a.type === 'options') {
+      out[a.name] = Array.isArray(a.value) ? a.value.join('|') : (a.value == null ? '' : String(a.value));
+      out['score.' + a.name] = num(a.score);
+      if (a.responses != null) out['responses.' + a.name] = a.responses;
+      if (a.label != null) out['label.' + a.name] = a.label;
+      total += num(a.score);
+    } else out[a.name] = Array.isArray(a.value) ? a.value.join('|') : (a.value == null ? '' : String(a.value));
+  }
+  if (!('score' in out)) out.score = total;
+  return out;
 }
 function totalScore(answers){ let t = 0; for (const id in answers || {}) t += num(answers[id] && answers[id].score); return t }
-// {{score}}, {{score.nome}}, {{nome}}, {{value.nome}}, {{label.nome}}, {{url.param}}
+// "1.234,56" → 1234.56 (só quando o resultado é número; texto fica como está).
+function normVar(v){
+  if (typeof v !== 'string') return v;
+  const t = v.includes(',') && v.includes('.') ? (v.lastIndexOf(',') > v.lastIndexOf('.') ? v.replace(/\./g, '').replace(',', '.') : v.replace(/,/g, '')) : v.replace(',', '.');
+  return /^[\d+\-*/().\s]+$/.test(t) && t.trim() !== '' && isFinite(Number(t)) ? String(Number(t)) : v;
+}
+// Conta do InLead: inteiro fica inteiro; com casas decimais, duas casas (74.50).
+const fmtCalc = n => Number.isInteger(n) ? String(n) : n.toFixed(2);
+const VAR_RE = /\{\{\s*([\w.]*)\s*\}\}|@(\w+(?:\.\w+)*)/g;
+// Troca {{nome}} e @nome pelo valor. @ colado em letra, ponto ou @ fica como está (e-mails).
+function replaceVars(text, vars, opt = {}){
+  if (text == null) return '';
+  const enc = opt.html ? esc : (x => x);
+  return String(text).replace(/&nbsp;/g, ' ').replace(VAR_RE, (m, br, at, off, src) => {
+    if (at !== undefined && /[\w.@]/.test(src[off - 1] || '')) return m;
+    let k = br != null ? br : at;
+    if (!k) return '';
+    if (!(k in vars)) { if (/^url\./.test(k)) k = 'tracking.' + k.slice(4); else if (/^value\./.test(k)) k = k.slice(6) }
+    if (k in vars) return enc(normVar(String(vars[k])));
+    return opt.missing != null ? opt.missing : '';
+  });
+}
 function interpolate(text, ctx, opt = {}){
   if (text == null) return '';
-  const {answers = {}, params = {}} = ctx || {};
-  const names = varIndex(null, answers);
-  const enc = opt.html ? esc : (x => x);
-  let t = String(text).replace(/\{\{\s*([^}]+?)\s*\}\}/g, (_, key) => {
-    key = stripHtml(key);
-    if (key === 'score') return String(totalScore(answers));
-    const m = /^(score|value|label|url)\.(.+)$/.exec(key);
-    if (m) {
-      if (m[1] === 'url') return enc(params[m[2]] || '');
-      const a = names[m[2]];
-      if (m[1] === 'score') return String(a ? num(a.score) : 0);
-      if (!a) return '';
-      return enc(m[1] === 'value' ? displayValue(a.value) : (a.label != null ? a.label : displayValue(a.value)));
-    }
-    const a = names[key];
-    if (!a) return '';
-    return enc(a.label != null && a.type !== 'field' ? a.label : displayValue(a.value));
-  });
-  if (t.indexOf('calc(') >= 0) t = replaceCalc(t, opt.fmt);
+  let t = replaceVars(text, buildVars(ctx), opt);
+  if (t.indexOf('calc(') >= 0) t = replaceCalc(t, opt.fmt || fmtCalc);
   return t;
 }
 const displayValue = v => Array.isArray(v) ? v.join(', ') : v == null ? '' : String(v);
 
-/* ================= regras de exibição ================= */
-// roles = [[cond, cond], [cond]] → (cond E cond) OU cond.  cond = {variable: '@nome', compare: '==', value}
+/* ================= regras de exibição (mesma lógica do InLead) ================= */
+// roles = [[cond, cond], [cond]] → (cond E cond) OU cond.  cond = {variable, compare, value, number?}
+// Os dois lados passam pela troca de variáveis e viram número quando dá.
+function calcOrNull(s){
+  const t = String(s == null ? '' : s).trim();
+  if (!t || !/^[0-9+\-*/().\s]*$/.test(t) || /[+\-*/.]$/.test(t)) return null;
+  let p = 0; for (const ch of t) { if (ch === '(') p++; else if (ch === ')' && --p < 0) return null }
+  if (p) return null;
+  return calcEval(t);
+}
+function hasValidVariables(s, vars){
+  const m = String(s == null ? '' : s).match(/{{[^}]+}}/g);
+  if (!m) return true;
+  return m.some(x => x.replace(/{{|}}/g, '').trim() in vars);
+}
+const countIn = (list, x) => typeof list === 'string' && list.trim() ? list.trim().split('|').filter(e => e === String(x)).length : 0;
+const percentIn = (list, x) => { const l = String(list == null ? '' : list).trim().split('|'); return l.length ? countIn(String(list), x) / l.length * 100 : 0 };
 function evalCond(c, ctx){
-  const names = varIndex(null, ctx.answers);
-  const key = String(c.variable || '').replace(/^@/, '').trim();
-  let left;
-  if (key === 'score') left = totalScore(ctx.answers);
-  else if (/^score\./.test(key)) { const a = names[key.slice(6)]; left = a ? num(a.score) : 0 }
-  else if (/^url\./.test(key)) left = (ctx.params || {})[key.slice(4)] || '';
-  else { const a = names[key]; left = a ? a.value : undefined }
-  const right = c.value == null ? '' : String(c.value);
-  const list = Array.isArray(left) ? left.map(String) : left == null ? [] : [String(left)];
-  const L = list.join(',');
-  const both = list.length === 1 && right !== '' && isFinite(+list[0]) && isFinite(+right);
+  const vars = buildVars(ctx);
+  if (!hasValidVariables(c.variable, vars) || !hasValidVariables(c.value, vars)) return false;
+  const lv = replaceVars(c.variable, vars), rv = replaceVars(c.value, vars);
+  let l = calcOrNull(lv); if (l === null) l = lv;
+  let r = calcOrNull(rv); if (r === null) r = rv;
+  const i = typeof r === 'string' && r ? r.split(' ').join('|') : r;
+  const n = Number(c.number);
   switch (c.compare) {
-    case '==': case '=': case 'equals': return list.includes(right);
-    case '!=': case '<>': case 'not_equals': return !list.includes(right);
-    case '>': return both && +list[0] > +right;
-    case '<': return both && +list[0] < +right;
-    case '>=': return both && +list[0] >= +right;
-    case '<=': return both && +list[0] <= +right;
-    case 'contains': return L.toLowerCase().includes(right.toLowerCase());
-    case 'not_contains': return !L.toLowerCase().includes(right.toLowerCase());
-    case 'empty': return !list.length || L === '';
-    case 'not_empty': case 'filled': return !!list.length && L !== '';
-    default: return true;
+    case '==': case '=': case 'equals': return l === i;
+    case '!=': case '<>': case 'not_equals': return l !== i;
+    case '<': return Number(l) < Number(i);
+    case '>': return Number(l) > Number(i);
+    case '>=': return Number(l) >= Number(i);
+    case '<=': return Number(l) <= Number(i);
+    case 'includes': case 'contains': return String(l).includes(String(i));
+    case 'not_contains': return !String(l).includes(String(i));
+    case 'count==': return countIn(String(i), l) === n;
+    case 'count>=': return countIn(String(i), l) >= n;
+    case 'count<': return countIn(String(i), l) < n;
+    case 'percent==': return percentIn(String(i), l) === n;
+    case 'percent>': return percentIn(String(i), l) > n;
+    case 'percent<': return percentIn(String(i), l) < n;
+    case 'empty': return l === '' || l == null;
+    case 'not_empty': case 'filled': return !(l === '' || l == null);
+    default: return false;
   }
 }
 function evalRoles(roles, ctx){
   if (!Array.isArray(roles) || !roles.length) return true;
-  const groups = roles.filter(g => Array.isArray(g) && g.length);
-  if (!groups.length) return true;
-  return groups.some(g => g.every(c => evalCond(c, ctx)));
+  const vars = buildVars(ctx), c2 = {vars};
+  return roles.some(g => !Array.isArray(g) || g.every(c => evalCond(c, c2)));
 }
 const hasRoles = l => Array.isArray(l.roles) && l.roles.some(g => Array.isArray(g) && g.length);
+const ROLE_OPERATORS = [['==', 'igual a'], ['!=', 'diferente de'], ['>', 'maior que'], ['>=', 'maior ou igual que'], ['<', 'menor que'], ['<=', 'menor ou igual que'], ['includes', 'contém'], ['count==', 'aparece exatamente'], ['count>=', 'aparece pelo menos'], ['count<', 'aparece menos de'], ['percent==', 'representa exatamente'], ['percent>', 'representa mais de'], ['percent<', 'representa menos de']];
 
 /* ================= navegação ================= */
 // Para onde vai um item (opção, botão, loading): 'next', id de etapa ou URL.
@@ -157,6 +198,64 @@ function resolveDestination(funnel, fromIndex, dest){
   // URL sem protocolo (ex.: wa.link/xyz)
   if (/^[\w-]+(\.[\w-]+)+\/?/.test(dest)) return {url: 'https://' + dest};
   return fromIndex + 1 < steps.length ? {step: fromIndex + 1} : {end: true};
+}
+
+/* ================= links externos ================= */
+// Link externo leva junto todos os parâmetros da URL atual (UTMs, fbclid…), como no InLead; os do próprio link prevalecem.
+function buildRedirect(url, params){
+  let u = String(url || '').trim();
+  if (!u) return u;
+  if (/^(mailto:|tel:|whatsapp:|javascript:)/i.test(u)) return u;
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u.replace(/^\/\//, '');
+  const q = u.indexOf('?'), h = u.indexOf('#');
+  const hash = h >= 0 ? u.slice(h) : '', base = (q >= 0 ? u.slice(0, q) : (h >= 0 ? u.slice(0, h) : u));
+  const own = q >= 0 ? new URLSearchParams(u.slice(q + 1, h >= 0 && h > q ? h : undefined)) : new URLSearchParams();
+  const merged = new URLSearchParams();
+  for (const k in params || {}) if (!own.has(k) && params[k] != null) merged.set(k, params[k]);
+  own.forEach((v, k) => merged.set(k, v));
+  const qs = merged.toString();
+  return base + (qs ? '?' + qs : '') + hash;
+}
+// Telefone em formato internacional, só dígitos (55 + DDD + número para números do Brasil).
+// Telefone no formato internacional, como o InLead (módulo 38874): com + ou 00 já vem com o país; 10 ou 11 dígitos é Brasil (55).
+function toE164(v){
+  const t = String(v == null ? '' : v).trim(); if (!t) return '';
+  const plus = t.startsWith('+'); let d = t.replace(/\D/g, '');
+  const intl = plus || d.startsWith('00'); if (!plus && intl) d = d.slice(2);
+  if (!intl) { d = d.replace(/^0/, ''); if (d.length === 10 || d.length === 11) d = '55' + d }
+  if (d.startsWith('55')) d = '55' + d.slice(2).replace(/^0/, '');
+  return d.length >= 8 && d.length <= 15 ? d : '';
+}
+const qsOf = o => { const t = Object.entries(o).filter(([, v]) => v != null && v !== '').map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&'); return t ? '?' + t : '' };
+const domainOf = d => 'https://' + String(d || '').replace(/^https?:\/\//, '').replace(/\/+$/, '');
+// Modelos de link do botão (os mesmos do InLead). Os campos aceitam variáveis ({{nome}} ou @nome).
+const LINK_MODELS = {
+  whatsapp: {label: 'WhatsApp', group: 'Chat e mensagens', fields: [['phone', 'Celular', '(11) 99999-9999 ou @telefone'], ['message', 'Mensagem', 'Olá, meu nome é @nome', 'textarea']], build: e => `https://wa.me/${toE164(e.phone)}${qsOf({text: e.message})}`},
+  telegram: {label: 'Telegram', group: 'Chat e mensagens', fields: [['username', 'Usuário', 'joao_silva']], build: e => `https://t.me/${e.username}`},
+  messenger: {label: 'Messenger', group: 'Chat e mensagens', fields: [['username', 'Usuário / página', 'minhapagina']], build: e => `https://m.me/${e.username}`},
+  instagram: {label: 'Instagram Direct', group: 'Chat e mensagens', fields: [['username', 'Usuário', 'brase']], build: e => `https://ig.me/m/${e.username}`},
+  calendly: {label: 'Calendly', group: 'Agendamento', fields: [['username', 'Usuário', 'joao'], ['event', 'Evento', 'reuniao-30min'], ['date', 'Data', '2027-03-03']], build: e => `https://calendly.com/${e.username}${e.event ? '/' + e.event : ''}${qsOf({date: e.date})}`},
+  calcom: {label: 'Cal.com', group: 'Agendamento', fields: [['username', 'Usuário', 'joao'], ['name', 'Nome', '@nome'], ['email', 'E-mail', '@email'], ['notes', 'Descrição', 'Quero conversar sobre…'], ['event', 'Evento', 'reuniao-30min'], ['date', 'Data', '2027-03-03']], build: e => `https://cal.com/${e.username}${e.event ? '/' + e.event : ''}${qsOf({date: e.date, name: e.name, email: e.email, notes: e.notes})}`},
+  tidycal: {label: 'TidyCal', group: 'Agendamento', fields: [['username', 'Usuário', 'joao'], ['name', 'Nome', '@nome'], ['email', 'E-mail', '@email'], ['event', 'Nome do evento', 'reuniao'], ['date', 'Data', '2027-03-03']], build: e => `https://tidycal.com/${e.username}${e.event ? '/' + e.event : ''}${qsOf({'dates[]': e.date, email: e.email, name: e.name})}`},
+  googlecalendar: {label: 'Google Agenda', group: 'Agendamento', fields: [['title', 'Título', 'Reunião com a Brase'], ['date', 'Data', '20270303T130000Z/20270303T140000Z'], ['details', 'Detalhes', ''], ['location', 'Local', '']], build: e => `https://calendar.google.com/calendar/render${qsOf({action: 'TEMPLATE', text: e.title, dates: e.date, details: e.details, location: e.location})}`},
+  googlemeet: {label: 'Google Meet', group: 'Reuniões', fields: [['code', 'Código da reunião', 'abc-defg-hij']], build: e => `https://meet.google.com/${e.code}`},
+  zoom: {label: 'Zoom', group: 'Reuniões', fields: [['meetingId', 'ID da reunião', '12345678901'], ['pwd', 'Senha', '']], build: e => `https://zoom.us/j/${e.meetingId}${qsOf({pwd: e.pwd})}`},
+  whereby: {label: 'Whereby', group: 'Reuniões', fields: [['room', 'Sala', 'minha-sala']], build: e => `https://whereby.com/${e.room}`},
+  shopify: {label: 'Shopify', group: 'E-commerce e vendas', fields: [['domain', 'Domínio da loja', 'minhaloja.com'], ['products', 'Produtos', '12345:1,67890:2'], ['email', 'E-mail', '@email'], ['coupon', 'Cupom', '']], build: e => `${domainOf(e.domain)}/cart/${e.products}${qsOf({discount: e.coupon, 'checkout[email]': e.email})}`},
+  yampi: {label: 'Yampi', group: 'E-commerce e vendas', fields: [['domain', 'Domínio da loja', 'minhaloja.com'], ['products', 'Produtos', 'ABC123'], ['coupon', 'Cupom', '']], build: e => `${domainOf(e.domain)}/r/${e.products}${qsOf({promocode: e.coupon})}`},
+  cartpanda: {label: 'Cartpanda', group: 'E-commerce e vendas', fields: [['domain', 'Domínio da loja', 'minhaloja.com'], ['products', 'Produtos', '12345:1'], ['coupon', 'Cupom', '']], build: e => `${domainOf(e.domain)}/checkout/${e.products}${qsOf({sck: e.coupon})}`},
+  vtex: {label: 'VTEX', group: 'E-commerce e vendas', fields: [['domain', 'Domínio da loja', 'minhaloja.com'], ['products', 'Produtos (SKU)', '123']], build: e => `${domainOf(e.domain)}/checkout/cart/add${qsOf({sku: e.products})}`},
+  woocommerce: {label: 'WooCommerce', group: 'E-commerce e vendas', fields: [['domain', 'Link do checkout', 'minhaloja.com'], ['products', 'Produtos', '12:1,34:2'], ['coupon', 'Cupom', '']], build: e => `${domainOf(e.domain)}/checkout-link/${qsOf({products: e.products, coupon: e.coupon})}`},
+  hotmart: {label: 'Hotmart', group: 'Checkout', fields: [['code', 'Código do produto', 'A12345678B'], ['name', 'Nome', '@nome'], ['email', 'E-mail', '@email'], ['phone', 'Celular', '@telefone']], build: e => { const p = toE164(e.phone), br = p.startsWith('55') ? p.slice(2) : p; return `https://pay.hotmart.com/${e.code}${qsOf({email: e.email, name: e.name, phoneac: br.slice(0, 2), phonenumber: br.slice(2)})}` }},
+  kirvano: {label: 'Kirvano', group: 'Checkout', fields: [['code', 'Código do produto', '75eef98a-…'], ['name', 'Nome', '@nome'], ['email', 'E-mail', '@email'], ['phone', 'Celular', '@telefone']], build: e => `https://pay.kirvano.com/${e.code}${qsOf({'customer.email': e.email, 'customer.name': e.name, 'customer.phone': toE164(e.phone)})}`},
+  kiwify: {label: 'Kiwify', group: 'Checkout', fields: [['code', 'Código do produto', 'AbCdEf'], ['name', 'Nome', '@nome'], ['email', 'E-mail', '@email'], ['phone', 'Celular', '@telefone']], build: e => `https://pay.kiwify.com.br/${e.code}${qsOf({email: e.email, name: e.name, phone: toE164(e.phone).replace(/^55/, '')})}`},
+};
+// Destino do botão: modelo de link (se houver) ou o destino com as variáveis trocadas.
+function buttonHref(content, ctx){
+  const m = content && content.model && LINK_MODELS[content.model.type];
+  if (m) { const vals = {}; for (const [k] of m.fields) vals[k] = interpolate(String(content.model[k] == null ? '' : content.model[k]), ctx); return m.build(vals) }
+  const d = content ? content.destination : '';
+  return d && /\{\{|@\w/.test(d) && (isUrl(d) || /\./.test(d)) ? interpolate(d, ctx) : d;
 }
 
 /* ================= campos ================= */
@@ -193,6 +292,9 @@ function fromInlead(input){
     id: s.id || uid(), title: s.title || `Etapa ${i + 1}`,
     position: s.position || {x: i * 288, y: 0},
     settings: s.settings || undefined,
+    // cabeçalho da etapa (show_logo, show_progress, show_back) e script da etapa, como vêm do InLead
+    options: s.options && !Array.isArray(s.options) ? clone(s.options) : undefined,
+    script: s.script || undefined,
     layers: (s.layers || []).map(l => {
       const o = clone(l); LAYER_DROP.forEach(k => delete o[k]); delete o['data-type'];
       if (Array.isArray(o.design)) o.design = {};
@@ -211,7 +313,7 @@ function fromInlead(input){
     title: src.title || 'Funil importado', slug: src.slug || '', description: src.description || '',
     steps, design: Object.assign({}, DEFAULT_DESIGN, clone(src.design || {})),
     settings: {pixel, scripts: {head: '', body: ''}, seo: Array.isArray(src.seo) ? {} : (src.seo || {}), filter: {enabled: !!src.traffic}},
-    webhookHint: src.webhook ? {trigger: src.webhook.trigger, component: src.webhook.component, method: src.webhook.method, enabled: !!src.webhook.enabled} : null,
+    webhookHint: src.webhook ? {trigger: src.webhook.trigger === 'onClick' ? 'component' : src.webhook.trigger, component: src.webhook.component, method: src.webhook.method, enabled: !!src.webhook.enabled} : null,
     origin: {platform: 'inlead', id: src.id, hash: src.hash, schemaVersion: src.schemaVersion},
   };
 }
@@ -269,7 +371,7 @@ function cssVars(design){
   };
 }
 
-/* ================= componentes: catálogo (para o editor) ================= */
+/* ================= componentes: catálogo (o mesmo do InLead) ================= */
 const COMPONENTS = [
   {group: 'Formulário', type: 'field', sub: 'text', title: 'Campo', icon: 'input'},
   {group: 'Formulário', type: 'field', sub: 'email', title: 'E-mail', icon: 'at'},
@@ -277,85 +379,106 @@ const COMPONENTS = [
   {group: 'Formulário', type: 'button', title: 'Botão', icon: 'button'},
   {group: 'Formulário', type: 'field', sub: 'number', title: 'Número', icon: 'hash'},
   {group: 'Formulário', type: 'field', sub: 'textarea', title: 'Textarea', icon: 'textarea'},
-  {group: 'Formulário', type: 'field', sub: 'date', title: 'Data', icon: 'calendar'},
-  {group: 'Formulário', type: 'field', sub: 'height', title: 'Altura', icon: 'ruler'},
-  {group: 'Formulário', type: 'field', sub: 'weight', title: 'Peso', icon: 'weight'},
+  {group: 'Formulário', type: 'date', title: 'Data', icon: 'calendar'},
+  {group: 'Formulário', type: 'height', title: 'Altura', icon: 'ruler'},
+  {group: 'Formulário', type: 'weight', title: 'Peso', icon: 'weight'},
   {group: 'Quiz', type: 'options', sub: 'list', title: 'Opções', icon: 'list'},
   {group: 'Quiz', type: 'options', sub: 'multiple', title: 'Múltipla escolha', icon: 'checks'},
-  {group: 'Quiz', type: 'options', sub: 'described', title: 'Escolha única', icon: 'radio'},
-  {group: 'Quiz', type: 'options', sub: 'yesno', title: 'Sim/Não', icon: 'yesno'},
-  {group: 'Quiz', type: 'options', sub: 'images', title: 'Opções com imagem', icon: 'grid'},
+  {group: 'Quiz', type: 'options', sub: 'single', title: 'Escolha única', icon: 'radio'},
+  {group: 'Quiz', type: 'options', sub: 'choice', title: 'Sim/Não', icon: 'yesno'},
+  {group: 'Quiz', type: 'options', sub: 'video', title: 'Vídeo resposta', icon: 'film'},
   {group: 'Mídia e conteúdo', type: 'text', title: 'Texto', icon: 'text'},
   {group: 'Mídia e conteúdo', type: 'image', title: 'Imagem', icon: 'image'},
   {group: 'Mídia e conteúdo', type: 'video', title: 'Vídeo', icon: 'film'},
   {group: 'Mídia e conteúdo', type: 'audio', title: 'Áudio', icon: 'audio'},
-  {group: 'Mídia e conteúdo', type: 'alert', title: 'Alerta', icon: 'alert'},
-  {group: 'Mídia e conteúdo', type: 'timer', title: 'Timer', icon: 'clock'},
-  {group: 'Mídia e conteúdo', type: 'loading', title: 'Loading', icon: 'loader'},
-  {group: 'Mídia e conteúdo', type: 'metric', title: 'Nível', icon: 'sliders'},
+  {group: 'Atenção', type: 'alert', title: 'Alerta', icon: 'alert'},
+  {group: 'Atenção', type: 'notification', title: 'Notificação', icon: 'bell'},
+  {group: 'Atenção', type: 'timer', title: 'Timer', icon: 'clock'},
+  {group: 'Atenção', type: 'loading', title: 'Loading', icon: 'loader'},
+  {group: 'Atenção', type: 'metric', title: 'Nível', icon: 'sliders'},
   {group: 'Argumentação', type: 'arguments', title: 'Argumentos', icon: 'bulb'},
-  {group: 'Argumentação', type: 'testimonials', title: 'Depoimentos', icon: 'quote'},
+  {group: 'Argumentação', type: 'carousel', title: 'Carrossel', icon: 'carousel'},
+  {group: 'Argumentação', type: 'quotes', title: 'Depoimentos', icon: 'quote'},
   {group: 'Argumentação', type: 'faq', title: 'FAQ', icon: 'faq'},
   {group: 'Argumentação', type: 'price', title: 'Preço', icon: 'price'},
+  {group: 'Argumentação', type: 'compare', title: 'Antes/Depois', icon: 'compare'},
   {group: 'Argumentação', type: 'checklist', title: 'Checklist', icon: 'check'},
-  {group: 'Argumentação', type: 'beforeafter', title: 'Antes/Depois', icon: 'compare'},
-  {group: 'Argumentação', type: 'carousel', title: 'Carrossel', icon: 'carousel'},
-  {group: 'Gráficos', type: 'chart', title: 'Gráfico', icon: 'chart'},
-  {group: 'Gráficos', type: 'stats', title: 'Métricas', icon: 'gauge'},
+  {group: 'Gráficos', type: 'graphics', title: 'Métricas', icon: 'gauge'},
+  {group: 'Gráficos', type: 'charts', title: 'Gráficos', icon: 'chart'},
+  {group: 'Personalização', type: 'script', title: 'HTML/Script', icon: 'code'},
   {group: 'Personalização', type: 'clear', title: 'Espaço', icon: 'space'},
-  {group: 'Personalização', type: 'html', title: 'HTML/Script', icon: 'code'},
 ];
-const TYPE_TITLE = {text: 'Texto', image: 'Imagem', video: 'Vídeo', audio: 'Áudio', button: 'Botão', options: 'Opções', field: 'Campo', metric: 'Nível', timer: 'Timer', loading: 'Loading', price: 'Preço', faq: 'FAQ', clear: 'Espaço', alert: 'Alerta', arguments: 'Argumentos', testimonials: 'Depoimentos', checklist: 'Checklist', beforeafter: 'Antes/Depois', carousel: 'Carrossel', chart: 'Gráfico', stats: 'Métricas', html: 'HTML/Script'};
-const INPUT_TYPES = ['options', 'field'];
+const TYPE_TITLE = {text: 'Texto', image: 'Imagem', video: 'Vídeo', audio: 'Áudio', button: 'Botão', options: 'Opções', field: 'Campo', date: 'Data', height: 'Altura', weight: 'Peso', metric: 'Nível', timer: 'Timer', loading: 'Loading', price: 'Preço', faq: 'FAQ', clear: 'Espaço', alert: 'Alerta', notification: 'Notificação', arguments: 'Argumentos', quotes: 'Depoimentos', checklist: 'Checklist', compare: 'Antes/Depois', carousel: 'Carrossel', graphics: 'Métricas', charts: 'Gráficos', script: 'HTML/Script', group: 'Grupo'};
+// Tipos que guardam resposta (contam como interação).
+const INPUT_TYPES = ['options', 'field', 'date', 'height', 'weight'];
+// Nomes antigos deste app → nomes do InLead.
+const TYPE_ALIAS = {testimonials: 'quotes', beforeafter: 'compare', stats: 'graphics', chart: 'charts', html: 'script'};
+function normalizeLayer(l){
+  if (!l) return l;
+  const lc = l.content || {};
+  if (l.type === 'arguments' && Array.isArray(lc.items) && !lc.arguments) return Object.assign({}, l, {content: Object.assign({}, lc, {items: undefined, cols: lc.cols || (l.design && l.design.grid) || 'grid-cols-1', arguments: lc.items.map(a => ({id: a.id || uid(), image: a.icon ? {type: 'emoji', src: a.icon} : {type: 'image', src: ''}, text: `<h3>${esc(a.title || '')}</h3><p>${esc(a.text || '')}</p>`}))})});
+  if (l.type === 'carousel' && Array.isArray(lc.items) && lc.items.some(i => i.caption != null && i.text == null)) return Object.assign({}, l, {content: Object.assign({}, lc, {items: lc.items.map(i => i.caption != null && i.text == null ? Object.assign({}, i, {text: `<p class="ql-align-center">${esc(i.caption)}</p>`, caption: undefined}) : i)})});
+  if (!TYPE_ALIAS[l.type]) return l;
+  const c = l.content || {}, n = Object.assign({}, l, {type: TYPE_ALIAS[l.type]});
+  if (l.type === 'testimonials') n.content = {id: c.id, name: c.name, quotes: (c.items || []).map(t => ({id: t.id || uid(), text: t.text, activity: t.handle, name: t.name, rate: t.stars, image: t.image ? {type: 'image', src: t.image} : undefined}))};
+  if (l.type === 'beforeafter') n.content = {id: c.id, name: c.name, first_image: c.before || {type: 'image', src: ''}, secondary_image: c.after || {type: 'image', src: ''}, first_label: c.beforeLabel, secondary_label: c.afterLabel};
+  if (l.type === 'stats') n.content = {id: c.id, name: c.name, cols: 'grid-cols-2', graphics: (c.items || []).map(t => ({id: t.id || uid(), type: 'circle', style: 'theme', percent: t.value, legend: `<p class="ql-align-center">${esc(t.label || '')}</p>`}))};
+  if (l.type === 'chart') n.content = {id: c.id, name: c.name, type: 'bar', title: c.title, xAxis: (c.items || []).map(i => i.label), datasets: [{id: uid(), title: c.title || 'Conjunto A', datas: (c.items || []).map(i => ({id: uid(), value: i.value}))}]};
+  if (l.type === 'html') n.content = {id: c.id, name: c.name, script: c.html};
+  return n;
+}
 
 function opt(label, value, extra){ return Object.assign({id: uid(), image: {type: 'image', src: null}, score: 0, value, label: `<p>${label}</p>`, destination: 'next'}, extra || {}) }
-// Camada nova, com o conteúdo de exemplo de cada componente.
+const INTRO = "<h2 class='ql-align-center'>Qual a questão a ser respondida?</h2><p class='ql-align-center'>Digite aqui uma descrição de ajuda para introduzir o usuário à questão.</p>";
+// Camada nova, com o conteúdo padrão de cada componente (o mesmo do InLead).
 function newLayer(type, sub){
-  const id = uid(), name = (type === 'options' ? 'opcoes_' : '') + uid();
-  const L = {id, title: TYPE_TITLE[type] || type, type, design: {basis: 100}, content: {id: uid(), name}};
+  const id = uid();
+  const L = {id, title: TYPE_TITLE[type] || type, type, design: {basis: 100}, content: {id: uid(), name: uid()}};
   const c = L.content;
   switch (type) {
-    case 'text': c.text = '<h2 class="ql-align-center">Escreva o seu título aqui</h2><p class="ql-align-center">E um texto de apoio logo abaixo.</p>'; break;
+    case 'text': c.text = "<h1 class='ql-align-center'>Texto informativo</h1><p class='ql-align-center'>Este componente serve para fornecer instruções claras ao usuário. Utilize-o para destacar informações essenciais de forma objetiva e fácil de entender.</p>"; break;
     case 'image': c.image = {type: 'image', src: ''}; c.alt = ''; L.design = {basis: 100, width: 100}; break;
-    case 'video': c.video = ''; L.design = {basis: 100, ratio: 'landscape'}; break;
-    case 'audio': c.audio = {type: 'audio', src: ''}; c.image = {type: 'image', src: null}; c.sender = 'Seu nome'; L.design = {basis: 100, model: 'whatsapp', theme: 'dark'}; break;
-    case 'button': Object.assign(c, {type: 'next', label: 'Continuar', destination: 'next', pulse: false, target: false}); L.design = {basis: 100, style: 'theme'}; break;
+    case 'video': Object.assign(c, {title: '', description: '', video: ''}); L.design = {basis: 100, ratio: 'video'}; break;
+    case 'audio': c.audio = {type: 'audio', src: ''}; c.image = {type: 'image', src: ''}; c.sender = ''; L.design = {basis: 100, model: 'whatsapp', theme: 'light'}; break;
+    case 'button': Object.assign(c, {name: 'button_' + uid(), type: 'next', label: 'Continuar', destination: 'next', pulse: false, target: false}); L.design = {basis: 100, style: 'theme'}; break;
     case 'field': {
       const s = sub || 'text';
-      const T = {text: ['Qual o seu nome?', 'Digite seu nome...'], email: ['Qual o seu e-mail?', 'seu@email.com'], phone: ['Qual o seu WhatsApp?', '(00) 00000-0000'], number: ['Digite um número', '0'], textarea: ['Conte pra gente', 'Escreva aqui...'], date: ['Qual a data?', ''], height: ['Qual a sua altura?', ''], weight: ['Qual o seu peso?', '']}[s] || ['Campo', ''];
-      Object.assign(c, {title: T[0], placeholder: T[1], type: s, required: true});
+      const T = {text: ['Campo', 'Nome', 'Digite seu nome...', 'field_'], email: ['E-mail', 'E-mail', 'Digite seu e-mail...', 'email_'], phone: ['Telefone', 'Celular', 'Digite seu celular...', 'phone_'], number: ['Número', 'Número', 'Digite um número...', 'number_'], textarea: ['Textarea', 'Mensagem', 'Digite sua mensagem...', 'textarea_']}[s] || ['Campo', 'Campo', '', 'field_'];
+      L.title = T[0]; Object.assign(c, {name: T[3] + uid(), title: T[1], placeholder: T[2], type: s, required: true});
       if (s === 'phone') c.mask = 'phone';
-      if (s === 'height') Object.assign(c, {unit: 'cm', min: 140, max: 220, value: 170});
-      if (s === 'weight') Object.assign(c, {unit: 'kg', min: 40, max: 250, value: 70});
-      L.title = {email: 'E-mail', phone: 'Telefone', number: 'Número', textarea: 'Textarea', date: 'Data', height: 'Altura', weight: 'Peso'}[s] || 'Campo';
       break;
     }
+    case 'date': Object.assign(c, {name: 'date_' + uid(), title: 'Data', placeholder: 'Insira uma data...', disablePast: true, required: true}); break;
+    case 'height': Object.assign(c, {name: 'height_' + uid(), title: 'Qual a sua altura?', value: 180, type: 'metric', unit: 'cm', min: 140, max: 220}); break;
+    case 'weight': Object.assign(c, {name: 'weight_' + uid(), title: 'Qual o seu peso?', value: 70, type: 'metric', unit: 'kg', min: 40, max: 250}); break;
     case 'options': {
       const s = sub || 'list';
-      Object.assign(c, {required: true, introType: 'none', introduction: null, type: 'options', multiple: s === 'multiple'});
-      L.design = {icon: s === 'multiple' ? 'checkbox' : 'select', iconPosition: 'end', grid: s === 'images' ? 'grid-cols-2' : 'grid-cols-1', orientation: 'vertical', order: 'default', transparentImage: true, aspectImage: 'aspect-[1/1]', basis: 100, background: 'contrast', border: 'border-[2px]', shadow: 'shadow-none', gap: 'gap-2'};
-      if (s === 'yesno') c.options = [opt('✅ Sim', 'sim'), opt('🚫 Não', 'nao')];
-      else if (s === 'described') c.options = [opt('<strong>Opção A</strong><br>Aqui você descreve a primeira opção.', 'A'), opt('<strong>Opção B</strong><br>Depois você descreve a segunda opção.', 'B')];
-      else if (s === 'images') c.options = [1, 2, 3, 4].map(n => opt('Opção ' + n, String(n), {image: {type: 'image', src: ''}}));
-      else c.options = ['A', 'B', 'C', 'D'].map((v, k) => opt('Opção ' + (k + 1), v));
-      L.title = {multiple: 'Múltipla escolha', described: 'Escolha única', yesno: 'Sim/Não', images: 'Opções com imagem'}[s] || 'Opções';
+      Object.assign(c, {name: (s === 'multiple' ? 'multiple_' : 'options_') + uid(), required: true, introType: 'none', introduction: null});
+      L.design = {icon: 'select', iconPosition: 'end', grid: 'grid-cols-1', orientation: 'vertical', order: 'default', transparentImage: true, aspectImage: 'aspect-[1/1]', basis: 100, background: 'contrast', border: 'border-[2px]', shadow: 'shadow-none', gap: 'gap-2'};
+      if (s === 'multiple') { Object.assign(c, {multiple: true, type: 'multiple'}); L.design.icon = 'checkbox'; c.options = ['A', 'B', 'C', 'D'].map((v, k) => opt('Opção ' + (k + 1), v, {score: k + 1})) }
+      else if (s === 'single') { c.type = 'single'; c.multiple = false; c.options = [opt('Aqui você descreve a primeira opção.', 'A', {score: 1}), opt('Depois você descreve a segunda opção.', 'B', {score: 2}), opt('Caso precise de mais opções é só adicionar.', 'C', {score: 3})] }
+      else if (s === 'choice') { c.type = 'choice'; L.design.icon = 'none'; L.design.grid = 'grid-cols-2'; L.design.align = 'center'; c.options = [opt('✅ Sim', 'yes', {score: 1}), opt('🚫 Não', 'no', {score: 2})] }
+      else if (s === 'video') { Object.assign(c, {type: 'video', introType: 'video', introduction: '', aspectRatio: 'video'}); c.options = [opt('Aqui você descreve a primeira opção.', 'A', {score: 1}), opt('Depois você descreve a segunda opção.', 'B', {score: 2}), opt('Caso precise de mais opções é só adicionar.', 'C', {score: 3})] }
+      else { c.type = 'options'; c.options = ['A', 'B', 'C', 'D'].map((v, k) => opt('Opção ' + (k + 1), v, {score: k + 1})) }
+      L.title = {multiple: 'Múltipla escolha', single: 'Escolha única', choice: 'Sim/Não', video: 'Vídeo resposta'}[s] || 'Opções';
       break;
     }
-    case 'metric': Object.assign(c, {title: 'Nível', subtitle: 'Descrição do nível', percent: '75', show_title: true, show_percent: true, show_dot: true}); L.design = {basis: 100, type: 'default', color: 'theme'}; break;
-    case 'timer': Object.assign(c, {text: '<p class="ql-align-center">Aproveite essa oportunidade: [time]</p>', time: '300'}); L.design = {basis: 100, style: 'danger', layout: 'boxes'}; break;
-    case 'loading': Object.assign(c, {title: 'Carregando...', description: '<p></p>', seconds: 3, starts: 0, destination: 'next', show_title: true, show_percent: true, show_progress: true}); L.design = {layout: 'default'}; break;
-    case 'price': Object.assign(c, {title: '<p><strong>Nome do produto</strong></p>', value: 'R$ 97', before: '12x de', after: 'ou R$ 97 à vista', featured: '10% off', redirect: true}); L.design = {basis: 100, style: 'theme'}; break;
-    case 'faq': Object.assign(c, {firstQuestionOpened: false, questions: [{id: uid(), question: 'Qual a primeira dúvida a ser resolvida?', answer: '<p>Escreva a resposta aqui.</p>'}, {id: uid(), question: 'Descreva outra dúvida a ser resolvida.', answer: '<p>Escreva a resposta aqui.</p>'}]}); L.design = {icon: 'chevron'}; break;
+    case 'metric': Object.assign(c, {title: 'Nível', name: 'metric_' + uid(), subtitle: 'Fusce vitae tellus', percent: 75, show_title: true, show_percent: true, show_dot: true}); L.design = {basis: 100, type: 'default', color: 'theme'}; break;
+    case 'timer': Object.assign(c, {basedOn: 'time', text: '<p><strong>Resgate agora seu cupom: [time]</strong></p><p>Texto de apoio</p>', time: 300}); L.design = {basis: 100, style: 'black', layout: 'countdown'}; break;
+    case 'loading': Object.assign(c, {title: 'Carregando...', name: 'loader_' + uid(), description: "<p class='ql-align-center'>Fusce vitae tellus in risus sagittis condimentum!</p>", seconds: 5, starts: 0, destination: 'next', show_title: true, show_percent: true, show_progress: true}); L.design = {layout: 'default'}; break;
+    case 'price': Object.assign(c, {title: '<p><strong>Plano PRO</strong></p>', value: 'R$ 89,90', before: '10% off', after: 'à vista', type: 'redirect', redirect: true, featured: ''}); L.design = {basis: 100, style: 'theme'}; break;
+    case 'faq': Object.assign(c, {firstQuestionOpened: true, questions: [{id: uid(), question: 'Qual a primeira dúvida a ser resolvida?', answer: '<p>Este é apenas um texto de exemplo utilizado para ilustrar como a resposta de uma dúvida frequente será exibida nesta seção.</p>'}, {id: uid(), question: 'Descreva outra dúvida a ser resolvida.', answer: '<p>Texto genérico de demonstração. Serve apenas como modelo visual para representar uma resposta real a ser inserida posteriormente.</p>'}]}); L.design = {icon: 'chevron'}; break;
     case 'clear': c.clear = 'h-[1rem]'; L.design = {}; break;
-    case 'alert': Object.assign(c, {title: 'Atenção', text: '<p>Escreva aqui o aviso para o visitante.</p>'}); L.design = {basis: 100, style: 'warning'}; break;
-    case 'arguments': c.items = [{id: uid(), icon: '⚡', title: 'Argumento 1', text: 'Tellus in risus sagittis condimentum.'}, {id: uid(), icon: '🎯', title: 'Argumento 2', text: 'Fusce vitae tellus.'}]; L.design = {basis: 100, grid: 'grid-cols-1'}; break;
-    case 'testimonials': c.items = [{id: uid(), name: 'Rafael Nascimento', handle: '@rafael.nascimento', text: 'Excelente! Recomendo para todo mundo.', image: '', stars: 5}, {id: uid(), name: 'Camila Ferreira', handle: '@camila.ferreira', text: 'Mudou o meu negócio.', image: '', stars: 5}]; L.design = {basis: 100, layout: 'list'}; break;
-    case 'checklist': c.items = [{id: uid(), text: 'Primeiro benefício'}, {id: uid(), text: 'Segundo benefício'}, {id: uid(), text: 'Terceiro benefício'}]; L.design = {basis: 100, icon: '✅'}; break;
-    case 'beforeafter': Object.assign(c, {before: {type: 'image', src: ''}, after: {type: 'image', src: ''}, beforeLabel: 'Antes', afterLabel: 'Depois'}); L.design = {basis: 100}; break;
-    case 'carousel': c.items = [{id: uid(), image: {type: 'image', src: ''}, caption: 'Exemplo de descrição'}, {id: uid(), image: {type: 'image', src: ''}, caption: 'Exemplo de descrição'}]; L.design = {basis: 100, autoplay: true}; break;
-    case 'chart': Object.assign(c, {title: 'Gráfico', items: [{id: uid(), label: 'Hoje', value: '30'}, {id: uid(), label: 'Em 30 dias', value: '60'}, {id: uid(), label: 'Em 90 dias', value: '95'}]}); L.design = {basis: 100, type: 'bar'}; break;
-    case 'stats': c.items = [{id: uid(), value: '30', suffix: '%', label: 'Métrica'}, {id: uid(), value: '85', suffix: '%', label: 'Outra métrica'}]; L.design = {basis: 100}; break;
-    case 'html': c.html = '<div style="text-align:center;padding:12px">Seu HTML aqui</div>'; L.design = {basis: 100}; break;
+    case 'alert': Object.assign(c, {text: 'Ponto de <b>atenção</b> para o usuário receber um aviso!', icon: {type: 'emoji', value: '⚠️'}}); L.design = {basis: 100, style: 'danger', padding: '16', borderWidth: 1}; break;
+    case 'notification': Object.assign(c, {title: '<strong>@1</strong> acabou de se cadastrar via <strong>@2</strong>!', text: 'Corra! Faltam apenas <strong>@3</strong> ofertas disponíveis nessa promoção', position: 'default', duration: 5, interval: 2, variables: [{id: uid(), name: '@1', values: ['Rafael', 'Beatriz', 'Carlos', 'Cláudia']}, {id: uid(), name: '@2', values: ['Instagram', 'Whatsapp', 'Facebook', 'Instagram']}, {id: uid(), name: '@3', values: ['7', '6', '5', '4']}]}); L.design = {basis: 100, style: 'white'}; break;
+    case 'arguments': Object.assign(c, {cols: 'grid-cols-2', arguments: [{id: uid(), image: {type: 'image', src: ''}, text: "<h3 class='ql-align-center'>Fusce vitae</h3><p class='ql-align-center'>Tellus in risus sagittis condimentum</p>"}, {id: uid(), image: {type: 'image', src: ''}, text: "<h3 class='ql-align-center'>Fusce vitae</h3><p class='ql-align-center'>Tellus in risus sagittis condimentum</p>"}]}); L.design = {basis: 100, aspectImage: 'aspect-[1/1]', gridCols: 'grid-cols-2', order: 'default'}; break;
+    case 'quotes': Object.assign(c, {layout: 'list', quotes: [{id: uid(), text: 'A experiência foi excelente do início ao fim. Atendimento rápido, equipe super atenciosa e resultados acima do esperado. Com certeza recomendaria!', activity: '@rafael.nascimento', name: 'Rafael Nascimento', rate: 5, image: {type: 'image', src: ''}}, {id: uid(), text: 'Fiquei impressionado com a qualidade e o cuidado em cada detalhe. Superou todas as minhas expectativas. Já virei cliente fiel!', activity: '@camila.ferreira', name: 'Camila Ferreira', rate: 5, image: {type: 'image', src: ''}}]}); L.design = {basis: 100, gap: 'gap-2'}; break;
+    case 'compare': Object.assign(c, {first_image: {type: 'image', src: ''}, secondary_image: {type: 'image', src: ''}, first_label: 'Antes', secondary_label: 'Depois'}); L.design = {basis: 100, ratio: 'square'}; break;
+    case 'carousel': Object.assign(c, {centered: true, spoiler: true, pagination: true, autoplay: true, layout: 'image_text', items: [{id: uid(), image: {type: 'image', src: ''}, text: "<p class='ql-align-center'>Exemplo de descrição</p>"}, {id: uid(), image: {type: 'image', src: ''}, text: "<p class='ql-align-center'>Exemplo de descrição</p>"}]}); L.design = {basis: 100, border: 'border', layout: 'image_text', aspectImage: 'aspect-[1/1]'}; break;
+    case 'checklist': c.items = [{id: uid(), text: 'Utilize este <b>checklist</b> para guiar seu <b>usuário</b> por etapas importantes.', icon: {type: 'emoji', value: '✅'}}, {id: uid(), text: 'Perfeito para <b>organizar</b> informações, de forma rápida e visual.', icon: {type: 'emoji', value: '✅'}}, {id: uid(), text: 'Este componente aumenta o engajamento e torna a <b>experiência</b> mais objetiva.', icon: {type: 'emoji', value: '✅'}}]; L.design = {basis: 100}; break;
+    case 'graphics': Object.assign(c, {cols: 'grid-cols-2', order: 'default', graphics: [{id: uid(), type: 'bar', style: 'theme', percent: 30, legend: "<p class='ql-align-center'>Fusce vitae tellus in risus sagittis condimentum</p>"}, {id: uid(), type: 'bar', style: 'theme', percent: 30, legend: "<p class='ql-align-center'>Fusce vitae tellus in risus sagittis condimentum</p>"}]}); L.design = {basis: 100}; break;
+    case 'charts': Object.assign(c, {type: 'cartesian', datasetCount: 1, xAxis: ['Ontem', 'Hoje', 'Amanhã'], datasets: [{id: uid(), title: 'Conjunto A', datas: [{id: uid(), value: 10, tooltip: ''}, {id: uid(), value: 30, tooltip: 'Você', featured: true}, {id: uid(), value: 90, tooltip: ''}]}, {id: uid(), title: 'Conjunto B', datas: [{id: uid(), value: 20}, {id: uid(), value: 60, tooltip: 'Concorrente', featured: true}, {id: uid(), value: 80}]}]}); L.design = {basis: 100, color: 'gradient-invert', area: true, axisY: true, axisX: true, gridY: true, gridX: true}; break;
+    case 'script': c.script = '<div style="text-align:center;padding:12px">Seu HTML aqui</div>'; L.design = {basis: 100}; break;
   }
   return L;
 }
@@ -364,17 +487,18 @@ function newStep(title, layers){ return {id: uid(), title: title || 'Nova etapa'
 function stepTemplate(kind){
   const T = (html) => { const l = newLayer('text'); l.content.text = html; return l };
   const btn = label => { const b = newLayer('button'); b.content.label = label; return b };
+  const awaiting = (o, patch) => { o.content.awaitSubmit = true; Object.assign(o.design, patch || {}); return o };
   switch (kind) {
-    case 'inicial': return newStep('Página inicial', [T('<h1 class="ql-align-center">Título que prende a atenção</h1><p class="ql-align-center">Uma frase que explica o que a pessoa ganha respondendo.</p>'), btn('COMEÇAR ➔')]);
-    case 'quiz': return newStep('Pergunta', [T('<h1 class="ql-align-center">Qual é a sua pergunta?</h1>'), newLayer('options', 'list')]);
-    case 'colunas': { const o = newLayer('options', 'images'); return newStep('Pergunta com imagens', [T('<h1 class="ql-align-center">Escolha uma opção</h1>'), o]) }
+    case 'inicial': return newStep('Página inicial', [T('<h1 class="ql-align-center">Título que prende a atenção</h1><p class="ql-align-center">Uma frase que explica o que a pessoa ganha respondendo.</p>'), newLayer('image'), btn('COMEÇAR ➔')]);
+    case 'quiz': { const o = awaiting(newLayer('options', 'list'), {background: 'contrast', icon: 'select'}); o.content.introType = 'text'; o.content.introduction = INTRO; o.content.options = [opt('Melhor escolha possível', 'A'), opt('Pode ser útil', 'B'), opt('Não tenho certeza', 'C'), opt('Prefiro outra opção', 'D')]; return newStep('Quiz em lista', [o, btn('Continuar')]) }
+    case 'colunas': { const o = awaiting(newLayer('options', 'list'), {grid: 'grid-cols-2'}); o.content.options.forEach(x => { x.image = {type: 'image', src: ''} }); return newStep('Quiz em colunas', [T('<h1 class="ql-align-center">Escolha uma opção</h1>'), o, btn('Continuar')]) }
     case 'multipla': return newStep('Múltipla escolha', [T('<h1 class="ql-align-center">Marque todas que se aplicam</h1>'), newLayer('options', 'multiple'), btn('Continuar')]);
-    case 'like': { const o = newLayer('options', 'list'); o.content.options = ['1', '2', '3', '4', '5'].map(n => opt(n, n, {score: +n})); o.design.grid = 'grid-cols-5'; o.design.icon = 'none'; return newStep('Escala', [T('<h2 class="ql-align-center">De 1 a 5, quanto você concorda?</h2>'), o]) }
+    case 'like': { const o = awaiting(newLayer('options', 'list'), {grid: 'grid-cols-5', icon: 'none', align: 'center'}); o.content.options = ['1', '2', '3', '4', '5'].map(n => opt(n, n, {score: +n})); return newStep('Escala de like', [T('<h2 class="ql-align-center">De 1 a 5, quanto você concorda?</h2>'), o, btn('Continuar')]) }
     case 'formulario': return newStep('Formulário', [T('<h1 class="ql-align-center">Falta pouco!</h1><p class="ql-align-center">Deixe seus dados para receber o resultado.</p>'), newLayer('field', 'text'), newLayer('field', 'email'), newLayer('field', 'phone'), btn('ENVIAR')]);
     case 'captura': return newStep('Captura simples', [T('<h2 class="ql-align-center">Receba no seu WhatsApp</h2>'), newLayer('field', 'phone'), btn('QUERO RECEBER')]);
-    case 'grafico': return newStep('Gráfico', [T('<h2 class="ql-align-center">Veja a sua evolução</h2>'), newLayer('chart'), btn('Continuar')]);
-    case 'progresso': return newStep('Carregando', [newLayer('loading')]);
-    case 'checkout': return newStep('Pré-checkout', [newLayer('timer'), T('<h1 class="ql-align-center">Oferta especial</h1>'), newLayer('checklist'), newLayer('price'), btn('QUERO AGORA'), newLayer('faq')]);
+    case 'grafico': return newStep('Gráfico', [T('<h2 class="ql-align-center">Veja a sua evolução</h2>'), newLayer('charts'), newLayer('graphics'), btn('Continuar')]);
+    case 'progresso': return newStep('Progresso', [newLayer('loading')]);
+    case 'checkout': return newStep('Pré-checkout', [newLayer('timer'), T('<h1 class="ql-align-center">Oferta especial</h1>'), newLayer('checklist'), newLayer('quotes'), newLayer('price'), btn('QUERO AGORA'), newLayer('faq')]);
     default: return newStep('Nova etapa', []);
   }
 }
@@ -387,7 +511,8 @@ function newFunnel(title){
 }
 // Garante ids únicos (camadas, opções, conteúdos) ao duplicar.
 function reId(layer){
-  const l = clone(layer); l.id = uid(); if (l.content) { l.content.id = uid(); if (Array.isArray(l.content.options)) l.content.options.forEach(o => o.id = uid()); if (Array.isArray(l.content.questions)) l.content.questions.forEach(o => o.id = uid()); if (Array.isArray(l.content.items)) l.content.items.forEach(o => o.id = uid()) }
+  const l = clone(layer); l.id = uid();
+  if (l.content) { l.content.id = uid(); for (const k of ['options', 'questions', 'items', 'arguments', 'quotes', 'graphics', 'datasets', 'variables']) if (Array.isArray(l.content[k])) l.content[k].forEach(o => { if (o && typeof o === 'object') o.id = uid() }) }
   return l;
 }
 
@@ -395,15 +520,17 @@ function reId(layer){
 function outlets(funnel, step){
   const out = [];
   for (const l of step.layers || []) {
-    if (l.type === 'options') (l.content.options || []).forEach(o => out.push({layer: l, item: o, label: stripHtml(o.label) || o.value || 'Opção', dest: destinationOf(funnel, o)}));
-    else if (l.type === 'button') out.push({layer: l, item: l.content, label: l.content.label || 'Botão', dest: destinationOf(funnel, l.content)});
+    if (!l || l.archived) continue;
+    // Como no Fluxo do InLead: múltipla escolha não tem saída por opção (quem avança é o botão).
+    if (l.type === 'options') { if (!l.content.multiple) (l.content.options || []).forEach(o => out.push({layer: l, item: o, label: stripHtml(o.label) || o.value || 'Opção', dest: destinationOf(funnel, o)})) }
+    else if (l.type === 'button') out.push({layer: l, item: l.content, label: l.content.label || 'Botão', dest: l.content.model && LINK_MODELS[l.content.model.type] ? (buttonHref(l.content, {}) || 'https://') : destinationOf(funnel, l.content)});
     else if (l.type === 'loading') out.push({layer: l, item: l.content, label: 'Ao terminar', dest: destinationOf(funnel, l.content)});
   }
   return out;
 }
 
 /* ================= DOM (navegador) ================= */
-if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE};
+if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS};
 
 const CSS = `
 .fnr{--fn-theme:#6366f1;font-family:var(--fn-font-text);font-size:var(--fn-size);color:var(--fn-content);background:var(--fn-bg);position:relative;min-height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;line-height:1.4;overflow-wrap:break-word}
@@ -503,14 +630,18 @@ textarea.fnr-input{min-height:110px;resize:vertical}
 .fnr-metric .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:99px;background:linear-gradient(90deg,color-mix(in srgb,var(--fn-mc) 55%,transparent),var(--fn-mc));transition:width .8s ease}
 .fnr-metric .bar b{position:absolute;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px var(--fn-bg),0 1px 4px rgba(0,0,0,.4);transition:left .8s ease}
 .fnr-metric .legs{display:flex;justify-content:space-between;font-size:.7em;color:var(--fn-muted)}
-.fnr-timer{display:flex;justify-content:center;align-items:center;gap:6px}
-.fnr-timer .bx{min-width:52px;padding:8px 6px 6px;border-radius:12px;background:#fee2e2;color:#dc2626;text-align:center}
+.fnr-timer{display:flex;justify-content:center;align-items:center;gap:6px;--tmr-bg:#0a0a0a;--tmr-ink:#fff;--tmr-line:#0a0a0a}
+.fnr-timer .bx{min-width:52px;padding:var(--tmr-pad,10px) calc(var(--tmr-pad,10px) + 4px);border-radius:var(--tmr-radius,var(--fn-radius));background:var(--tmr-bg);color:var(--tmr-ink);border:var(--tmr-bw,1px) solid var(--tmr-line);text-align:center}
 .fnr-timer .bx b{display:block;font:700 1.4em/1 var(--fn-font-title)}.fnr-timer .bx small{font-size:10.5px;opacity:.75}
 .fnr-timer .sep{color:var(--fn-content);font-weight:700}
-.fnr-timer.st-theme .bx{background:color-mix(in srgb,var(--fn-theme) 18%,var(--fn-bg));color:var(--fn-theme)}
-.fnr-timer.st-warning .bx{background:#fef3c7;color:#b45309}.fnr-timer.st-success .bx{background:#dcfce7;color:#15803d}.fnr-timer.st-dark .bx{background:#0f172a;color:#fff}
-.fnr-timerbar{border-radius:var(--fn-radius);padding:10px 14px;background:#dc2626;color:#fff;text-align:center;font-size:.9em}
-.fnr-timerbar.st-theme{background:var(--fn-theme);color:var(--fn-theme-ink)}.fnr-timerbar.st-warning{background:#f59e0b;color:#111}.fnr-timerbar.st-success{background:#16a34a}.fnr-timerbar.st-dark{background:#0f172a}
+.fnr-timer.ly-cards{align-items:flex-start}.fnr-timer.ly-cards .grp{display:grid;justify-items:center;gap:4px}.fnr-timer.ly-cards .dg{display:flex;gap:3px}
+.fnr-timer.ly-cards .bx{min-width:30px;padding:var(--tmr-pad,10px) 6px;font:700 1.5em/1 var(--fn-font-title)}.fnr-timer.ly-cards small{font-size:10.5px;color:var(--fn-muted)}.fnr-timer.ly-cards .sep{padding-top:8px}
+.fnr-timer.ly-banner{display:flex}.fnr-timer .bn{display:inline-flex;gap:4px;background:var(--tmr-bg);color:var(--tmr-ink);border:var(--tmr-bw,1px) solid var(--tmr-line);border-radius:var(--tmr-radius,var(--fn-radius));padding:var(--tmr-pad,10px) calc(var(--tmr-pad,10px) + 6px)}
+.fnr-timer .bn .cl{display:grid;justify-items:center;min-width:2.6em}.fnr-timer .bn b{font:800 1.6em/1.1 var(--fn-font-title)}.fnr-timer .bn small{font-size:10.5px;opacity:.8}.fnr-timer .bn .sp{font:800 1.6em/1.1 var(--fn-font-title)}
+.fnr-timer.ly-hero{display:flex}.fnr-timer .hero{display:flex;align-items:stretch;justify-content:center;gap:6px;background:var(--tmr-bg);color:var(--tmr-ink);border:var(--tmr-bw,1px) solid var(--tmr-line);border-radius:var(--tmr-radius,var(--fn-radius));padding:var(--tmr-pad,10px) calc(var(--tmr-pad,10px) + 4px)}
+.fnr-timer .hero .hc{display:grid;justify-items:center;gap:4px;min-width:3em}.fnr-timer .hero b{font:800 2.2em/1 var(--fn-font-title)}.fnr-timer .hero small{font-size:11px;opacity:.8;text-transform:uppercase;letter-spacing:.06em}
+.fnr-timer .hero i{width:1px;background:currentColor;opacity:.25}
+.fnr-timerbar{border-radius:var(--tmr-radius,var(--fn-radius));padding:var(--tmr-pad,10px);background:var(--tmr-bg,#000);color:var(--tmr-ink,#fff);border:var(--tmr-bw,1px) solid var(--tmr-line,#000);font-size:.9em}
 .fnr-timerbar p,.fnr-timerbar h1,.fnr-timerbar h2,.fnr-timerbar h3{margin:0;color:inherit}
 .fnr-loading{display:grid;gap:10px;padding:8px 0}
 .fnr-loading .t{font-size:.82em;font-weight:600;color:var(--fn-title)}
@@ -533,13 +664,23 @@ textarea.fnr-input{min-height:110px;resize:vertical}
 .fnr-faq summary::-webkit-details-marker{display:none}
 .fnr-faq summary svg{flex:none;transition:transform .2s;opacity:.8}.fnr-faq details[open] summary svg{transform:rotate(180deg)}
 .fnr-faq .an{padding-top:8px;font-size:.82em;color:var(--fn-content)}.fnr-faq .an p{margin:0}
-.fnr-alert{display:flex;gap:10px;align-items:flex-start;border-radius:var(--fn-radius);padding:12px 14px;background:#fef3c7;color:#78350f;font-size:.9em}
-.fnr-alert .ic{flex:none;font-size:1.15em;line-height:1.2}.fnr-alert b{display:block;margin-bottom:2px}.fnr-alert p{margin:0}
-.fnr-alert.st-danger{background:#fee2e2;color:#7f1d1d}.fnr-alert.st-info{background:#dbeafe;color:#1e3a8a}.fnr-alert.st-success{background:#dcfce7;color:#14532d}.fnr-alert.st-theme{background:color-mix(in srgb,var(--fn-theme) 16%,var(--fn-bg));color:var(--fn-title)}
-.fnr-args{display:grid;gap:10px}
-.fnr-arg{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:var(--fn-radius);background:var(--fn-card);box-shadow:inset 0 0 0 1px var(--fn-line)}
-.fnr-arg .ic{flex:none;width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--fn-theme) 18%,transparent);font-size:1.2em}
-.fnr-arg b{display:block;color:var(--fn-title);font-size:.92em}.fnr-arg span{font-size:.82em}
+.fnr-alert{display:flex;gap:10px;align-items:flex-start;border-radius:var(--fn-radius);border-style:solid;font-size:.9em}
+.fnr-alert .ic{flex:none;font-size:1.15em;line-height:1.2}.fnr-alert .ttl{display:block;margin-bottom:2px}.fnr-alert p{margin:0}
+.fnr-ntf-wrap{width:100%}
+.fnr-ntf{position:relative;overflow:hidden;border-radius:var(--fn-radius);padding:12px 14px;box-shadow:0 10px 30px -10px rgba(0,0,0,.45);font-size:.86em;opacity:0;transform:translateY(8px);transition:opacity .35s,transform .35s}
+.fnr-edit .fnr-ntf,.fnr-ntf.in{opacity:1;transform:none}
+.fnr-ntf .t,.fnr-ntf .x{color:inherit}.fnr-ntf .x{opacity:.85;margin-top:2px}.fnr-ntf p{margin:0}
+.fnr-ntf .bar{position:absolute;left:0;right:0;bottom:0;height:3px;background:currentColor;opacity:.35;transform-origin:left}
+.fnr-live .fnr-ntf-wrap:not(.ps-default),.fnr-preview .fnr-ntf-wrap:not(.ps-default){position:fixed;z-index:50;width:calc(100% - 24px);max-width:20rem;pointer-events:none}
+.fnr-preview .fnr-ntf-wrap:not(.ps-default){position:absolute}
+@media (min-width:768px){.fnr-live .fnr-ntf-wrap:not(.ps-default){max-width:24rem}}
+.fnr-ntf-wrap[class*="ps-top"]{top:12px}.fnr-ntf-wrap[class*="ps-bottom"]{bottom:12px}.fnr-ntf-wrap[class*="ps-center"]{top:50%;transform:translateY(-50%)}
+.fnr-ntf-wrap[class*="-left"]{left:12px}.fnr-ntf-wrap[class*="-right"]{right:12px}
+.fnr-ntf-wrap.ps-top-middle,.fnr-ntf-wrap.ps-bottom-middle{left:50%;transform:translateX(-50%)}.fnr-ntf-wrap.ps-center-middle{left:50%;transform:translate(-50%,-50%)}
+.fnr-args2{display:grid;gap:10px}
+.fnr-arg2{display:grid;gap:8px;align-content:start;padding:12px;border-radius:var(--fn-radius);background:var(--fn-card);box-shadow:inset 0 0 0 1px var(--fn-line)}
+.fnr-arg2 .em{font-size:2em;line-height:1;text-align:center}.fnr-arg2 .im{border-radius:calc(var(--fn-radius) - 4px);overflow:hidden;background:var(--fn-bg)}.fnr-arg2 .im img{width:100%;height:100%;object-fit:cover;display:block}
+.fnr-arg2 h3{font-size:1em!important}.fnr-arg2 p{font-size:.85em}
 .fnr-tests{display:grid;gap:10px}
 .fnr-test{padding:12px 14px;border-radius:var(--fn-radius);background:var(--fn-card);box-shadow:inset 0 0 0 1px var(--fn-line)}
 .fnr-test .hd{display:flex;align-items:center;gap:10px;margin-bottom:6px}
@@ -556,19 +697,28 @@ textarea.fnr-input{min-height:110px;resize:vertical}
 .fnr-ba .lb{position:absolute;top:8px;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;font-size:11px}.fnr-ba .lb.l{left:8px}.fnr-ba .lb.r{right:8px}
 .fnr-car{position:relative;overflow:hidden;border-radius:var(--fn-radius)}
 .fnr-car .tr{display:flex;transition:transform .45s ease}
-.fnr-car .it{flex:0 0 100%}.fnr-car .it img{display:block;width:100%;height:auto}
-.fnr-car .cap{padding:8px 4px 0;text-align:center;font-size:.82em}
+.fnr-car .it{flex:0 0 100%;padding:0 4px}.fnr-car.spoil .it{flex-basis:84%}.fnr-car .it img{display:block;width:100%;height:auto}
+.fnr-car .card{border-radius:var(--fn-radius);overflow:hidden;background:var(--fn-card);box-shadow:inset 0 0 0 1px var(--fn-line);height:100%}
+.fnr-car .card .im{background:var(--fn-bg)}.fnr-car .card .im img{height:100%;object-fit:cover}
+.fnr-car .cap{padding:8px 10px;text-align:center;font-size:.82em}
 .fnr-car .dots{display:flex;justify-content:center;gap:6px;padding-top:8px}.fnr-car .dots button{width:8px;height:8px;border-radius:50%;border:0;background:var(--fn-line);padding:0;cursor:pointer}.fnr-car .dots button.on{background:var(--fn-theme)}
-.fnr-chart .tt{font-weight:600;color:var(--fn-title);font-size:.9em;margin-bottom:10px;text-align:center}
-.fnr-chart .bars{display:flex;align-items:flex-end;gap:12px;height:160px;padding:0 6px;border-bottom:1px solid var(--fn-line)}
-.fnr-chart .bars div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px}
-.fnr-chart .bars i{display:block;width:100%;max-width:56px;border-radius:8px 8px 2px 2px;background:var(--fn-theme);transition:height .8s ease}
-.fnr-chart .bars div:not(:last-child) i{opacity:.45}
-.fnr-chart .bars span{font-size:.75em;color:var(--fn-title);font-weight:600}
-.fnr-chart .lbs{display:flex;gap:12px;padding:6px 6px 0}.fnr-chart .lbs span{flex:1;text-align:center;font-size:.72em;color:var(--fn-muted)}
-.fnr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
-.fnr-stat{display:grid;justify-items:center;gap:6px;text-align:center;padding:10px;border-radius:var(--fn-radius);background:var(--fn-card)}
-.fnr-stat svg{width:84px;height:84px}.fnr-stat span{font-size:.8em;color:var(--fn-title)}
+.fnr-chart2 .tt{font-weight:600;color:var(--fn-title);font-size:.9em;margin-bottom:8px;text-align:center}
+.fnr-chart2 svg{display:block;width:100%;height:auto;overflow:visible}
+.fnr-chart2 .xs{display:flex;justify-content:space-between;padding:4px 6% 0;font-size:.72em;color:var(--fn-muted)}
+.fnr-chart2 .lg{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;padding-top:8px;font-size:.75em;color:var(--fn-title)}
+.fnr-chart2 .lg span{display:inline-flex;align-items:center;gap:6px}.fnr-chart2 .lg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.fnr-graphics{display:grid;gap:10px}
+.fnr-graphic{display:grid;justify-items:center;align-content:start;gap:8px;text-align:center;padding:10px;border-radius:var(--fn-radius);background:var(--fn-card)}
+.fnr-graphic svg{width:84px;height:84px}.fnr-graphic .lg{font-size:.8em;color:var(--fn-title)}
+.fnr-graphic .gbar{position:relative;width:46px;height:120px;border-radius:10px;background:color-mix(in srgb,var(--fn-title) 12%,transparent);overflow:hidden;display:flex;align-items:flex-end}
+.fnr-graphic .gbar i{display:block;width:100%;border-radius:10px 10px 0 0;transition:height .8s ease}
+.fnr-graphic .gbar b{position:absolute;top:6px;left:0;right:0;text-align:center;font-size:.72em;color:var(--fn-title)}
+.fnr-vresp{border-radius:var(--fn-radius);overflow:hidden;background:#0a0a0a}
+.fnr-vresp .pad{padding:10px}.fnr-vresp .fnr-opt{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18)}
+.fnr-vresp .fnr-vhtml{position:absolute;inset:0}
+.fnr-opt .fnr-oemoji{flex:none;font-size:1.35em;line-height:1}
+.fnr-opt .fnr-oval{flex:none;min-width:24px;height:24px;padding:0 6px;border-radius:7px;display:grid;place-items:center;background:color-mix(in srgb,var(--fn-theme) 25%,transparent);font-size:.78em;font-weight:700}
+.fnr-opt.is-on .fnr-oval{background:var(--fn-theme);color:var(--fn-theme-ink)}
 .fnr-html{width:100%}
 .fnr-end{display:grid;place-items:center;text-align:center;gap:8px;padding:40px 0;color:var(--fn-title)}
 @media (prefers-reduced-motion:reduce){.fnr *{animation:none!important;transition:none!important}}
@@ -605,9 +755,83 @@ const isFileVideo = s => /\.(mp4|webm|ogg|mov)(\?|$)/i.test(s);
 const RATIO = {mobile: '9/16', portrait: '4/5', square: '1/1', landscape: '16/9', wide: '21/9'};
 function waveHeights(seed, n){ let x = 0; for (const ch of String(seed)) x = (x * 31 + ch.charCodeAt(0)) >>> 0; const out = []; for (let i = 0; i < n; i++) { x = (x * 1103515245 + 12345) >>> 0; out.push(25 + (x % 75)) } return out }
 const mmss = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0') };
-function ring(pct, label){
+function ring(pct, label, color){
   const r = 36, c = 2 * Math.PI * r, p = clamp(pct, 0, 100);
-  return `<svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--fn-line)" stroke-width="7"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--fn-theme)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="700" fill="var(--fn-title)">${esc(label)}</text></svg>`;
+  return `<svg viewBox="0 0 84 84"><circle cx="42" cy="42" r="${r}" fill="none" stroke="var(--fn-line)" stroke-width="7"/><circle cx="42" cy="42" r="${r}" fill="none" stroke="${color || 'var(--fn-theme)'}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - p / 100)}" transform="rotate(-90 42 42)"/><text x="42" y="47" text-anchor="middle" font-size="16" font-weight="700" fill="var(--fn-title)">${esc(label)}</text></svg>`;
+}
+
+/* ----- cores e peças dos componentes (paletas do InLead) ----- */
+const NAMED = {danger: '#fb2c36', info: '#2b7fff', success: '#17a34a', warning: '#ffb900', dark: '#0a0a0a', light: '#d1d5dc', black: '#0a0a0a', white: '#ffffff', red: '#fb2c36', blue: '#2b7fff', green: '#17a34a'};
+const tone = (hex, k, toward) => `color-mix(in srgb, ${hex} ${k}%, ${toward})`;
+function btnStyle(d){
+  if (d.style === 'custom') return `background:${esc(d.backgroundColor || 'var(--fn-theme)')};color:${esc(d.color || '#fff')};${d.borderColor ? `box-shadow:inset 0 0 0 ${num(d.borderWidth, 1)}px ${esc(d.borderColor)};` : ''}${d.borderRadiusStyle === 'custom' ? `border-radius:${esc(d.borderRadius || '8px')};` : ''}`;
+  if (d.style === 'transparent') return 'background:transparent;color:var(--fn-theme)';
+  const hex = NAMED[d.style]; if (!hex) return '';
+  return `background:${hex};color:${contrastText(hex)}`;
+}
+// Paleta suave (alerta, timer): fundo claro, texto escuro e borda do mesmo tom.
+function palette(style){
+  if (style === 'theme') return {bg: tone('var(--fn-theme)', 14, 'var(--fn-bg)'), ink: 'var(--fn-title)', line: tone('var(--fn-theme)', 40, 'var(--fn-bg)')};
+  if (style === 'black' || style === 'dark') return {bg: '#0a0a0a', ink: '#ffffff', line: '#0a0a0a'};
+  if (style === 'white') return {bg: '#ffffff', ink: '#111111', line: '#e5e7eb'};
+  const hex = NAMED[style] || NAMED.danger;
+  return {bg: tone(hex, 14, '#fff'), ink: tone(hex, 80, '#000'), line: tone(hex, 35, '#fff')};
+}
+const boxStyle = style => { const p = palette(style); return `background:${p.bg};color:${p.ink};border:1px solid ${p.line}` };
+// Cores do timer como no InLead (getTimerDefaultColors): [cor, tom do fundo, tom do texto, tom da borda]; qualquer outro estilo é preto.
+const SHADE = {50: ['#fff', 8], 100: ['#fff', 16], 200: ['#fff', 32], 600: ['#000', 82], 700: ['#000', 66]};
+const shade = (hex, n) => tone(hex, SHADE[n][1], SHADE[n][0]);
+const TIMER_COLORS = {danger: ['#fb2c36', 100, 600, 200], info: ['#2b7fff', 100, 600, 200], success: ['#09de5e', 100, 700, 200], warning: ['#ffb900', 50, 600, 100], light: ['#d1d5dc', 100, 700, 200]};
+function timerStyle(d){
+  d = Object.assign({style: 'black', padding: '10'}, d || {});
+  let bg = '#000000', ink = '#ffffff', line = '#000000';
+  if (d.style === 'custom') { bg = d.backgroundColor || bg; ink = d.color || ink; line = d.borderColor || line }
+  else if (d.style === 'theme') { bg = 'var(--fn-bg)'; ink = 'var(--fn-content)'; line = tone('var(--fn-content)', 18, 'var(--fn-bg)') }
+  else if (TIMER_COLORS[d.style]) { const [h, b, t, l] = TIMER_COLORS[d.style]; bg = shade(h, b); ink = shade(h, t); line = shade(h, l) }
+  return `--tmr-bg:${esc(bg)};--tmr-ink:${esc(ink)};--tmr-line:${esc(line)};--tmr-pad:${num(d.padding, 10)}px;--tmr-bw:${esc(d.borderWidth || '1px')}${d.borderRadiusStyle === 'custom' ? `;--tmr-radius:${esc(d.borderRadius || '8px')}` : ''}`;
+}
+function timeParts(secs){ const d = Math.floor(secs / 86400), h = Math.floor(secs % 86400 / 3600), m = Math.floor(secs % 3600 / 60), s = secs % 60; const p = n => String(n).padStart(2, '0'); return {days: p(d), hours: p(h), minutes: p(m), seconds: p(s)} }
+function timeTypes(secs){ const t = timeParts(secs); return t.days !== '00' ? ['days', 'hours', 'minutes', 'seconds'] : t.hours !== '00' ? ['hours', 'minutes', 'seconds'] : ['minutes', 'seconds'] }
+const UNIT = (k, t) => k === 'days' ? (t.days === '01' ? 'dia' : 'dias') : k === 'hours' ? (t.hours === '01' ? 'hora' : 'horas') : k === 'minutes' ? 'min' : 'seg';
+const timeText = secs => { const t = timeParts(secs); return timeTypes(secs).map(k => t[k]).join(':') };
+// Modelos do timer do InLead: countdown (caixas), cards (um cartão por dígito), banner (faixa) e hero (bloco com divisórias).
+function timerHtml(layout, secs){
+  const t = timeParts(secs), ks = timeTypes(secs);
+  if (layout === 'cards') return ks.map((k, i) => `<div class="grp"><div class="dg">${t[k].split('').map(ch => `<b class="bx">${ch}</b>`).join('')}</div><small>${UNIT(k, t)}</small></div>${i < ks.length - 1 ? '<span class="sep">:</span>' : ''}`).join('');
+  if (layout === 'banner') return `<div class="bn">${ks.map((k, i) => `<div class="cl"><b>${t[k]}</b><small>${UNIT(k, t)}</small></div>${i < ks.length - 1 ? '<span class="sp">:</span>' : ''}`).join('')}</div>`;
+  if (layout === 'hero') return `<div class="hero">${ks.map((k, i) => `<div class="hc"><b>${t[k]}</b><small>${UNIT(k, t)}</small></div>${i < ks.length - 1 ? '<i></i>' : ''}`).join('')}</div>`;
+  return ks.map((k, i) => `<div class="bx"><b>${t[k]}</b><small>${UNIT(k, t)}</small></div>${i < ks.length - 1 ? '<span class="sep">:</span>' : ''}`).join('');
+}
+const NTF = {white: ['#ffffff', '#111827'], light: ['#52525b', '#ffffff'], danger: ['#fb2c36', '#ffffff'], info: ['#2b7fff', '#ffffff'], success: ['#00c950', '#ffffff'], warning: ['#ffb900', '#111827']};
+function ntfStyle(style){ if (style === 'theme') return 'background:var(--fn-theme);color:var(--fn-theme-ink)'; const p = NTF[style] || NTF.white; return `background:${p[0]};color:${p[1]}` }
+// Notificação: @1, @2, @3 viram o n-ésimo valor de cada lista.
+function notifText(c, n){
+  const sub = t => (c.variables || []).reduce((acc, v, k) => acc.split(`@${k + 1}`).join((v.values || [])[n] || ''), String(t || ''));
+  return {title: sub(c.title), text: sub(c.text)};
+}
+function chartHtml(c, d, X){
+  const xs = c.xAxis || [], ds = (c.datasets || []).slice(0, Math.max(1, num(c.datasetCount, (c.datasets || []).length) || 1));
+  const vals = ds.flatMap(s => (s.datas || []).map(v => num(interpolate(String(v.value), X, {fmt: String}))));
+  const max = Math.max(1, ...vals), cols = ['var(--fn-theme)', tone('var(--fn-theme)', 55, 'var(--fn-bg)'), tone('var(--fn-title)', 35, 'var(--fn-bg)')];
+  const W = 300, H = 150, pad = 18, n = Math.max(1, xs.length || (ds[0] && ds[0].datas || []).length);
+  const xAt = i => n === 1 ? W / 2 : pad + i * (W - 2 * pad) / (n - 1), yAt = v => H - pad - (v / max) * (H - 2 * pad);
+  let body = '';
+  if (c.type === 'pie') {
+    const data = (ds[0] && ds[0].datas || []).map(v => num(v.value)), tot = data.reduce((a, b) => a + b, 0) || 1; let ang = -Math.PI / 2;
+    body = data.map((v, i) => { const a2 = ang + v / tot * 2 * Math.PI, large = a2 - ang > Math.PI ? 1 : 0, r = 60, cx = W / 2, cy = H / 2; const p = `M${cx},${cy} L${cx + r * Math.cos(ang)},${cy + r * Math.sin(ang)} A${r},${r} 0 ${large} 1 ${cx + r * Math.cos(a2)},${cy + r * Math.sin(a2)} Z`; ang = a2; return `<path d="${p}" fill="${i ? tone('var(--fn-theme)', Math.max(25, 100 - i * 25), 'var(--fn-bg)') : 'var(--fn-theme)'}" stroke="var(--fn-bg)" stroke-width="2"/>` }).join('');
+  } else if (c.type === 'bar') {
+    const bw = (W - 2 * pad) / n / Math.max(1, ds.length) * 0.7;
+    body = ds.map((s, si) => (s.datas || []).map((v, i) => { const val = num(v.value), x = pad + i * (W - 2 * pad) / n + si * bw + bw * 0.2, y = yAt(val); return `<rect x="${x}" y="${y}" width="${bw}" height="${H - pad - y}" rx="3" fill="${cols[si % 3]}"/>` }).join('')).join('');
+  } else {
+    body = ds.map((s, si) => { const pts = (s.datas || []).map((v, i) => [xAt(i), yAt(num(v.value))]); if (!pts.length) return ''; const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0] + ',' + p[1]).join(' ');
+      const area = d.area !== false ? `<path d="${line} L${pts[pts.length - 1][0]},${H - pad} L${pts[0][0]},${H - pad} Z" fill="${cols[si % 3]}" opacity=".12"/>` : '';
+      const dots = (s.datas || []).map((v, i) => v.hiddenDot ? '' : `<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="${v.featured ? 5 : 3}" fill="${cols[si % 3]}" stroke="var(--fn-bg)" stroke-width="2"/>${v.tooltip ? `<text x="${pts[i][0]}" y="${pts[i][1] - 10}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--fn-title)">${esc(v.tooltip)}</text>` : ''}`).join('');
+      return `${area}<path d="${line}" fill="none" stroke="${cols[si % 3]}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>${dots}` }).join('');
+  }
+  const grid = d.gridY !== false && c.type !== 'pie' ? [0.25, 0.5, 0.75].map(k => `<line x1="${pad}" x2="${W - pad}" y1="${pad + k * (H - 2 * pad)}" y2="${pad + k * (H - 2 * pad)}" stroke="var(--fn-line)"/>`).join('') : '';
+  const axis = d.axisX !== false && c.type !== 'pie' ? `<line x1="${pad}" x2="${W - pad}" y1="${H - pad}" y2="${H - pad}" stroke="var(--fn-line)"/>` : '';
+  const legend = ds.length > 1 || c.type === 'pie' ? `<div class="lg">${(c.type === 'pie' ? xs : ds.map(s => s.title)).map((t, i) => `<span><i style="background:${c.type === 'pie' ? (i ? tone('var(--fn-theme)', Math.max(25, 100 - i * 25), 'var(--fn-bg)') : 'var(--fn-theme)') : cols[i % 3]}"></i>${esc(t || '')}</span>`).join('')}</div>` : '';
+  return `<div class="fnr-chart2">${c.title ? `<div class="tt">${esc(interpolate(c.title, X))}</div>` : ''}<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico">${grid}${axis}${body}</svg>${c.type !== 'pie' && xs.length ? `<div class="xs">${xs.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : ''}${legend}</div>`;
 }
 
 /* ================= montagem ================= */
@@ -616,13 +840,13 @@ function mount(el, funnel, opts){
   opts = Object.assign({mode: 'live'}, opts || {});
   const R = {
     el, funnel, opts,
-    answers: opts.answers ? clone(opts.answers) : {},
+    answers: opts.answers ? clone(opts.answers) : {}, clicks: {},
     history: [], index: 0, timers: [], destroyed: false, busy: false,
     params: opts.params || paramsFromUrl(),
   };
   const mode = opts.mode, live = mode === 'live', edit = mode === 'edit';
-  const ctx = () => ({answers: R.answers, params: R.params});
-  const emit = (type, data) => { try { opts.onEvent && opts.onEvent(Object.assign({type, at: Date.now()}, data || {})) } catch (e) { console.error(e) } };
+  const ctx = () => ({answers: R.answers, params: R.params, clicks: R.clicks, screen: typeof screen !== 'undefined' ? screen.width + 'x' + screen.height : '', platform: typeof navigator !== 'undefined' ? navigator.platform || '' : ''});
+  const emit = (type, data) => { try { opts.onEvent && opts.onEvent(Object.assign({type, at: Date.now(), vars: buildVars(ctx())}, data || {})) } catch (e) { console.error(e) } };
 
   function paramsFromUrl(){ const o = {}; try { new URLSearchParams(location.search).forEach((v, k) => { o[k] = v }) } catch (e) {} return o }
   function clearTimers(){ R.timers.forEach(t => { clearInterval(t); clearTimeout(t) }); R.timers = [] }
@@ -639,12 +863,14 @@ function mount(el, funnel, opts){
     if (live || mode === 'preview') emit('answer', {step: step.id, stepIndex: R.index, layer: layer.id, answer: R.answers[layer.id]});
   }
   function optionAnswer(layer, ids){
-    const os = (layer.content.options || []).filter(o => ids.includes(o.id));
+    const all = layer.content.options || [], os = all.filter(o => ids.includes(o.id));
     const multiple = !!layer.content.multiple;
     if (!os.length) return null;
+    const val = o => o.value != null && o.value !== '' ? String(o.value) : plainLabel(o.label);
+    const responses = all.map(o => ids.includes(o.id) ? (o.value != null && o.value !== '' ? String(o.value) : o.score != null ? String(o.score) : plainLabel(o.label)) : '*').join('|');
     return multiple
-      ? {value: os.map(o => o.value != null && o.value !== '' ? String(o.value) : plainLabel(o.label)), label: os.map(o => plainLabel(o.label)).join(', '), labels: os.map(o => plainLabel(o.label)), score: os.reduce((t, o) => t + num(o.score), 0), ids}
-      : {value: os[0].value != null && os[0].value !== '' ? String(os[0].value) : plainLabel(os[0].label), label: plainLabel(os[0].label), score: num(os[0].score), ids};
+      ? {value: os.map(val), label: os.map(o => plainLabel(o.label)).join(', '), labels: os.map(o => plainLabel(o.label)), score: os.reduce((t, o) => t + num(o.score), 0), ids, responses}
+      : {value: val(os[0]), label: plainLabel(os[0].label), score: num(os[0].score), ids, responses};
   }
 
   /* ----- renderização de cada componente ----- */
@@ -682,7 +908,7 @@ function mount(el, funnel, opts){
       }
       case 'button': {
         const st = d.style || 'theme';
-        return `<button type="button" class="fnr-btn st-${esc(st)}${c.pulse ? ' is-pulse' : ''}" data-act="button">${esc(interpolate(c.label || 'Continuar', X))}</button>`;
+        return `<button type="button" class="fnr-btn st-${esc(st)}${c.pulse ? ' is-pulse' : ''}" data-act="button" style="${btnStyle(d)}">${interpolate(c.label || 'Continuar', X, {html: true})}</button>`;
       }
       case 'options': return renderOptions(layer, step);
       case 'field': return renderField(layer, step);
@@ -698,9 +924,11 @@ function mount(el, funnel, opts){
         </div>`;
       }
       case 'timer': {
-        const secs = Math.max(0, num(c.time, 300));
-        if ((d.layout || 'boxes') === 'text') return `<div class="fnr-timerbar st-${esc(d.style || 'danger')} fnr-rich" data-timer="${secs}">${rich(String(c.text || '[time]').replace('[time]', `<b data-tt>${mmss(secs)}</b>`), X)}</div>`;
-        return `<div class="fnr-timer st-${esc(d.style || 'danger')}" data-timer="${secs}"><div class="bx"><b data-tm>${String(Math.floor(secs / 60)).padStart(2, '0')}</b><small>min</small></div><span class="sep">:</span><div class="bx"><b data-ts>${String(secs % 60).padStart(2, '0')}</b><small>seg</small></div></div>`;
+        const st = timerStyle(d), lay = d.layout || 'countdown', secs = Math.max(0, num(c.time, 300));
+        const target = c.basedOn === 'date' && c.date ? new Date(c.date).getTime() : 0;
+        const attrs = `data-timer="${secs}" data-tlayout="${esc(lay)}"${target ? ` data-tdate="${target}"` : ''}`;
+        if (lay === 'text') return `<div class="fnr-timerbar fnr-rich" style="${st}" ${attrs} data-ttext="${esc(c.text || '[time]')}">${rich(String(c.text || '[time]').replace('[time]', `<span data-tt>${timeText(secs)}</span>`), X)}</div>`;
+        return `<div class="fnr-timer ly-${esc(lay)}" style="${st}" ${attrs}>${timerHtml(lay, target ? Math.max(0, Math.round((target - Date.now()) / 1000)) : secs)}</div>`;
       }
       case 'loading': {
         const start = clamp(num(c.starts, 0), 0, 100), show = edit ? 60 : start;
@@ -709,37 +937,66 @@ function mount(el, funnel, opts){
       }
       case 'price': {
         const v = String(interpolate(c.value || '', X)); const m = /^(R\$|US\$|\$|€)\s*(.*)$/.exec(v.trim());
+        const hex = NAMED[d.style], ft = hex ? ` style="background:${hex};color:${contrastText(hex)}"` : '';
         return `<div class="fnr-price st-${esc(d.style || 'theme')}${c.redirect ? ' clickable' : ''}" data-act="${c.redirect ? 'price' : ''}">
-          ${c.featured ? `<div class="ft">${esc(interpolate(c.featured, X))}</div>` : ''}
+          ${c.featured ? `<div class="ft"${ft}>${esc(interpolate(c.featured, X))}</div>` : ''}
           <div class="bd"><div class="ti fnr-rich">${rich(c.title, X)}</div><div class="vl">${c.before ? `<small>${esc(interpolate(c.before, X))}</small>` : ''}<b>${m ? `<span>${esc(m[1])}</span>${esc(m[2])}` : esc(v)}</b>${c.after ? `<small>${esc(interpolate(c.after, X))}</small>` : ''}</div></div>
         </div>`;
       }
       case 'faq': return `<div class="fnr-faq">${(c.questions || []).map((q, i) => `<details${(c.firstQuestionOpened && i === 0) || (edit && opts.faqOpen) ? ' open' : ''}><summary><span>${esc(interpolate(q.question, X))}</span>${ICON.chev}</summary><div class="an fnr-rich">${rich(q.answer, X)}</div></details>`).join('')}</div>`;
       case 'clear': return `<div style="height:${esc(twSize(c.clear, '1rem'))}"></div>`;
       case 'alert': {
-        const st = d.style || 'warning', ic = c.icon || {warning: '⚠️', danger: '🚨', info: 'ℹ️', success: '✅', theme: '🔔'}[st] || '⚠️';
-        return `<div class="fnr-alert st-${esc(st)}"><span class="ic">${esc(ic)}</span><div>${c.title ? `<b>${esc(interpolate(c.title, X))}</b>` : ''}<div class="fnr-rich" style="color:inherit">${rich(c.text, X)}</div></div></div>`;
+        const st = boxStyle(d.style || 'danger');
+        const ic = c.icon && typeof c.icon === 'object' ? c.icon.value : c.icon;
+        const icon = ic ? (c.icon && c.icon.type === 'icon' ? ({'triangle-alert': '⚠️', info: 'ℹ️', 'circle-check': '✅', 'circle-x': '⛔', bell: '🔔'}[ic] || '⚠️') : ic) : '';
+        return `<div class="fnr-alert" style="${st};padding:${num(d.padding, 16)}px;border-width:${num(d.borderWidth, 1)}px">${icon ? `<span class="ic">${esc(icon)}</span>` : ''}<div>${c.title ? `<b class="ttl">${esc(interpolate(c.title, X))}</b>` : ''}<div class="fnr-rich" style="color:inherit">${rich(c.text, X)}</div></div></div>`;
       }
-      case 'arguments': return `<div class="fnr-args" style="grid-template-columns:repeat(${gridCols(d.grid)},minmax(0,1fr))">${(c.items || []).map(a => `<div class="fnr-arg"><span class="ic">${esc(a.icon || '•')}</span><div><b>${esc(interpolate(a.title || '', X))}</b><span>${esc(interpolate(a.text || '', X))}</span></div></div>`).join('')}</div>`;
-      case 'testimonials': return `<div class="fnr-tests">${(c.items || []).map(t => `<div class="fnr-test"><div class="hd"><span class="av">${t.image ? `<img src="${esc(t.image)}" alt="">` : esc(String(t.name || '?').slice(0, 1))}</span><div><b>${esc(t.name || '')}</b>${t.handle ? `<small>${esc(t.handle)}</small>` : ''}</div>${t.stars ? `<span class="st">${'★'.repeat(clamp(num(t.stars, 5), 1, 5))}</span>` : ''}</div><p>${esc(t.text || '')}</p></div>`).join('')}</div>`;
-      case 'checklist': return `<div class="fnr-check">${(c.items || []).map(t => `<div><i>${esc(t.icon || d.icon || '✅')}</i><span>${esc(interpolate(t.text || '', X))}</span></div>`).join('')}</div>`;
-      case 'beforeafter': {
-        const b = c.before && c.before.src, a = c.after && c.after.src;
+      case 'notification': {
+        const pos = c.position || 'default';
+        const first = notifText(c, 0);
+        return `<div class="fnr-ntf-wrap ps-${esc(pos)}" data-ntf><div class="fnr-ntf" style="${ntfStyle(d.style)}"${edit ? '' : ' hidden'}><div class="t fnr-rich" style="color:inherit">${rich(first.title, X)}</div><div class="x fnr-rich" style="color:inherit">${rich(first.text, X)}</div><i class="bar"></i></div>${edit && pos !== 'default' ? `<span class="fnr-ph" style="min-height:0;padding:4px 8px;margin-top:4px">fixa: ${esc(pos)}</span>` : ''}</div>`;
+      }
+      case 'arguments': {
+        const items = c.arguments || c.items || [];
+        const cols = gridCols(c.cols || d.gridCols || d.grid || 'grid-cols-2');
+        const aspect = (/aspect-\[([^\]]+)\]/.exec(d.aspectImage || '') || [])[1] || '1/1';
+        return `<div class="fnr-args2" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">${items.map(a => `<div class="fnr-arg2">${a.image && a.image.src ? (a.image.type === 'emoji' ? `<div class="em">${esc(a.image.src)}</div>` : `<div class="im" style="aspect-ratio:${aspect}"><img src="${esc(a.image.src)}" alt="" loading="lazy"></div>`) : ''}<div class="fnr-rich">${a.text != null ? rich(a.text, X) : `<h3>${esc(interpolate(a.title || '', X))}</h3><p>${esc(interpolate(a.text || '', X))}</p>`}</div></div>`).join('')}</div>`;
+      }
+      case 'quotes': {
+        const qs = c.quotes || [];
+        const card = t => `<div class="fnr-test"><div class="hd"><span class="av">${t.image && t.image.src ? `<img src="${esc(t.image.src)}" alt="">` : esc(String(t.name || '?').slice(0, 1))}</span><div><b>${esc(t.name || '')}</b>${t.activity ? `<small>${esc(t.activity)}</small>` : ''}</div>${t.rate ? `<span class="st">${'★'.repeat(clamp(num(t.rate, 5), 1, 5))}</span>` : ''}</div><div class="fnr-rich" style="font-size:.85em">${rich(t.text, X)}</div></div>`;
+        if (c.layout === 'slide' && !edit && qs.length > 1) return `<div class="fnr-car" data-car="1"><div class="tr">${qs.map(t => `<div class="it" style="padding:0 2px">${card(t)}</div>`).join('')}</div></div>`;
+        return `<div class="fnr-tests" style="${c.layout === 'grid' ? 'grid-template-columns:1fr 1fr' : ''}">${qs.map(card).join('')}</div>`;
+      }
+      case 'checklist': return `<div class="fnr-check">${(c.items || []).map(t => { const ic = t.icon && typeof t.icon === 'object' ? t.icon.value : (t.icon || d.icon || '✅'); return `<div><i>${esc(ic || '✅')}</i><span class="fnr-rich" style="color:inherit">${rich(t.text || '', X)}</span></div>` }).join('')}</div>`;
+      case 'compare': {
+        const b = c.first_image && c.first_image.src, a = c.secondary_image && c.secondary_image.src;
         if (!b || !a) return edit ? '<div class="fnr-ph">Antes/Depois — escolha as duas imagens</div>' : '';
-        return `<div class="fnr-ba" data-ba><img src="${esc(b)}" alt="${esc(c.beforeLabel || 'Antes')}"><div class="af"><img src="${esc(a)}" alt="${esc(c.afterLabel || 'Depois')}"></div><span class="lb l">${esc(c.beforeLabel || 'Antes')}</span><span class="lb r">${esc(c.afterLabel || 'Depois')}</span><span class="hn"></span></div>`;
+        const ratio = {square: '1/1', video: '16/9', portrait: '3/4', mobile: '9/16'}[d.ratio] || '1/1';
+        return `<div class="fnr-ba" data-ba style="aspect-ratio:${ratio}"><img src="${esc(b)}" alt="${esc(c.first_label || 'Antes')}" style="height:100%;object-fit:cover"><div class="af"><img src="${esc(a)}" alt="${esc(c.secondary_label || 'Depois')}"></div>${c.first_label !== '' ? `<span class="lb l">${esc(c.first_label || 'Antes')}</span>` : ''}${c.secondary_label !== '' ? `<span class="lb r">${esc(c.secondary_label || 'Depois')}</span>` : ''}<span class="hn"></span></div>`;
       }
       case 'carousel': {
-        const items = (c.items || []).filter(i => i.image && i.image.src);
+        const items = (c.items || []).filter(i => (i.image && i.image.src) || i.text || i.caption);
         if (!items.length) return edit ? '<div class="fnr-ph">Carrossel — adicione imagens</div>' : '';
-        return `<div class="fnr-car" data-car="${d.autoplay === false ? 0 : 1}"><div class="tr">${items.map(i => `<div class="it"><img src="${esc(i.image.src)}" alt="" loading="lazy">${i.caption ? `<div class="cap">${esc(i.caption)}</div>` : ''}</div>`).join('')}</div>${items.length > 1 ? `<div class="dots">${items.map((_, k) => `<button type="button" data-dot="${k}"${k ? '' : ' class="on"'} aria-label="Imagem ${k + 1}"></button>`).join('')}</div>` : ''}</div>`;
+        const aspect = (/aspect-\[([^\]]+)\]/.exec(d.aspectImage || '') || [])[1] || '1/1';
+        const layout = c.layout || d.layout || 'image_text';
+        return `<div class="fnr-car${c.spoiler ? ' spoil' : ''}" data-car="${c.autoplay === false || d.autoplay === false ? 0 : 1}"><div class="tr">${items.map(i => `<div class="it"><div class="card">${i.image && i.image.src ? `<div class="im" style="aspect-ratio:${aspect}"><img src="${esc(i.image.src)}" alt="" loading="lazy"></div>` : ''}${layout !== 'image' && (i.text || i.caption) ? `<div class="cap fnr-rich">${i.text != null ? rich(i.text, X) : esc(i.caption)}</div>` : ''}</div></div>`).join('')}</div>${items.length > 1 && c.pagination !== false ? `<div class="dots">${items.map((_, k) => `<button type="button" data-dot="${k}"${k ? '' : ' class="on"'} aria-label="Item ${k + 1}"></button>`).join('')}</div>` : ''}</div>`;
       }
-      case 'chart': {
-        const items = (c.items || []).map(i => ({label: i.label, v: num(interpolate(String(i.value), X, {fmt: v => String(v)}))}));
-        const max = Math.max(1, ...items.map(i => i.v));
-        return `<div class="fnr-chart">${c.title ? `<div class="tt">${esc(interpolate(c.title, X))}</div>` : ''}<div class="bars">${items.map(i => `<div><span>${fmtNum(i.v)}${esc(c.suffix || '')}</span><i style="height:${edit ? (i.v / max) * 100 : 0}%" data-h="${(i.v / max) * 100}"></i></div>`).join('')}</div><div class="lbs">${items.map(i => `<span>${esc(i.label || '')}</span>`).join('')}</div></div>`;
+      case 'graphics': {
+        const gs = c.graphics || [];
+        return `<div class="fnr-graphics" style="grid-template-columns:repeat(${gridCols(c.cols || 'grid-cols-2')},minmax(0,1fr))">${gs.map(g => {
+          const p = clamp(num(interpolate(String(g.percent == null ? 0 : g.percent), X, {fmt: String})), 0, 100), col = g.style && g.style !== 'theme' ? (NAMED[g.style] || g.style) : 'var(--fn-theme)';
+          const viz = g.type === 'circle' || g.type === 'pie' ? ring(p, Math.round(p) + '%', col) : `<div class="gbar"><i style="height:${edit ? p : 0}%;background:${esc(col)}" data-h="${p}"></i><b>${Math.round(p)}%</b></div>`;
+          return `<div class="fnr-graphic">${viz}<div class="fnr-rich lg">${rich(g.legend || '', X)}</div></div>`;
+        }).join('')}</div>`;
       }
-      case 'stats': return `<div class="fnr-stats">${(c.items || []).map(s => { const v = num(interpolate(String(s.value), X, {fmt: v => String(v)})); return `<div class="fnr-stat">${ring(s.suffix === '%' ? v : clamp(v, 0, 100), fmtNum(v) + (s.suffix || ''))}<span>${esc(s.label || '')}</span></div>` }).join('')}</div>`;
-      case 'html': return edit ? `<div class="fnr-ph">HTML/Script<br><small>${esc(String(c.html || '').slice(0, 80))}</small></div>` : `<div class="fnr-html" data-html></div>`;
+      case 'charts': return chartHtml(c, d, X);
+      case 'script': case 'html': {
+        const code = c.script != null ? c.script : c.html;
+        return edit ? `<div class="fnr-ph">HTML/Script<br><small>${esc(String(code || '').slice(0, 80))}</small></div>` : `<div class="fnr-html" data-html></div>`;
+      }
+      case 'date': case 'height': case 'weight': return renderField(layer, step);
+      case 'group': return '';
       default: return edit ? `<div class="fnr-ph">Componente “${esc(layer.type)}”</div>` : '';
     }
   }
@@ -747,26 +1004,39 @@ function mount(el, funnel, opts){
   function renderOptions(layer, step){
     const c = layer.content, d = layer.design || {};
     const sel = (R.answers[layer.id] && R.answers[layer.id].ids) || [];
-    const imgs = (c.options || []).some(o => o.image && (o.image.src || o.image.src === ''));
+    const imgs = (c.options || []).some(o => o.image && o.image.type !== 'emoji' && typeof o.image.src === 'string');
     const icon = d.icon || 'select', multiple = !!c.multiple;
     const aspect = (/aspect-\[([^\]]+)\]/.exec(d.aspectImage || '') || [])[1] || '1/1';
     let list = (c.options || []).slice();
-    if (d.order === 'random' && !edit) { list = list.map(o => [Math.random(), o]).sort((a, b) => a[0] - b[0]).map(x => x[1]) }
-    const cls = ['fnr-opts', 'ip-' + (d.iconPosition || 'end'), d.background === 'transparent' ? 'bg-transparent' : d.background === 'solid' ? 'bg-solid' : '', d.shadow && d.shadow !== 'shadow-none' ? 'sh' : '', imgs ? 'has-img' : '', d.align === 'center' ? 'center' : ''].filter(Boolean).join(' ');
-    const style = `grid-template-columns:repeat(${gridCols(d.grid)},minmax(0,1fr));--fn-ogap:${twSize(d.gap, '.5rem')};--fn-obw:${twSize(d.border, '2px')}`;
-    const intro = c.introType === 'text' && c.introduction ? `<div class="fnr-rich" style="margin-bottom:10px">${rich(c.introduction, ctx())}</div>` : '';
-    return intro + `<div class="${cls}" style="${style}" role="${multiple ? 'group' : 'radiogroup'}">${list.map(o => {
+    if ((d.order || c.order) === 'random' && !edit) { list = list.map(o => [Math.random(), o]).sort((a, b) => a[0] - b[0]).map(x => x[1]) }
+    if ((d.order || c.order) === 'reverse') list.reverse();
+    const video = c.introType === 'video';
+    const cls = ['fnr-opts', 'ip-' + (d.iconPosition || 'end'), d.background === 'transparent' ? 'bg-transparent' : d.background === 'solid' ? 'bg-solid' : '', d.shadow && d.shadow !== 'shadow-none' ? 'sh' : '', imgs ? 'has-img' : '', d.align === 'center' ? 'center' : '', video ? 'on-video' : ''].filter(Boolean).join(' ');
+    const style = `grid-template-columns:repeat(${gridCols(d.grid || c.cols)},minmax(0,1fr));--fn-ogap:${twSize(d.gap, '.5rem')};--fn-obw:${twSize(d.border, '2px')}`;
+    let intro = '';
+    if (c.introType === 'text' && c.introduction) intro = `<div class="fnr-rich" style="margin-bottom:10px">${rich(c.introduction, ctx())}</div>`;
+    const opts = `<div class="${cls}" style="${style}" role="${multiple ? 'group' : 'radiogroup'}">${list.map(o => {
       const on = sel.includes(o.id);
-      const ic = icon === 'none' ? '' : icon === 'arrow' ? `<span class="fnr-oarrow">${ICON.arrow}</span>` : `<span class="fnr-oico${multiple || icon === 'checkbox' ? ' sq' : ''}"></span>`;
+      const value = o.value != null && o.value !== '' ? o.value : '';
+      const ic = icon === 'none' ? '' : icon === 'arrow' ? `<span class="fnr-oarrow">${ICON.arrow}</span>` : icon === 'value' ? `<span class="fnr-oval">${esc(value || '•')}</span>` : `<span class="fnr-oico${multiple || icon === 'checkbox' ? ' sq' : ''}"></span>`;
+      const emoji = o.image && o.image.type === 'emoji' && o.image.src ? `<span class="fnr-oemoji">${esc(o.image.src)}</span>` : '';
       const im = imgs ? `<div class="fnr-oimg" style="aspect-ratio:${aspect}">${o.image && o.image.src ? `<img src="${esc(o.image.src)}" alt="" loading="lazy">` : (edit ? '<div class="fnr-ph" style="min-height:0;height:100%;border:0">Imagem</div>' : '')}</div>` : '';
-      return `<button type="button" class="fnr-opt${on ? ' is-on' : ''}" data-act="opt" data-oid="${esc(o.id)}" aria-pressed="${on}">${im}<span class="fnr-olabel fnr-rich" style="color:inherit">${rich(o.label, ctx())}</span>${ic}</button>`;
+      return `<button type="button" class="fnr-opt${on ? ' is-on' : ''}" data-act="opt" data-oid="${esc(o.id)}" aria-pressed="${on}">${im}${emoji}<span class="fnr-olabel fnr-rich" style="color:inherit">${rich(o.label, ctx())}</span>${ic}</button>`;
     }).join('')}</div>`;
+    // Vídeo resposta: o vídeo (código de incorporação) em cima e as opções embaixo, num bloco escuro.
+    if (video) {
+      const ratio = {video: '16/9', mobile: '9/16', square: '1/1', portrait: '3/4'}[c.aspectRatio || 'video'] || '16/9';
+      const src = videoSrc(c.introduction || '');
+      const player = edit ? `<div class="fnr-ph" style="position:absolute;inset:0;border:0;color:#fff">▶ Vídeo resposta</div>` : src ? `<iframe src="${esc(src)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>` : `<div class="fnr-vhtml" data-vhtml></div>`;
+      return `<div class="fnr-vresp"><div class="fnr-video" style="aspect-ratio:${ratio};border-radius:0">${player}</div><div class="pad">${opts}</div></div>`;
+    }
+    return intro + opts;
   }
   function renderField(layer){
     const c = layer.content, a = R.answers[layer.id];
     const val = a ? displayValue(a.value) : '';
-    const type = c.type || 'text';
-    const label = c.title ? `<label for="f-${esc(layer.id)}">${esc(interpolate(c.title, ctx()))}${c.required ? '' : ' <span style="opacity:.6">(opcional)</span>'}</label>` : '';
+    const type = layer.type === 'height' || layer.type === 'weight' || layer.type === 'date' ? layer.type : (c.type || 'text');
+    const label = c.title ? `<label for="f-${esc(layer.id)}">${esc(interpolate(c.title, ctx()))}${c.required === false ? ' <span style="opacity:.6">(opcional)</span>' : ''}</label>` : '';
     if (type === 'height' || type === 'weight') {
       const min = num(c.min, type === 'height' ? 140 : 40), max = num(c.max, type === 'height' ? 220 : 250);
       const v = a ? num(a.value) : num(c.value, Math.round((min + max) / 2));
@@ -778,13 +1048,15 @@ function mount(el, funnel, opts){
     else {
       const t = {email: 'email', phone: 'tel', number: 'number', date: 'date'}[type] || 'text';
       const ac = {email: 'email', phone: 'tel', text: /nome|name/i.test(c.title || '') ? 'name' : 'on'}[type] || 'on';
-      input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}" ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
+      const minDate = type === 'date' && c.disablePast ? ` min="${new Date().toISOString().slice(0, 10)}"` : '';
+      input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}"${minDate} ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
     }
     return `<div class="fnr-field">${label}${input}<div class="fnr-err"></div></div>`;
   }
 
   /* ----- etapa ----- */
-  function visibleLayers(step){ return (step.layers || []).filter(l => edit || evalRoles(l.roles, ctx())) }
+  // Camadas arquivadas não aparecem; nomes antigos de componentes viram os do InLead.
+  function visibleLayers(step){ return (step.layers || []).filter(l => l && !l.archived).map(normalizeLayer).filter(l => edit || evalRoles(l.roles, ctx())) }
   function render(){
     if (R.destroyed) return;
     clearTimers();
@@ -795,7 +1067,9 @@ function mount(el, funnel, opts){
     root.className = 'fnr' + (edit ? ' fnr-edit' : '') + ' fnr-' + mode;
     for (const k in vars) root.style.setProperty(k, vars[k]);
     if (!step) { root.innerHTML = '<div class="fnr-page"><div class="fnr-end"><b>Funil sem etapas</b></div></div>'; el.appendChild(root); return }
-    const ss = Object.assign({showLogo: true, showProgress: true, showBack: true}, step.settings || {});
+    // Cabeçalho da etapa: step.options do InLead (show_logo, show_progress, show_back) e step.settings deste app.
+    const so = step.options || {};
+    const ss = Object.assign({showLogo: so.show_logo !== false, showProgress: so.show_progress !== false, showBack: so.show_back !== false, backLabel: so.back_label || ''}, step.settings || {});
     const total = f.steps.length, pct = total ? Math.round(((R.index + 1) / total) * 100) : 0;
     const bg = d.background || {};
     let bgx = '';
@@ -819,6 +1093,8 @@ function mount(el, funnel, opts){
     R.root = root;
     afterRender(step, layers);
     if (ss.scrollTop !== false && !edit) try { (opts.scrollEl || window).scrollTo({top: 0}) } catch (e) {}
+    // Script da etapa (InLead: step.script), só na página publicada.
+    if (live && step.script) { const box = doc.createElement('div'); box.hidden = true; box.innerHTML = String(step.script); root.appendChild(box); box.querySelectorAll('script').forEach(old => { const sc = doc.createElement('script'); for (const a of old.attributes) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; old.replaceWith(sc) }) }
   }
 
   /* ----- comportamentos depois de desenhar ----- */
@@ -832,33 +1108,43 @@ function mount(el, funnel, opts){
     root.addEventListener('click', onClick);
     root.addEventListener('input', onInput);
     root.addEventListener('change', onChange);
-    // HTML/Script: insere e executa os <script>
-    root.querySelectorAll('[data-html]').forEach(box => {
-      const lid = box.closest('.fnr-l').dataset.lid, layer = step.layers.find(l => l.id === lid);
-      box.innerHTML = String(layer.content.html || '');
-      box.querySelectorAll('script').forEach(old => { const s = doc.createElement('script'); for (const a of old.attributes) s.setAttribute(a.name, a.value); s.textContent = old.textContent; old.replaceWith(s) });
-    });
+    // HTML/Script e vídeo resposta com código de incorporação: insere e executa os <script>
+    const runHtml = (box, html) => { box.innerHTML = String(html || ''); box.querySelectorAll('script').forEach(old => { const sc = doc.createElement('script'); for (const a of old.attributes) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; old.replaceWith(sc) }) };
+    root.querySelectorAll('[data-html]').forEach(box => { const lid = box.closest('.fnr-l').dataset.lid, layer = step.layers.find(l => l.id === lid); if (layer) runHtml(box, layer.content.script != null ? layer.content.script : layer.content.html) });
+    root.querySelectorAll('[data-vhtml]').forEach(box => { const lid = box.closest('.fnr-l').dataset.lid, layer = step.layers.find(l => l.id === lid); if (layer) runHtml(box, layer.content.introduction) });
     // animações de barras
     requestAnimationFrame(() => setTimeout(() => {
       root.querySelectorAll('.fnr-metric .bar i[data-w]').forEach(i => i.style.width = i.dataset.w + '%');
       root.querySelectorAll('.fnr-metric .bar b[data-l]').forEach(b => b.style.left = b.dataset.l + '%');
-      root.querySelectorAll('.fnr-chart .bars i[data-h]').forEach(i => i.style.height = i.dataset.h + '%');
+      root.querySelectorAll('.fnr-graphic .gbar i[data-h]').forEach(i => i.style.height = i.dataset.h + '%');
     }, 60));
-    // timers
+    // timers, como no InLead: por tempo, recomeça cada vez que a etapa abre; por data, conta até a data escolhida
     root.querySelectorAll('[data-timer]').forEach(t => {
-      const lid = t.closest('.fnr-l').dataset.lid, total = num(t.dataset.timer, 300);
-      const key = 'fnr-timer:' + (R.funnel.slug || R.funnel.id || '') + ':' + lid;
-      let end = 0;
-      try { end = live ? num(sessionStorage.getItem(key)) : 0 } catch (e) {}
-      if (!end || end < Date.now() - 864e5) { end = Date.now() + total * 1000; try { live && sessionStorage.setItem(key, String(end)) } catch (e) {} }
+      const total = num(t.dataset.timer, 300), lay = t.dataset.tlayout || 'countdown';
+      const end = num(t.dataset.tdate, 0) || Date.now() + total * 1000;
       const tick = () => {
         const left = Math.max(0, Math.round((end - Date.now()) / 1000));
-        const m = t.querySelector('[data-tm]'), s = t.querySelector('[data-ts]'), tt = t.querySelector('[data-tt]');
-        if (m) m.textContent = String(Math.floor(left / 60)).padStart(2, '0');
-        if (s) s.textContent = String(left % 60).padStart(2, '0');
-        if (tt) tt.textContent = mmss(left);
+        if (lay === 'text') { const tt = t.querySelector('[data-tt]'); if (tt) tt.textContent = timeText(left) }
+        else t.innerHTML = timerHtml(lay, left);
       };
       tick(); R.timers.push(setInterval(tick, 1000));
+    });
+    // notificação: mostra um aviso por vez, com @1, @2, @3 trocados
+    layers.filter(l => l.type === 'notification').forEach(l => {
+      const w = root.querySelector(`.fnr-l[data-lid="${l.id}"] [data-ntf]`); if (!w) return;
+      const box = w.querySelector('.fnr-ntf'), c = l.content, dur = Math.max(1, num(c.duration, 5)), gap = Math.max(0.1, num(c.interval, 2));
+      const total = (c.variables && c.variables[0] && (c.variables[0].values || []).length) || 1;
+      let n = 0;
+      const show = () => {
+        if (n >= total || R.destroyed) return;
+        const tx = notifText(c, n);
+        box.querySelector('.t').innerHTML = rich(tx.title, ctx()); box.querySelector('.x').innerHTML = rich(tx.text, ctx());
+        const bar = box.querySelector('.bar'); bar.style.transition = 'none'; bar.style.transform = 'scaleX(1)';
+        box.hidden = false; box.classList.add('in');
+        requestAnimationFrame(() => { bar.style.transition = `transform ${dur}s linear`; bar.style.transform = 'scaleX(0)' });
+        R.timers.push(setTimeout(() => { box.classList.remove('in'); R.timers.push(setTimeout(() => { box.hidden = true; n++; R.timers.push(setTimeout(show, gap * 1000)) }, 400)) }, dur * 1000));
+      };
+      R.timers.push(setTimeout(show, gap * 1000));
     });
     // loading: avança sozinho
     layers.filter(l => l.type === 'loading').forEach(l => {
@@ -899,7 +1185,9 @@ function mount(el, funnel, opts){
     // carrossel
     root.querySelectorAll('[data-car]').forEach(car => {
       const tr = car.querySelector('.tr'), dots = [...car.querySelectorAll('[data-dot]')], n = tr.children.length; let k = 0;
-      const go = i => { k = (i + n) % n; tr.style.transform = `translateX(-${k * 100}%)`; dots.forEach((d, j) => d.classList.toggle('on', j === k)) };
+      // Anda pela largura do item (com "espiada" o item é mais estreito que o carrossel) e centraliza.
+      const go = i => { k = (i + n) % n; const it = tr.children[k]; const x = it.offsetLeft - (car.clientWidth - it.offsetWidth) / 2; tr.style.transform = `translateX(${-Math.max(0, Math.min(x, tr.scrollWidth - car.clientWidth))}px)`; dots.forEach((d, j) => d.classList.toggle('on', j === k)) };
+      go(0);
       dots.forEach(d => d.addEventListener('click', e => { e.stopPropagation(); go(+d.dataset.dot) }));
       let x0 = null; car.addEventListener('touchstart', e => { x0 = e.touches[0].clientX }, {passive: true});
       car.addEventListener('touchend', e => { if (x0 == null) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 40) go(k + (dx < 0 ? 1 : -1)); x0 = null });
@@ -909,7 +1197,7 @@ function mount(el, funnel, opts){
   }
 
   /* ----- interação ----- */
-  function layerOf(target){ const w = target.closest('.fnr-l'); if (!w) return null; const step = stepAt(R.index); return {w, step, layer: step.layers.find(l => l.id === w.dataset.lid)} }
+  function layerOf(target){ const w = target.closest('.fnr-l'); if (!w) return null; const step = stepAt(R.index); const raw = step.layers.find(l => l.id === w.dataset.lid); return {w, step, layer: raw && normalizeLayer(raw)} }
   function runScript(code){ if (!code || !live) return; try { new Function(code)() } catch (e) { console.warn('Script do componente falhou:', e) } }
   function firePixel(ev){ if (!ev || !live) return; try { if (window.fbq) window.fbq('track', ev) } catch (e) {} }
   function onClick(e){
@@ -930,9 +1218,9 @@ function mount(el, funnel, opts){
     const t = e.target, act = t.dataset && t.dataset.act; if (act !== 'field' && act !== 'range') return;
     const hit = layerOf(t); if (!hit) return;
     const c = hit.layer.content;
-    if (act === 'range') { const out = hit.w.querySelector('output'); if (out) out.firstChild.textContent = t.value; R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: 'field', title: c.title || '', value: t.value}); return }
+    if (act === 'range') { const out = hit.w.querySelector('output'); if (out) out.firstChild.textContent = t.value; R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: hit.layer.type, title: c.title || '', value: t.value}); return }
     if (c.type === 'phone' || c.mask === 'phone') { const pos = t.value.length; t.value = phoneMask(t.value); if (t.value.length !== pos) try { t.setSelectionRange(t.value.length, t.value.length) } catch (er) {} }
-    R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: 'field', title: c.title || '', value: t.value});
+    R.answers[hit.layer.id] = Object.assign({}, R.answers[hit.layer.id] || {}, {step: hit.step.id, name: c.name || hit.layer.id, type: hit.layer.type, title: c.title || '', value: t.value});
     const f = hit.w.querySelector('.fnr-field'); if (f && f.classList.contains('has-err')) { const msg = validateField(c, t.value); if (!msg) { f.classList.remove('has-err'); f.querySelector('.fnr-err').textContent = '' } }
   }
   function onChange(e){
@@ -952,20 +1240,19 @@ function mount(el, funnel, opts){
     R.root.querySelectorAll(`.fnr-l[data-lid="${layer.id}"] .fnr-opt`).forEach(b => { const on = ids.includes(b.dataset.oid); b.classList.toggle('is-on', on); b.setAttribute('aria-pressed', on) });
     const w = R.root.querySelector(`.fnr-l[data-lid="${layer.id}"]`); if (w) w.classList.remove('has-err');
     runScript(o.script); firePixel(o.pixelEvent);
-    if (c.multiple) return;
-    // Sem botão na etapa: a opção já leva para o destino dela.
-    const vis = visibleLayers(step);
-    const hasButton = vis.some(l => l.type === 'button');
-    const pending = vis.some(l => l !== layer && INPUT_TYPES.includes(l.type) && needsAnswer(l));
-    if (!hasButton && !pending) {
-      R.busy = true;
-      R.timers.push(setTimeout(() => { R.busy = false; navigate(step, destinationOf(R.funnel, o), {layer, item: o}) }, 280));
-    }
+    // Como no InLead: na escolha única o funil avança na hora, a não ser que a opção espere o botão (awaitSubmit).
+    if (c.multiple || c.awaitSubmit) return;
+    const others = visibleLayers(step).filter(l => l.id !== layer.id && INPUT_TYPES.includes(l.type) && needsAnswer(l));
+    if (others.length) { validateStep(step); return }
+    R.lastInteract = c.name || layer.id;
+    R.busy = true;
+    R.timers.push(setTimeout(() => { R.busy = false; navigate(step, destinationOf(R.funnel, o), {layer, item: o}) }, 280));
   }
   function needsAnswer(l){
     const a = R.answers[l.id];
     if (l.type === 'options') return l.content.required !== false && !(a && a.ids && a.ids.length);
-    if (l.type === 'field') return !!validateField(l.content, a ? a.value : (l.content.type === 'height' || l.content.type === 'weight' ? l.content.value : ''));
+    if (l.type === 'height' || l.type === 'weight') return false;
+    if (l.type === 'field' || l.type === 'date') return !!validateField(Object.assign({}, l.content, l.type === 'date' ? {type: 'date'} : {}), a ? a.value : '');
     return false;
   }
   // Confere campos e opções obrigatórios da etapa. Devolve true se está tudo certo.
@@ -973,7 +1260,7 @@ function mount(el, funnel, opts){
     let ok = true, first = null;
     for (const l of visibleLayers(step)) {
       const w = R.root.querySelector(`.fnr-l[data-lid="${l.id}"]`); if (!w) continue;
-      if (l.type === 'field') {
+      if (l.type === 'field' || l.type === 'date' || l.type === 'height' || l.type === 'weight') {
         const inp = w.querySelector('[data-act="field"],[data-act="range"]');
         const v = inp ? inp.value : '';
         if (inp && inp.dataset.act === 'range') { if (!R.answers[l.id]) setAnswer(step, l, {value: v}); continue }
@@ -993,8 +1280,12 @@ function mount(el, funnel, opts){
     const c = layer.content;
     if (!validateStep(step)) return;
     runScript(c.script); firePixel(c.pixelEvent);
-    const dest = destinationOf(R.funnel, c);
-    emit('click', {step: step.id, stepIndex: R.index, layer: layer.id, name: c.name || layer.id, label: c.label, destination: dest});
+    if (c.name) R.clicks[c.name] = true;
+    R.lastInteract = c.name || layer.id;
+    // Destino: modelo de link (WhatsApp, Kirvano…) ou o destino com as variáveis trocadas.
+    const href = buttonHref(c, ctx());
+    const dest = c.model && c.model.type ? href : (href && href !== c.destination ? href : destinationOf(R.funnel, c));
+    emit('click', {step: step.id, stepIndex: R.index, layer: layer.id, name: c.name || layer.id, label: stripHtml(c.label), destination: dest});
     navigate(step, dest, {layer, item: c, button: btnEl});
   }
   const stepIndexOf = id => (R.funnel.steps || []).findIndex(s => s.id === id);
@@ -1002,8 +1293,8 @@ function mount(el, funnel, opts){
     const to = resolveDestination(R.funnel, R.index, dest);
     if (to.back) return back();
     if (to.url) {
-      let url = to.url;
-      if (info && info.item && info.item.passUtm) url = withParams(url, R.params);
+      // Como no InLead, o link externo leva todos os parâmetros da URL atual (UTMs, fbclid…).
+      const url = buildRedirect(to.url, R.params);
       emit('complete', {step: step.id, stepIndex: R.index, url});
       if (!live) { if (opts.onPreviewRedirect) opts.onPreviewRedirect(url); return }
       const leave = () => { if (info && info.item && info.item.target) window.open(url, '_blank', 'noopener'); else window.location.href = url };
@@ -1011,11 +1302,10 @@ function mount(el, funnel, opts){
       Promise.resolve(opts.beforeRedirect ? opts.beforeRedirect(url, info) : null).catch(() => {}).then(leave);
       return;
     }
-    if (to.end) { emit('complete', {step: step.id, stepIndex: R.index}); if (opts.onEnd) opts.onEnd(); return }
+    // Avançar a partir da última etapa conta como fluxo completo (como no InLead).
+    if (to.end || R.index === R.funnel.steps.length - 1) emit('complete', {step: step.id, stepIndex: R.index});
+    if (to.end) { if (opts.onEnd) opts.onEnd(); return }
     go(to.step, true);
-  }
-  function withParams(url, params){
-    try { const u = new URL(url); for (const k in params) if (/^(utm_|fbclid|gclid|src|sck|xcod)/.test(k) && !u.searchParams.has(k)) u.searchParams.set(k, params[k]); return u.toString() } catch (e) { return url }
   }
   function go(target, push){
     const k = typeof target === 'number' ? target : stepIndexOf(target);
@@ -1040,5 +1330,5 @@ function mount(el, funnel, opts){
   };
 }
 
-return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc};
+return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS};
 });

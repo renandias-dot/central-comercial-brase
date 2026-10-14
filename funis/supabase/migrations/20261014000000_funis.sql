@@ -34,6 +34,8 @@ create table if not exists fn_sessions (
   primary key (funnel_id, id)
 );
 create index if not exists fn_sessions_recent on fn_sessions (funnel_id, created_at desc);
+-- params = todos os parâmetros da URL do funil (vão no webhook, como no InLead). Para bancos criados antes desta coluna:
+alter table fn_sessions add column if not exists params jsonb not null default '{}'::jsonb;
 
 alter table fn_funnels enable row level security;
 alter table fn_sessions enable row level security;
@@ -43,18 +45,19 @@ insert into storage.buckets (id, name, public, file_size_limit)
 values ('funis', 'funis', true, 15728640)
 on conflict (id) do nothing;
 
--- Números da aba Leads num período: acessos, leads (interagiram), qualificados (passaram por mais da
--- metade das etapas), completos, alcance de cada etapa, contagem das respostas de cada pergunta e o resumo por dia.
+-- Números da aba Leads num período: acessos, leads (interagiram), qualificados (como no InLead: respostas e cliques
+-- passam de 70% do número de etapas, ou completou), completos, alcance de cada etapa, contagem das respostas de cada pergunta e o resumo por dia.
 create or replace function fn_stats(p_funnel uuid, p_since timestamptz, p_total integer)
 returns jsonb language sql stable as $$
   with s as (
-    select * from fn_sessions where funnel_id = p_funnel and created_at >= p_since
+    select *, (select count(*) from jsonb_object_keys(answers)) + (select count(*) from jsonb_object_keys(clicks)) as n_answers
+      from fn_sessions where funnel_id = p_funnel and created_at >= p_since
   ),
   k as (
     select count(*) as visits,
            count(*) filter (where interacted) as leads,
            count(*) filter (where completed) as complete,
-           count(*) filter (where coalesce(array_length(steps, 1), 0) > greatest(p_total, 1) / 2.0) as qualified
+           count(*) filter (where completed or n_answers > 0.7 * greatest(p_total, 1)) as qualified
       from s
   ),
   st as (
