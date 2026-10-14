@@ -10,8 +10,8 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 
 | Tela | Funções |
 |---|---|
-| **Restaurantes** | Busca por nome, CNPJ ou link/ID do iFood. A ficha da loja traz três blocos: **iFood** (avaliações, categoria, faixa de preço, rede, endereço, telefone), **Google** (nota, avaliações, preço, site, telefone, Maps) e **CNPJ** (situação, razão social, porte, abertura, atividade, telefones, sócios). |
-| Ficha › ranking | Posição na categoria e geral num raio de 1 a 10 km, pelo número de avaliações no iFood. Tabela com avaliações de 3 meses atrás, variação, nota do Google, distância, link do iFood e WhatsApp com “Olá, {nome}”. Ordenável, com CSV. |
+| **Restaurantes** | Busca por nome, CNPJ ou link/ID do iFood. A ficha da loja traz três blocos: **iFood** (avaliações, nota em estrelas, categoria, faixa de preço, rede, endereço, telefone), **Google** (nota, avaliações, preço, site, telefone, Maps) e **CNPJ** (situação, razão social, porte, abertura, atividade, telefones, sócios). |
+| Ficha › ranking | Posição na categoria e geral num raio de 1 a 10 km, pelo número de avaliações no iFood. Tabela com avaliações de 3 meses atrás, variação, nota em estrelas do iFood, nota do Google, distância, link do iFood e WhatsApp com “Olá, {nome}”. Ordenável, com CSV. |
 | Ficha › como melhorar | Pedidos estimados, participação a cada 15 pedidos da categoria e o que falta para subir 1 posição, entrar no top 10 e ser o 1º da região. |
 | Ficha › mapa e gráficos | Mapa das lojas do raio (mesma categoria em destaque), calor de pedidos e faixa de preço. Distribuição das 10 principais categorias (% de lojas × % de avaliações) e evolução dos últimos 6 meses (a loja × a média da categoria na região). |
 | **Região no Google** | Ranking dos restaurantes de um endereço pelas avaliações do Google Maps, inclusive os que não estão no iFood. |
@@ -27,10 +27,12 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 
 ### De onde vêm os dados
 
-- **iFood:** o endereço público de cada loja (`marketplace.ifood.com.br/v1/merchants/{id}/extra`) traz nome, endereço com coordenadas, categoria, faixa de preço, rede, telefone, CNPJ e número de avaliações. **Não traz a nota em estrelas.** A listagem de lojas por região do iFood é protegida contra robôs (Akamai e Cloudflare), e o app não tenta contornar essa proteção. Por isso, as lojas entram na base pela tela Incluir lojas ou colando o link da loja na busca da tela Restaurantes. O Power Data faz o mesmo: a inclusão deles é por uma extensão do Chrome que o cliente usa no próprio navegador.
+- **Base do Power Data (SP):** 190.716 lojas do estado de São Paulo (tudo o que a assinatura da Brase cobre), importadas em 14/10/2026 com autorização do Power Data. Vieram do painel Food Market, com todos os filtros abertos: o CSV de **Download Completo › Gerar CSV** (nome, categoria, nota em estrelas, avaliações, endereço com coordenadas, CNPJ, telefone, faixa de preço, rede e data da leitura) mais o ID de cada loja no iFood, que o painel manda junto com os pontos do mapa. É a única fonte da **nota em estrelas**. Para importar de novo, veja abaixo.
+- **iFood:** o endereço público de cada loja (`marketplace.ifood.com.br/v1/merchants/{id}/extra`) traz nome, endereço com coordenadas, categoria, faixa de preço, rede, telefone, CNPJ e número de avaliações. **Não traz a nota em estrelas.** O coletor relê aqui as lojas da base. A listagem de lojas por região do iFood é protegida contra robôs (Akamai e Cloudflare), e o app não tenta contornar essa proteção. Lojas de fora de SP entram pela tela Incluir lojas, pela extensão ou colando o link da loja na busca.
 - **Google:** Places API (New), pela chave guardada no servidor. A ficha procura a loja pelo nome perto do endereço do iFood e só aceita um lugar a até 400 m com nome parecido.
 - **CNPJ:** BrasilAPI (dados abertos da Receita Federal), gratuita.
-- **Histórico:** o coletor agendado relê cada loja uma vez por dia e guarda o número de avaliações. “3 meses atrás” e a evolução mensal aparecem conforme o histórico se forma (90 dias para a primeira comparação).
+- **Histórico:** a importação gravou a leitura de cada loja no dia em que o Power Data a coletou (de julho a outubro de 2026). Depois, o coletor relê cada loja uma vez por semana (as favoritas, todo dia) e grava uma leitura nova só quando o número muda, ou a cada 20 dias. “3 meses atrás” e a evolução mensal aparecem conforme o histórico se forma. Lojas sem avaliações não entram no histórico.
+- **Ranking da ficha:** com a base inteira, um raio de 10 km em São Paulo passa de 20 mil lojas. A posição e os totais são calculados no banco sobre todas as lojas do raio (`rs_ranking` e `rs_categories`). A ficha recebe só as 1.000 primeiras no geral, as 1.000 primeiras da categoria e as vizinhas da loja no ranking.
 
 > O uso dos dados do iFood por coleta automática não é autorizado pelos termos de uso do iFood. A decisão de usar foi da Brase.
 
@@ -51,10 +53,22 @@ python3 -c "import zipfile,os;z=zipfile.ZipFile('extensao-brase.zip','w',zipfile
 
 - **App:** https://renandias-dot.github.io/central-comercial-brase/restaurantes/
 - **Supabase:** projeto `brase-restaurantes` (`kxabfippeekyxpcgjytx`, São Paulo), separado do projeto da Central Comercial.
-  - Banco: as duas migrações de `supabase/migrations` já foram aplicadas.
+  - Banco: as três migrações de `supabase/migrations` foram aplicadas, menos o trecho da compactação do histórico (`rs_counts_compact` e o agendamento `restaurantes-compactar`, no fim de `20261014000000_restaurantes_powerdata.sql`), que ainda precisa ser rodado no SQL Editor. Ele só faz diferença depois de uns 100 dias de coleta.
   - Função `restaurantes-api` publicada sem verificação de JWT (o acesso é controlado pela própria função; veja abaixo).
-  - Coleta agendada no pg_cron (`restaurantes-coleta`, a cada 30 minutos, até 40 lojas por rodada: 1.920 lojas por dia). Com a base maior que isso, aumente a frequência ou o `limit` em `20261013000100_restaurantes_coleta.sql`.
+  - Coleta agendada no pg_cron (`restaurantes-coleta`): a cada 2 minutos, até 40 lojas por rodada, uma por segundo (28.800 por dia). Cada loja é relida uma vez por semana.
+  - Espaço: com a base de SP, o banco ocupa cerca de 125 MB dos 500 MB do plano grátis. Com a compactação, o histórico deve se estabilizar em torno de 150 MB.
   - A chave que o agendamento usa é gerada no próprio banco (tabela `rs_settings`) e não sai dele.
+
+### Importar de novo a base do Power Data
+
+1. Gere a base no Power Data com o Claude: ele entra na conta da Brase (precisa do código do autenticador), abre todos os filtros do Food Market, baixa o CSV de **Gerar CSV** e junta o ID de cada loja, que vem do mapa. O resultado é um CSV com a coluna `merchant_id`.
+2. Importe com [`powerdata/importar.py`](powerdata/importar.py). `RS_CRON_KEY` é a chave de `rs_settings` (key = `cron_key`):
+
+```bash
+RS_CRON_KEY=... python3 restaurantes/powerdata/importar.py sp_completo.csv
+```
+
+A importação manda 2.000 lojas por vez (cerca de 1 minuto para SP inteiro). Lojas que o coletor leu no iFood depois da data do Power Data não são sobrescritas. A nota em estrelas e a leitura de avaliações do dia da coleta entram sempre.
 
 ### Acesso
 
@@ -63,7 +77,7 @@ O app está **aberto**: quem tiver o endereço entra direto, sem código. Para e
 ### Para refazer em outro projeto
 
 1. Rode `supabase/migrations/20261013000000_restaurantes.sql` no SQL Editor. Pode rodar de novo sem problema.
-2. Troque o endereço da função em `supabase/migrations/20261013000100_restaurantes_coleta.sql` e rode também.
+2. Troque o endereço da função em `supabase/migrations/20261013000100_restaurantes_coleta.sql` e em `20261014000000_restaurantes_powerdata.sql` e rode as duas, nessa ordem.
 3. Dentro da pasta `restaurantes/`: `supabase functions deploy restaurantes-api --project-ref SEU_PROJETO --no-verify-jwt`.
 4. Se quiser exigir código de acesso, crie o segredo `RESTAURANTES_ACCESS_CODE`.
 5. Ajuste a linha `window.RS_HOST` no topo de `index.html` com o endereço da função.

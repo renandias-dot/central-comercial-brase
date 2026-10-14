@@ -1,7 +1,8 @@
 // restaurantes-api — back-end do app Restaurantes (restaurantes/index.html).
 // Recebe POST em JSON {op, ...}. Com o segredo RESTAURANTES_ACCESS_CODE, exige o código da equipe no cabeçalho x-rs-key;
 // sem ele, o app fica aberto para quem tiver o endereço.
-// Fontes: iFood (endpoint público de cada loja), Google Places API (New) e BrasilAPI (CNPJ da Receita Federal).
+// Fontes: iFood (endpoint público de cada loja), Google Places API (New), BrasilAPI (CNPJ da Receita Federal) e a
+// base do Power Data, importada em lote pela op=import (restaurantes/powerdata/importar.py).
 // Segredos opcionais: RESTAURANTES_ACCESS_CODE e GOOGLE_PLACES_API_KEY (sem ela o app funciona sem o Google).
 // A coleta agendada se identifica com a chave guardada na tabela rs_settings (cabeçalho x-rs-cron).
 import postgres from 'npm:postgres@3.4.5';
@@ -14,6 +15,7 @@ const GOOGLE_KEY = env('GOOGLE_PLACES_API_KEY');
 
 const HOUR = 3600e3, DAY = 24 * HOUR;
 const IFOOD_TTL = 20 * HOUR, CNPJ_TTL = 30 * DAY, GOOGLE_TTL = 30 * DAY;
+const RANK_TOP = 1000; // lojas do ranking que a ficha recebe (geral e da categoria)
 // Termos da busca por região no Google: cada termo traz até 60 lugares (3 páginas de 20).
 const AREA_TERMS = ['restaurante', 'pizzaria', 'hamburgueria', 'lanchonete', 'comida japonesa', 'marmitaria', 'açaí', 'padaria', 'doceria', 'comida brasileira'];
 const GOOGLE_FIELDS = ['id', 'displayName', 'primaryTypeDisplayName', 'rating', 'userRatingCount', 'priceRange', 'priceLevel', 'websiteUri', 'nationalPhoneNumber', 'googleMapsUri', 'location', 'formattedAddress'];
@@ -53,10 +55,20 @@ async function refreshIfood(id: string){
   await sql`
     insert into rs_merchants ${values({...row, ifood_checked_at: new Date()})}
     on conflict (id) do update set ${assign(row)}, ifood_checked_at = now(), ifood_error = null`;
-  if (row.rating_count != null) await sql`
-    insert into rs_counts (merchant_id, day, rating_count) values (${row.id}, current_date, ${row.rating_count})
-    on conflict (merchant_id, day) do update set rating_count = excluded.rating_count`;
+  if (row.rating_count != null) await saveCount(row.id, row.rating_count);
   return true;
+}
+
+// Grava a leitura do dia só se o número mudou ou se a última tem 20 dias ou mais (todo mês fica com uma leitura).
+// Loja sem avaliações não entra no histórico (não há crescimento a medir). Com 190 mil lojas, gravar todo dia
+// não cabe no plano grátis do Supabase.
+async function saveCount(id: string, count: number){
+  if (count === 0) return;
+  const [last] = await sql`select rating_count, day from rs_counts where merchant_id = ${id} order by day desc limit 1`;
+  if (last && last.rating_count === count && Date.now() - new Date(last.day).getTime() < 20 * DAY) return;
+  await sql`
+    insert into rs_counts (merchant_id, day, rating_count) values (${id}, current_date, ${count})
+    on conflict (merchant_id, day) do update set rating_count = excluded.rating_count`;
 }
 
 /* ---------- CNPJ (BrasilAPI) ---------- */
@@ -136,7 +148,7 @@ async function googleArea(lat: number, lon: number, km: number){
 }
 
 /* ---------- operações ---------- */
-const MERCHANT_COLS = sql`id, name, chain, category, price_range, street, street_number, district, city, state, zip, lat, lon, phone, cnpj, logo, enabled, rating_count, first_seen, ifood_checked_at, ifood_error, google, google_checked_at, cnpj_data, cnpj_checked_at`;
+const MERCHANT_COLS = sql`id, name, chain, category, price_range, street, street_number, district, city, state, zip, lat, lon, phone, cnpj, logo, enabled, rating_count, stars::float8 as stars, stars_at::text as stars_at, source, first_seen, ifood_checked_at, ifood_error, google, google_checked_at, cnpj_data, cnpj_checked_at`;
 const LIST_COLS = sql`id, name, category, district, city, state, rating_count`;
 let cronKey = '';
 const loadCronKey = async () => cronKey ||= (await sql`select value from rs_settings where key = 'cron_key'`)[0]?.value ?? '';
@@ -179,12 +191,15 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
     if (m.cnpj && stale(m.cnpj_checked_at, CNPJ_TTL)) pending.push(refreshCnpj(m));
     if (GOOGLE_KEY && m.lat != null && stale(m.google_checked_at, GOOGLE_TTL)) pending.push(refreshGoogle(m));
     if (pending.length){ await Promise.all(pending); m = await loadMerchant(id) }
-    const [nearby, history, fav] = await Promise.all([
-      m.lat != null ? sql`select * from rs_nearby(${m.lat}, ${m.lon}, ${km})` : [],
+    // nearby: as 1.000 primeiras do raio, as 1.000 primeiras da categoria e as vizinhas da loja, com posição e
+    // totais calculados sobre todas as lojas do raio (rank_all, rank_cat, total_all, total_cat).
+    const [nearby, categories, history, fav] = await Promise.all([
+      m.lat != null ? sql`select * from rs_ranking(${id}, ${km}, ${RANK_TOP})` : [],
+      m.lat != null ? sql`select * from rs_categories(${m.lat}, ${m.lon}, ${km})` : [],
       sql`select * from rs_history(${id}, ${km})`,
       sql`select 1 from rs_favorites where merchant_id = ${id}`,
     ]);
-    return {merchant: m, nearby, history, favorite: fav.length > 0, google_enabled: !!GOOGLE_KEY, km};
+    return {merchant: m, nearby, categories, top: RANK_TOP, history, favorite: fav.length > 0, google_enabled: !!GOOGLE_KEY, km};
   },
 
   // Força nova leitura no iFood, no Google e no CNPJ.
@@ -252,20 +267,57 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
     return {center, label, km, places, calls, found, google_enabled: !!GOOGLE_KEY};
   },
 
-  // Coleta agendada: relê no iFood as lojas mais antigas (e, uma vez por semana, as desativadas).
+  // Coleta agendada: relê no iFood as favoritas todo dia, as demais lojas uma vez por semana e as desativadas
+  // uma vez por mês, as mais antigas primeiro, com 1 s entre leituras para não pesar no iFood. Para antes de 100 s
+  // para não passar do tempo da função.
   async collect({limit = 40}){
+    const started = Date.now();
     const due = await sql`
-      select id from rs_merchants
-       where (enabled and (ifood_checked_at is null or ifood_checked_at < now() - interval '20 hours'))
-          or (not enabled and ifood_checked_at < now() - interval '7 days')
-       order by ifood_checked_at asc nulls first
+      select m.id from rs_merchants m left join rs_favorites f on f.merchant_id = m.id
+       where (m.enabled and (m.ifood_checked_at is null
+                or m.ifood_checked_at < now() - case when f.merchant_id is null then interval '6 days' else interval '20 hours' end))
+          or (not m.enabled and m.ifood_checked_at < now() - interval '30 days')
+       order by f.merchant_id is null, m.ifood_checked_at asc nulls first
        limit ${clamp(Number(limit) || 40, 1, 200)}`;
     let ok = 0, failed = 0;
     for (const {id} of due){
+      if (Date.now() - started > 100e3) break;
       try { (await refreshIfood(id)) ? ok++ : failed++ } catch { failed++ }
-      await sleep(400);
+      await sleep(1000);
     }
-    return {checked: due.length, ok, failed};
+    return {due: due.length, ok, failed};
+  },
+
+  // Importação em lote (base do Power Data). Só pela chave do agendamento ou pelo código da equipe.
+  // Cada linha atualiza a loja só se for mais nova que a última leitura no iFood; a nota em estrelas e a
+  // leitura de avaliações do dia da coleta entram sempre.
+  async import({rows}){
+    if (!Array.isArray(rows) || !rows.length || rows.length > 3000) throw bad('Mande de 1 a 3.000 lojas por vez.');
+    const clean = rows.map(r => ({...r, id: merchantIdFrom(r.id)})).filter(r => r.id && r.name && r.seen_at);
+    const x = sql`jsonb_to_recordset(${sql.json(clean)}) as x(
+      id uuid, name text, chain text, category text, price_range text, street text, street_number text, district text,
+      city text, state text, zip text, lat double precision, lon double precision, phone text, cnpj text,
+      rating_count integer, stars numeric, seen_at timestamptz)`;
+    const merchants = await sql`
+      insert into rs_merchants (id, name, chain, category, price_range, street, street_number, district, city, state, zip,
+                                lat, lon, phone, cnpj, rating_count, stars, stars_at, ifood_checked_at, source)
+      select id, name, chain, category, price_range, street, street_number, district, city, state, zip,
+             lat, lon, phone, cnpj, rating_count, stars, seen_at::date, seen_at, 'powerdata' from ${x}
+      on conflict (id) do update set
+        name = excluded.name, chain = excluded.chain, category = excluded.category, price_range = excluded.price_range,
+        street = excluded.street, street_number = excluded.street_number, district = excluded.district, city = excluded.city,
+        state = excluded.state, zip = excluded.zip, lat = excluded.lat, lon = excluded.lon, phone = excluded.phone,
+        cnpj = excluded.cnpj, rating_count = excluded.rating_count, ifood_checked_at = excluded.ifood_checked_at,
+        enabled = true, ifood_error = null
+      where rs_merchants.ifood_checked_at is null or rs_merchants.ifood_checked_at < excluded.ifood_checked_at`;
+    await sql`
+      update rs_merchants m set stars = x.stars, stars_at = x.seen_at::date from ${x}
+       where m.id = x.id and x.stars is not null and (m.stars_at is null or m.stars_at <= x.seen_at::date)`;
+    const counts = await sql`
+      insert into rs_counts (merchant_id, day, rating_count)
+      select id, seen_at::date, rating_count from ${x} where rating_count > 0
+      on conflict (merchant_id, day) do nothing`;
+    return {received: rows.length, valid: clean.length, merchants: merchants.count, counts: counts.count};
   },
 };
 
@@ -277,9 +329,10 @@ Deno.serve(async req => {
   if (req.method !== 'POST') return reply(405, {error: 'Use POST.'});
   const body = await req.json().catch(() => ({}));
   const member = ACCESS_CODE ? sameKey(req.headers.get('x-rs-key') ?? '', ACCESS_CODE) : true;
-  // A coleta (que dispara leituras no iFood) só roda pelo agendamento ou por quem tem o código, mesmo com o app aberto.
+  // A coleta (que dispara leituras no iFood) e a importação em lote só rodam pelo agendamento ou por quem tem
+  // o código, mesmo com o app aberto.
   const cronHeader = req.headers.get('x-rs-cron') ?? '';
-  const allowed = body.op === 'collect'
+  const allowed = body.op === 'collect' || body.op === 'import'
     ? (!!cronHeader && sameKey(cronHeader, await loadCronKey())) || (!!ACCESS_CODE && member)
     : member;
   if (!allowed) return reply(401, {error: 'Código de acesso inválido.'});

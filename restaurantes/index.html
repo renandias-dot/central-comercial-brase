@@ -223,7 +223,7 @@ table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
       <a class="nav-item" href="#/incluir" data-route="/incluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Incluir lojas</a>
     </nav>
     <div class="nav-foot">
-      <p class="hint" id="data-hint">Dados do iFood e da Receita Federal.</p>
+      <p class="hint" id="data-hint">Dados do iFood, do Power Data e da Receita Federal.</p>
       <button class="btn sm" type="button" id="logout">Sair</button>
     </div>
   </aside>
@@ -326,7 +326,7 @@ let accessCode = store.get(CODE_KEY) || '';
 let googleOn = false;
 function applyGoogle(){
   $('.nav-item[data-route="/regiao"]').hidden = !googleOn;
-  $('#data-hint').textContent = googleOn ? 'Dados do iFood, do Google e da Receita Federal.' : 'Dados do iFood e da Receita Federal.';
+  $('#data-hint').textContent = googleOn ? 'Dados do iFood, do Power Data, do Google e da Receita Federal.' : 'Dados do iFood, do Power Data e da Receita Federal.';
 }
 async function call(body){
   if (!API) throw new Error('Falta o endereço do servidor (window.RS_HOST).');
@@ -478,15 +478,19 @@ async function viewDetail(id, km){
 }
 
 // Posições e metas, com as mesmas contas da seção "Como Melhorar Seu Ranking" do Power Data.
+// O servidor calcula posição e totais sobre todas as lojas do raio e manda só as primeiras de cada lista
+// (rank_all/rank_cat/total_all/total_cat); as categorias vêm somadas em d.categories.
 function analyze(d){
   const m = d.merchant;
-  const all = d.nearby.slice().sort((a, b) => b.rating_count - a.rating_count).map((x, i) => ({...x, rank: i + 1}));
-  const cat = all.filter(x => x.category === m.category).map((x, i) => ({...x, rank: i + 1}));
-  const pos = list => { const i = list.findIndex(x => x.id === m.id); return i < 0 ? null : i + 1 };
+  const all = d.nearby.map(x => ({...x, rank: x.rank_all})).sort((p, q) => p.rank - q.rank);
+  const cat = all.filter(x => x.category === m.category).map(x => ({...x, rank: x.rank_cat})).sort((p, q) => p.rank - q.rank);
   const me = all.find(x => x.id === m.id);
   const count3m = me ? me.count_3m : null;
-  const catReviews = cat.reduce((s, x) => s + (x.rating_count || 0), 0);
-  return {all, cat, posAll: pos(all), posCat: pos(cat), count3m, catReviews,
+  const catRow = (d.categories || []).find(c => c.category === m.category);
+  return {all, cat, me,
+    totalAll: all[0]?.total_all ?? 0, totalCat: me?.total_cat ?? cat[0]?.total_cat ?? 0,
+    posAll: me?.rank_all ?? null, posCat: me?.rank_cat ?? null, count3m,
+    catReviews: catRow ? catRow.reviews : cat.reduce((s, x) => s + (x.rating_count || 0), 0),
     growth: count3m ? (m.rating_count / count3m - 1) : null};
 }
 
@@ -517,11 +521,11 @@ function drawDetail(){
       <div class="seg" role="group" aria-label="Camada do mapa">${[['lojas', 'Lojas'], ['calor', 'Concentração de pedidos'], ['preco', 'Faixa de preço']].map(([k, l]) => `<button type="button" data-a="layer" data-v="${k}" aria-pressed="${D.layer === k}">${l}</button>`).join('')}</div></div>
       <div class="panel-b"><div class="map" id="map" role="region" aria-label="Mapa das lojas no raio"></div><div class="legend" id="map-legend"></div></div></section>
     <div class="two">
-      <section class="panel"><div class="panel-h"><h2>Categorias na região</h2><span class="sub">10 categorias com mais lojas em ${kmLabel}</span></div><div class="panel-b">${distHtml(d.nearby)}</div></section>
+      <section class="panel"><div class="panel-h"><h2>Categorias na região</h2><span class="sub">10 categorias com mais lojas em ${kmLabel}</span></div><div class="panel-b">${distHtml(d.categories)}</div></section>
       <section class="panel"><div class="panel-h"><h2>Evolução das avaliações</h2><span class="sub">últimos 6 meses</span></div><div class="panel-b">${historyHtml(d.history, m)}</div></section>
     </div>
     <section class="panel" id="ranking">${rankingHtml(a)}</section>
-    <p class="hint">Última leitura do iFood: ${when(m.ifood_checked_at)}${googleOn ? ` · Google: ${when(m.google_checked_at)}` : ''} · CNPJ: ${when(m.cnpj_checked_at)}. O coletor relê cada loja da base uma vez por dia.</p>`;
+    <p class="hint">Última leitura do iFood: ${when(m.ifood_checked_at)}${googleOn ? ` · Google: ${when(m.google_checked_at)}` : ''} · CNPJ: ${when(m.cnpj_checked_at)}. O coletor relê cada loja da base uma vez por semana (as favoritas, todo dia); abrir a ficha relê na hora se a leitura tiver mais de 20 horas.</p>`;
   mountMap();
   bindChart();
 }
@@ -529,8 +533,8 @@ function drawDetail(){
 function kpisHtml(d, a, kmLabel){
   const m = d.merchant, orders = (m.rating_count || 0) * ORDERS_PER_REVIEW, catOrders = a.catReviews * ORDERS_PER_REVIEW;
   return `<div class="kpis">
-    <div class="kpi"><span class="l">Posição na categoria</span><span class="v">${a.posCat ? '#' + a.posCat : '—'}</span><span class="s">de ${lojas(a.cat.length)} de ${esc(m.category || '—')} em ${kmLabel}</span></div>
-    <div class="kpi"><span class="l">Posição geral</span><span class="v">${a.posAll ? '#' + a.posAll : '—'}</span><span class="s">de ${lojas(a.all.length)} em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Posição na categoria</span><span class="v">${a.posCat ? '#' + fmt(a.posCat) : '—'}</span><span class="s">de ${lojas(a.totalCat)} de ${esc(m.category || '—')} em ${kmLabel}</span></div>
+    <div class="kpi"><span class="l">Posição geral</span><span class="v">${a.posAll ? '#' + fmt(a.posAll) : '—'}</span><span class="s">de ${lojas(a.totalAll)} em ${kmLabel}</span></div>
     <div class="kpi"><span class="l">Avaliações no iFood</span><span class="v">${fmt(m.rating_count)}</span><span class="s">${a.count3m != null ? `3 meses atrás: ${fmt(a.count3m)} · ${trend(a.growth)}` : 'A comparação com 3 meses atrás aparece depois de 90 dias de coleta.'}</span></div>
     <div class="kpi"><span class="l">Pedidos estimados</span><span class="v">${fmt(orders)}</span><span class="s">${catOrders ? `${dec(15 * orders / catOrders, 2)} a cada 15 pedidos de ${esc(m.category || 'categoria')} na região` : 'avaliações × ' + ORDERS_PER_REVIEW}</span></div>
   </div>`;
@@ -539,13 +543,14 @@ function kpisHtml(d, a, kmLabel){
 function ifoodCard(m, a){
   return `<section class="panel"><div class="panel-h"><h2><span class="mark ifood">iF</span>iFood</h2></div><div class="panel-b"><dl class="dl">
     <dt>Avaliações</dt><dd><span class="big">${fmt(m.rating_count)}</span>${a.count3m != null ? ` <span class="hint">· ${trend(a.growth)} em 3 meses</span>` : ''}</dd>
+    <dt>Nota</dt><dd>${m.stars != null ? `<span class="big">★ ${dec(m.stars)}</span> <span class="hint">leitura de ${day(m.stars_at)}</span>` : '—'}</dd>
     <dt>Categoria</dt><dd>${esc(m.category || '—')}</dd>
     <dt>Faixa de preço</dt><dd>${esc(PRICE[m.price_range] || m.price_range || '—')}</dd>
     ${m.chain ? `<dt>Rede</dt><dd>${esc(m.chain)}</dd>` : ''}
     <dt>Endereço</dt><dd>${esc([[m.street, m.street_number].filter(Boolean).join(', '), m.district, [m.city, m.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${m.zip ? ` · CEP ${esc(m.zip.replace(/^(\d{5})(\d{3})$/, '$1-$2'))}` : ''}</dd>
     <dt>Telefone</dt><dd>${m.phone ? esc(fmtPhone(m.phone)) : '—'}</dd>
     <dt>Na base desde</dt><dd>${dateOnly(m.first_seen)}</dd>
-  </dl><p class="hint" style="margin-top:10px">O iFood informa o número de avaliações, mas não a nota em estrelas, no endereço público que o coletor usa.</p></div></section>`;
+  </dl><p class="hint" style="margin-top:10px">A nota em estrelas vem da base do Power Data: o endereço público do iFood que o coletor relê informa só o número de avaliações.</p></div></section>`;
 }
 
 function googleCard(m){
@@ -590,6 +595,7 @@ function goalsHtml(d, a, kmLabel){
   if (!a.posCat) return `<section class="panel"><div class="panel-h"><h2>Como melhorar o ranking</h2></div><div class="panel-b"><p class="empty">Esta loja está fora do ranking (sem avaliações ou fora do ar no iFood).</p></div></section>`;
   const per = ORDERS_PER_REVIEW, total = a.catReviews * per, mine = me * per;
   const share = o => total ? dec(15 * o / total, 2) : '—';
+  const at = rank => cat.find(x => x.rank === rank);
   // Para passar uma loja é preciso ter pelo menos 1 avaliação a mais que ela.
   const goal = (title, target) => {
     const reviews = target.rating_count - me + 1, orders = reviews * per;
@@ -600,20 +606,20 @@ function goalsHtml(d, a, kmLabel){
   const cards = [];
   cards.push(`<div class="goal"><h3>Resumo</h3>
     <p>Hoje são <b>${fmt(mine)} pedidos estimados</b> de ${fmt(total)} na categoria ${esc(m.category || '—')}: ${share(mine)} a cada 15 pedidos.</p>
-    <p>Posição <b>#${a.posCat}</b> de ${fmt(cat.length)} no raio de ${kmLabel}${a.growth != null ? `, ${a.growth >= 0 ? 'cresceu' : 'caiu'} ${pct(Math.abs(a.growth))} em 90 dias` : ''}.</p></div>`);
-  if (a.posCat > 1) cards.push(goal('Para subir 1 posição', cat[a.posCat - 2]));
+    <p>Posição <b>#${fmt(a.posCat)}</b> de ${fmt(a.totalCat)} no raio de ${kmLabel}${a.growth != null ? `, ${a.growth >= 0 ? 'cresceu' : 'caiu'} ${pct(Math.abs(a.growth))} em 90 dias` : ''}.</p></div>`);
+  if (a.posCat > 1 && at(a.posCat - 1)) cards.push(goal('Para subir 1 posição', at(a.posCat - 1)));
   if (a.posCat <= 10) cards.push(`<div class="goal"><h3>No top 10</h3><p>A loja já está entre as 10 com mais avaliações da categoria na região (posição #${a.posCat}).</p></div>`);
-  else cards.push(goal('Para entrar no top 10', cat[9]));
-  if (a.posCat > 2) cards.push(goal('Para ser a 1ª da região', cat[0]));
-  if (a.posCat === 1) cards.push(`<div class="goal"><h3>1ª da região</h3><p>Nenhuma loja de ${esc(m.category || '—')} tem mais avaliações neste raio. A 2ª colocada está ${cat[1] ? `${fmt((me - cat[1].rating_count) * per)} pedidos atrás` : 'sem concorrência'}.</p></div>`);
+  else if (at(10)) cards.push(goal('Para entrar no top 10', at(10)));
+  if (a.posCat > 2 && at(1)) cards.push(goal('Para ser a 1ª da região', at(1)));
+  if (a.posCat === 1) cards.push(`<div class="goal"><h3>1ª da região</h3><p>Nenhuma loja de ${esc(m.category || '—')} tem mais avaliações neste raio. A 2ª colocada está ${at(2) ? `${fmt((me - at(2).rating_count) * per)} pedidos atrás` : 'sem concorrência'}.</p></div>`);
   return `<section class="panel"><div class="panel-h"><h2>Como melhorar o ranking</h2><span class="sub">Pedidos estimados = avaliações × ${per}. Comparações com a mesma categoria em ${kmLabel}.</span></div><div class="panel-b"><div class="goals">${cards.join('')}</div></div></section>`;
 }
 
-function distHtml(nearby){
-  if (!nearby.length) return '<p class="empty">Nenhuma loja da base neste raio.</p>';
-  const by = new Map(); let reviews = 0;
-  for (const x of nearby){ const k = x.category || 'Sem categoria', o = by.get(k) || {n: 0, r: 0}; o.n++; o.r += x.rating_count || 0; reviews += x.rating_count || 0; by.set(k, o) }
-  const top = [...by.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 10).map(([k, o]) => ({k, n: o.n / nearby.length, r: reviews ? o.r / reviews : 0, cn: o.n, cr: o.r}));
+// categories: lojas e avaliações por categoria em todo o raio (rs_categories), já em ordem de lojas.
+function distHtml(categories){
+  if (!categories?.length) return '<p class="empty">Nenhuma loja da base neste raio.</p>';
+  const stores = categories.reduce((s, c) => s + c.stores, 0), reviews = categories.reduce((s, c) => s + c.reviews, 0);
+  const top = categories.slice(0, 10).map(c => ({k: c.category || 'Sem categoria', n: c.stores / stores, r: reviews ? c.reviews / reviews : 0, cn: c.stores, cr: c.reviews}));
   const max = Math.max(...top.map(t => Math.max(t.n, t.r))) || 1;
   const bar = (v, color, label, t) => `<div class="dist-bar" data-tip="${esc(`${t.k}\n${label}: ${pct(v)} (${fmt(label.startsWith('Lojas') ? t.cn : t.cr)})`)}" tabindex="0"><b style="width:${(v / max * 82).toFixed(2)}%;background:var(${color})"></b>${pct(v)}</div>`;
   return `<div class="legend" style="margin:0 0 8px"><span class="key"><i class="bx" style="background:var(--s1)"></i>Lojas (%)</span><span class="key"><i class="bx" style="background:var(--s2)"></i>Avaliações (%)</span></div>
@@ -623,7 +629,7 @@ function distHtml(nearby){
 
 function historyHtml(history, m){
   const pts = history.filter(h => h.mine != null || h.region_avg != null);
-  if (pts.length < 2) return `<p class="empty">A evolução aparece quando houver leituras de pelo menos 2 meses. O coletor lê cada loja uma vez por dia e guarda o histórico.</p>`;
+  if (pts.length < 2) return `<p class="empty">A evolução aparece quando houver leituras de pelo menos 2 meses. O coletor relê cada loja toda semana e guarda o histórico.</p>`;
   const W = 600, H = 230, L = 44, R = 14, T = 12, B = 28;
   const vals = pts.flatMap(h => [h.mine, h.region_avg]).filter(v => v != null);
   const step = niceStep(Math.max(...vals) / 4), top = Math.max(step, Math.ceil(Math.max(...vals) / step) * step);
@@ -673,6 +679,7 @@ const RANK_COLS = [
   {key: 'rating_count', label: 'Avaliações', r: true},
   {key: 'count_3m', label: '3 meses atrás', r: true},
   {key: 'growth', label: 'Variação', r: true},
+  {key: 'stars', label: 'Nota', r: true},
   {key: 'google_rating', label: 'Google', r: true},
   {key: 'district', label: 'Bairro'},
   {key: 'km', label: 'Distância', r: true},
@@ -704,6 +711,7 @@ function rankingHtml(a){
       <td class="r">${fmt(x.rating_count)}</td>
       <td class="r">${fmt(x.count_3m)}</td>
       <td class="r">${trend(x.growth)}</td>
+      <td class="r">${x.stars != null ? '★ ' + dec(x.stars) : '—'}</td>
       ${googleOn ? `<td class="r">${x.google_rating != null ? `★ ${dec(x.google_rating)} <span class="hint">(${fmt(x.google_count)})</span>` : '—'}</td>` : ''}
       <td>${esc(x.district || '—')}</td>
       <td class="r">${dec(x.km)} km</td>
@@ -711,19 +719,19 @@ function rankingHtml(a){
   };
   return `<div class="panel-h"><h2>Ranking por número de avaliações</h2><div class="actions"><button class="btn sm" data-a="csv">Baixar CSV</button></div></div>
     <div class="tabs" role="tablist">
-      <button role="tab" data-a="tab" data-v="cat" aria-current="${D.tab === 'cat'}">Mesma categoria · ${fmt(a.cat.length)}</button>
-      <button role="tab" data-a="tab" data-v="all" aria-current="${D.tab === 'all'}">Geral · ${fmt(a.all.length)}</button>
+      <button role="tab" data-a="tab" data-v="cat" aria-current="${D.tab === 'cat'}">Mesma categoria · ${fmt(a.totalCat)}</button>
+      <button role="tab" data-a="tab" data-v="all" aria-current="${D.tab === 'all'}">Geral · ${fmt(a.totalAll)}</button>
     </div>
     ${rows.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>${cols.map(th).join('')}</tr></thead><tbody>${shown.map(tr).join('')}</tbody></table></div>` : '<div class="panel-b"><p class="empty">Nenhuma loja neste raio.</p></div>'}
     <div class="panel-b" style="padding-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       ${rows.length > D.limit ? `<button class="btn sm" data-a="more">Ver mais ${fmt(Math.min(PAGE, rows.length - D.limit))}</button>` : ''}
-      <span class="hint">Mostrando ${fmt(shown.length)} de ${fmt(rows.length)}. Clique no título da coluna para reordenar. “3 meses atrás” usa a leitura de 90 dias antes.</span></div>`;
+      <span class="hint">Mostrando ${fmt(shown.length)} de ${fmt(rows.length)}${rows.length < (D.tab === 'cat' ? a.totalCat : a.totalAll) ? ` (as ${fmt(D.data.top)} com mais avaliações e as vizinhas desta loja, de ${fmt(D.tab === 'cat' ? a.totalCat : a.totalAll)} no raio)` : ''}. Clique no título da coluna para reordenar. “3 meses atrás” usa a leitura de 90 dias antes.</span></div>`;
 }
 function rankingCsv(){
   const a = analyze(D.data), rows = rankRows(a);
   downloadCsv(`ranking-${slug(D.data.merchant.name)}-${D.tab === 'cat' ? 'categoria' : 'geral'}-${D.km}km.csv`, withoutGoogle([
-    ['posicao', 'restaurante', 'categoria', 'avaliacoes', 'avaliacoes_3_meses_atras', 'variacao_%', 'nota_google', 'avaliacoes_google', 'bairro', 'cidade', 'uf', 'distancia_km', 'telefone', 'link_ifood', 'whatsapp'],
-    ...rows.map(x => [x.rank, x.name, x.category, x.rating_count, x.count_3m, x.growth == null ? '' : (x.growth * 100).toFixed(1).replace('.', ','), x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, x.district, x.city, x.state, dec(x.km, 2), fmtPhone(x.phone || x.google_phone), ifoodUrl(x), waUrl(x.phone || x.google_phone, x.name)]),
+    ['posicao', 'restaurante', 'categoria', 'avaliacoes', 'avaliacoes_3_meses_atras', 'variacao_%', 'nota_ifood', 'nota_google', 'avaliacoes_google', 'bairro', 'cidade', 'uf', 'distancia_km', 'telefone', 'link_ifood', 'whatsapp'],
+    ...rows.map(x => [x.rank, x.name, x.category, x.rating_count, x.count_3m, x.growth == null ? '' : (x.growth * 100).toFixed(1).replace('.', ','), x.stars == null ? '' : String(x.stars).replace('.', ','), x.google_rating == null ? '' : String(x.google_rating).replace('.', ','), x.google_count, x.district, x.city, x.state, dec(x.km, 2), fmtPhone(x.phone || x.google_phone), ifoodUrl(x), waUrl(x.phone || x.google_phone, x.name)]),
   ]));
 }
 
@@ -872,7 +880,7 @@ async function viewFavorites(){
 
 /* ---------- incluir lojas ---------- */
 function viewInclude(){
-  view.innerHTML = head('Incluir lojas', 'Traga para a base lojas do iFood que ainda não estão nela. Depois de incluída, a loja é relida todo dia e entra nos rankings.') + `
+  view.innerHTML = head('Incluir lojas', 'Traga para a base lojas do iFood que ainda não estão nela. Depois de incluída, a loja é relida toda semana e entra nos rankings. As lojas de SP já vieram da base do Power Data.') + `
     <section class="panel"><div class="panel-b" style="padding-top:16px;display:grid;gap:10px">
       <label class="f">Links ou IDs de lojas do iFood, um por linha (até 30 por vez)
         <textarea class="in" id="links" rows="7" placeholder="https://www.ifood.com.br/delivery/sao-paulo-sp/nome-da-loja-bairro/0a1b2c3d-…"></textarea></label>
