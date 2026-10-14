@@ -188,6 +188,8 @@ table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
 .goal h3{font:700 14px/1.2 var(--f-display);font-stretch:106%}
 .goal p{font-size:13px;color:var(--ink-2)}
 .map{height:440px;border-radius:10px;overflow:hidden;isolation:isolate;background:var(--sunken)}
+.map.cov{height:540px}
+@media (max-width:860px){.map.cov{height:420px}}
 .legend{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-top:10px;align-items:center}
 .key{display:inline-flex;align-items:center;gap:6px}
 .key i{width:10px;height:10px;border-radius:50%;display:inline-block}
@@ -914,7 +916,66 @@ async function viewCoverage(q){
       ${d.cities.map(c => `<tr><td class="nm">${esc(c.city || 'Sem cidade')}</td><td class="r">${fmt(c.stores)}</td><td class="r">${fmt(c.with_reviews)}</td><td class="r">${fmt(c.by_team)}</td><td class="r">${fmt(c.week)}</td><td class="num">${c.last_added ? when(c.last_added) : '—'}</td></tr>`).join('')}
       </tbody></table></div>` : `<div class="panel-b"><p class="empty">Nenhuma loja de ${esc(uf)} na base ainda. Abra uma lista de restaurantes de uma cidade de ${esc(uf)} no iFood e inclua pela extensão.</p></div>`}</section>`;
   }
-  view.innerHTML = head(title, sub) + kpis + people + main;
+  const mapPanel = `<section class="panel"><div class="panel-h"><h2>Mapa da base</h2>
+      <div class="seg" role="group" aria-label="Lojas no mapa">${[['all', 'Todas'], ['reviews', 'Com avaliações'], ['team', 'Incluídas pela equipe']].map(([k, l]) => `<button type="button" data-cov="${k}" aria-pressed="${covOnly === k}">${l}</button>`).join('')}</div></div>
+    <div class="panel-b"><div class="map cov" id="cov-map" role="region" aria-label="Mapa das lojas da base"></div>
+      <p class="hint" id="cov-map-hint" style="margin-top:8px" aria-live="polite"></p></div></section>`;
+  view.innerHTML = head(title, sub) + kpis + mapPanel + people + main;
+  view.querySelectorAll('[data-cov]').forEach(b => b.addEventListener('click', () => {
+    covOnly = b.dataset.cov;
+    view.querySelectorAll('[data-cov]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    loadCoverageMap();
+  }));
+  mountCoverageMap(window.L && d.bounds ? L.latLngBounds([d.bounds[0], d.bounds[1]], [d.bounds[2], d.bounds[3]]) : null);
+}
+
+// Mapa da Cobertura: bolinhas com a quantidade de lojas da área (tamanho = quantidade, uma cor só); de perto, as lojas
+// uma a uma. A cada movimento o servidor reagrupa as lojas da área visível (coverage_map).
+const BRAZIL = [[-33.8, -74], [5.3, -34.8]];
+let covMap = null, covLayer = null, covSeq = 0, covOnly = 'all', covTimer = 0;
+function mountCoverageMap(bounds, view0){
+  const el = $('#cov-map');
+  if (covMap){ covMap.remove(); covMap = null }
+  if (!el) return;
+  if (!window.L){ el.innerHTML = '<p class="empty" style="padding:16px">O mapa não carregou (sem acesso ao cdnjs).</p>'; return }
+  el.classList.toggle('dark', isDark());
+  covMap = L.map(el, {preferCanvas: true, minZoom: 3, maxZoom: 18});
+  tiles().addTo(covMap);
+  if (view0) covMap.setView(view0.center, view0.zoom);
+  else covMap.fitBounds(bounds || BRAZIL, {padding: [10, 10]});
+  covLayer = L.layerGroup().addTo(covMap);
+  covMap.on('moveend', () => { clearTimeout(covTimer); covTimer = setTimeout(loadCoverageMap, 200) });
+  loadCoverageMap();
+}
+async function loadCoverageMap(){
+  if (!covMap) return;
+  const seq = ++covSeq, map = covMap, z = map.getZoom(), b = map.getBounds().pad(0.15), hint = $('#cov-map-hint');
+  if (hint) hint.textContent = 'Carregando o mapa…';
+  let r;
+  try { r = await call({op: 'coverage_map', bbox: [b.getSouth(), b.getWest(), b.getNorth(), b.getEast()], zoom: z, only: covOnly}) }
+  catch (e){ if (seq === covSeq && hint) hint.textContent = e.message; return }
+  if (seq !== covSeq || map !== covMap) return;
+  covLayer.clearLayers();
+  const surface = css('--surface'), s1 = css('--s1'), visible = map.getBounds();
+  const what = {all: 'lojas', reviews: 'lojas com avaliações', team: 'lojas incluídas pela equipe'}[covOnly];
+  if (r.mode === 'stores'){
+    r.stores.forEach(x => L.circleMarker([x.lat, x.lon], {radius: 5, color: surface, weight: 1.5, fillColor: s1, fillOpacity: .9})
+      .bindTooltip(esc(`${x.name} · ${fmt(x.rating_count)} avaliações · ${x.category || 'sem categoria'}`))
+      .on('click', () => { location.hash = detailHref(x.id) }).addTo(covLayer));
+    const n = r.stores.filter(x => visible.contains([x.lat, x.lon])).length;
+    hint.textContent = n
+      ? `${fmt(n)} ${what} nesta área${r.stores.length >= 3000 ? ' (mostrando as 3.000 com mais avaliações)' : ''}. Clique numa loja para abrir a ficha.`
+      : `Nenhuma ${what.replace('lojas', 'loja')} nesta área do mapa.`;
+  } else {
+    const max = Math.max(1, ...r.cells.map(c => c.n));
+    r.cells.forEach(c => L.circleMarker([c.lat, c.lon], {radius: 4 + 20 * Math.sqrt(c.n / max), color: surface, weight: 1.5, fillColor: s1, fillOpacity: .72})
+      .bindTooltip(`${fmt(c.n)} ${c.n === 1 ? 'loja' : 'lojas'} · ${fmt(c.reviews)} com avaliações`)
+      .on('click', () => map.setView([c.lat, c.lon], Math.min(z + 3, 14))).addTo(covLayer));
+    const n = r.cells.filter(c => visible.contains([c.lat, c.lon])).reduce((t, c) => t + c.n, 0);
+    hint.textContent = n
+      ? `${fmt(n)} ${what} nesta área do mapa. Cada bolinha junta as lojas próximas e o tamanho mostra quantas são. Clique numa bolinha ou aproxime para ver mais de perto; a partir do zoom 14 aparecem as lojas uma a uma.`
+      : `Nenhuma ${what.replace('lojas', 'loja')} nesta área do mapa.`;
+  }
 }
 
 /* ---------- incluir lojas ---------- */
@@ -953,7 +1014,7 @@ function viewInclude(){
   });
 }
 
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (route().path.startsWith('/r/') && D.data) mountMap(); else if (route().path === '/regiao' && A.data) drawArea() });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (route().path.startsWith('/r/') && D.data) mountMap(); else if (route().path === '/regiao' && A.data) drawArea(); else if (route().path === '/cobertura' && covMap) mountCoverageMap(null, {center: covMap.getCenter(), zoom: covMap.getZoom()}) });
 start();
 </script>
 </body>
