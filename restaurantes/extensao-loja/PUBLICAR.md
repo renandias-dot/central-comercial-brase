@@ -78,10 +78,10 @@ Ferramenta de uso interno da Brase. Não é afiliada ao iFood.
 
 - **Justificativa de `storage`:**
 
-> Guardar no navegador o código de acesso da equipe, quando o servidor da Brase exigir um.
+> Guardar no navegador o nome de quem usa (opcional, para a tela Cobertura do app) e o código de acesso da equipe, quando o servidor da Brase exigir um.
 
 - **Código remoto:** "Não, não estou usando código remoto".
-- **Uso de dados:** marque só **Conteúdo do site** (a extensão lê os links de lojas da página do iFood e envia os códigos públicos dessas lojas). Não marque nenhuma categoria de dados pessoais e marque as três declarações de conformidade.
+- **Uso de dados:** marque **Conteúdo do site** (a extensão lê os links de lojas da página do iFood e envia os códigos públicos dessas lojas) e **Informações de identificação pessoal** (o campo opcional “Seu nome”, enviado com as inclusões para a tela Cobertura do app). Marque as três declarações de conformidade.
 - **URL da política de privacidade:** https://renandias-dot.github.io/central-comercial-brase/restaurantes/privacidade.html
 
 ## 5. Aba "Distribuição"

@@ -214,16 +214,19 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
 
   // Solicitar inclusão: links ou IDs de lojas do iFood, um por linha. Loja que já está na base não é relida aqui
   // (a coleta cuida dela) e volta com existing: true; assim a extensão inclui páginas inteiras sem pesar no iFood.
-  async include({links}){
+  // by: nome de quem incluiu (opcional, vem da extensão), para a tela Cobertura.
+  async include({links, by}){
     const ids = [...new Set((Array.isArray(links) ? links : String(links ?? '').split(/[\s,;]+/)).map(merchantIdFrom).filter(Boolean))];
     if (!ids.length) throw bad('Cole pelo menos um link de loja do iFood.');
     if (ids.length > 30) throw bad('Mande até 30 lojas por vez.');
+    const who = String(by ?? '').replace(/\s+/g, ' ').trim().slice(0, 40) || null;
     const results = [];
     for (const id of ids){
       try {
         const known = await loadMerchant(id);
         if (known){ results.push({id, ok: true, existing: true, name: known.name, city: known.city, state: known.state, category: known.category}); continue }
         const ok = await refreshIfood(id);
+        if (ok && who) await sql`update rs_merchants set added_by = ${who} where id = ${id} and added_by is null`;
         const m = ok && await loadMerchant(id);
         results.push(m ? {id, ok: true, name: m.name, city: m.city, state: m.state, category: m.category} : {id, ok: false, error: 'Loja não encontrada no iFood'});
       } catch (e){ results.push({id, ok: false, error: errText(e)}) }
@@ -248,6 +251,42 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
              f.created_at
         from rs_favorites f join rs_merchants m on m.id = f.merchant_id
        order by f.created_at desc limit 300`};
+  },
+
+  // Cobertura da base: lojas ativas por estado (e por cidade do estado escolhido), quantas a equipe incluiu
+  // (source = 'ifood': link colado, extensão ou busca) hoje e nos últimos 7 dias, e quem incluiu na semana.
+  async coverage({state = ''}){
+    const uf = String(state).trim().toUpperCase().slice(0, 2);
+    const today = sql`(date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo')`;
+    const [totals, states, people, cities] = await Promise.all([
+      sql`
+        select count(*)::integer as stores,
+               count(*) filter (where rating_count > 0)::integer as with_reviews,
+               count(distinct state)::integer as states,
+               count(*) filter (where source = 'ifood' and first_seen >= ${today})::integer as today,
+               count(*) filter (where source = 'ifood' and first_seen > now() - interval '7 days')::integer as week
+          from rs_merchants where enabled`,
+      sql`
+        select state, count(*)::integer as stores, count(*) filter (where rating_count > 0)::integer as with_reviews,
+               count(distinct city)::integer as cities,
+               count(*) filter (where source = 'ifood')::integer as by_team,
+               count(*) filter (where source = 'ifood' and first_seen > now() - interval '7 days')::integer as week,
+               max(first_seen) filter (where source = 'ifood') as last_added
+          from rs_merchants where enabled group by state order by stores desc`,
+      sql`
+        select coalesce(added_by, 'Sem nome') as who, count(*)::integer as stores,
+               count(*) filter (where first_seen >= ${today})::integer as today,
+               count(distinct state)::integer as states, max(first_seen) as last_added
+          from rs_merchants where source = 'ifood' and first_seen > now() - interval '7 days'
+         group by 1 order by stores desc limit 30`,
+      uf ? sql`
+        select city, count(*)::integer as stores, count(*) filter (where rating_count > 0)::integer as with_reviews,
+               count(*) filter (where source = 'ifood')::integer as by_team,
+               count(*) filter (where source = 'ifood' and first_seen > now() - interval '7 days')::integer as week,
+               max(first_seen) filter (where source = 'ifood') as last_added
+          from rs_merchants where enabled and state = ${uf} group by city order by stores desc limit 500` : [],
+    ]);
+    return {totals: totals[0], states, people, state: uf, cities};
   },
 
   // Ranking pelas avaliações do Google num raio. update=true busca de novo no Google (consultas pagas).

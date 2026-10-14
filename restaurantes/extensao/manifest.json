@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Brase · Restaurantes",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Inclui na base de Restaurantes da Brase a loja aberta no iFood, ou todas as lojas de uma lista, e mostra a posição no ranking.",
   "homepage_url": "https://renandias-dot.github.io/central-comercial-brase/restaurantes/",
   "icons": {
