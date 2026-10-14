@@ -40,7 +40,7 @@ Com a extensão Brase · Restaurantes, a equipe da Brase inclui lojas do iFood n
 Como funciona
 1. Abra a página da loja no iFood.
 2. Clique no ícone da Brase e em "Incluir na Brase".
-3. A loja entra na base, passa a ser acompanhada todo dia e aparece no ranking da região.
+3. A loja entra na base, passa a ser acompanhada toda semana e aparece no ranking da região.
 
 O que aparece na hora
 • Posição da loja na categoria e no geral, pelo número de avaliações no iFood, num raio de 5 km

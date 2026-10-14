@@ -45,7 +45,7 @@ function showNotStore(){
 
 function showReady(id){
   view.innerHTML = `<div class="card"><p><b>Loja do iFood detectada</b> nesta aba.</p><code>${esc(id)}</code>
-    <p class="hint">A loja entra na base da Brase e passa a ser relida todo dia para o ranking.</p></div>
+    <p class="hint">A loja entra na base da Brase e passa a ser relida toda semana para o ranking.</p></div>
     <button class="btn primary" id="include">Incluir na Brase</button>`;
   document.getElementById('include').addEventListener('click', () => include(id));
 }
@@ -69,14 +69,14 @@ function showCode(id, message){
 }
 
 // Posições com as mesmas contas do app: ranking pelo número de avaliações no iFood, num raio de 5 km.
+// O servidor calcula posição e totais sobre todas as lojas do raio (rank_*, total_*).
 function analyze(d){
   const m = d.merchant;
-  const all = [...d.nearby].sort((a, b) => b.rating_count - a.rating_count);
-  const cat = all.filter(x => x.category === m.category);
-  const pos = list => { const i = list.findIndex(x => x.id === m.id); return i < 0 ? null : i + 1 };
-  const me = all.find(x => x.id === m.id);
+  const me = d.nearby.find(x => x.id === m.id);
   const count3m = me?.count_3m ?? null;
-  return {all, cat, posAll: pos(all), posCat: pos(cat), growth: count3m ? m.rating_count / count3m - 1 : null, count3m};
+  return {posAll: me?.rank_all ?? null, posCat: me?.rank_cat ?? null,
+    totalAll: d.nearby[0]?.total_all ?? 0, totalCat: me?.total_cat ?? 0,
+    growth: count3m ? m.rating_count / count3m - 1 : null, count3m};
 }
 
 function showDone(d){
@@ -89,8 +89,8 @@ function showDone(d){
       <div class="chips">${m.category ? `<span class="chip">${esc(m.category)}</span>` : ''}${m.chain ? `<span class="chip">Rede: ${esc(m.chain)}</span>` : ''}${where ? `<span class="chip">${esc(where)}</span>` : ''}</div>
     </div>
     <div class="stats">
-      <div class="stat"><span class="l">Na categoria</span><span class="v">${a.posCat ? '#' + a.posCat : '—'}</span><span class="s">de ${lojas(a.cat.length)} em ${KM} km</span></div>
-      <div class="stat"><span class="l">Geral</span><span class="v">${a.posAll ? '#' + a.posAll : '—'}</span><span class="s">de ${lojas(a.all.length)} em ${KM} km</span></div>
+      <div class="stat"><span class="l">Na categoria</span><span class="v">${a.posCat ? '#' + fmt(a.posCat) : '—'}</span><span class="s">de ${lojas(a.totalCat)} em ${KM} km</span></div>
+      <div class="stat"><span class="l">Geral</span><span class="v">${a.posAll ? '#' + fmt(a.posAll) : '—'}</span><span class="s">de ${lojas(a.totalAll)} em ${KM} km</span></div>
       <div class="stat"><span class="l">Avaliações no iFood</span><span class="v">${fmt(m.rating_count)}</span><span class="s">${a.count3m != null ? `3 meses atrás: ${fmt(a.count3m)}${trend}` : 'histórico em formação'}</span></div>
       <div class="stat"><span class="l">Pedidos estimados</span><span class="v">${fmt((m.rating_count || 0) * ORDERS_PER_REVIEW)}</span><span class="s">avaliações × ${ORDERS_PER_REVIEW}</span></div>
     </div>

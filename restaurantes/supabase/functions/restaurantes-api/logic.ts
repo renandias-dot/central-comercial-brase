@@ -28,7 +28,8 @@ export function parseIfood(d: any){
   return {
     id: String(d.id).toLowerCase(),
     name: String(d.name ?? '').trim(),
-    chain: d.merchantChain?.name ?? null,
+    // O iFood marca o nome de algumas redes com "*" no fim.
+    chain: d.merchantChain?.name ? String(d.merchantChain.name).replace(/\s*\*+\s*$/, '').trim() || null : null,
     category: d.mainCategory?.friendlyName ?? d.mainCategory?.description ?? null,
     category_code: d.mainCategory?.code ?? null,
     price_range: d.priceRange ?? null,

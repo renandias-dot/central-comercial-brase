@@ -18,7 +18,7 @@ Deno.test('parseIfood monta a linha da loja', () => {
     address: {district: 'Centro', city: 'CARAPICUIBA', state: 'SP', zipCode: '06334000', streetName: 'Rua A', streetNumber: '54', latitude: -23.54, longitude: -46.83},
     resources: [{type: 'COVER', fileName: 'x/cover.png'}, {type: 'LOGO', fileName: `${ID}/logo.png`}],
     mainCategory: {code: 'PIZ', description: 'Pizza', friendlyName: 'Pizza'},
-    merchantChain: {name: 'Exemplo'},
+    merchantChain: {name: 'Exemplo *'},
     documents: {CNPJ: {type: 'CNPJ', value: '39.437.120/0001-96'}},
   });
   assertEquals(row.name, 'Pizzaria Exemplo');
