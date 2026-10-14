@@ -16,7 +16,7 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 | Ficha › mapa e gráficos | Mapa das lojas do raio (mesma categoria em destaque), calor de pedidos e faixa de preço. Distribuição das 10 principais categorias (% de lojas × % de avaliações) e evolução dos últimos 6 meses (a loja × a média da categoria na região). |
 | **Região no Google** | Ranking dos restaurantes de um endereço pelas avaliações do Google Maps, inclusive os que não estão no iFood. |
 | **Favoritos** | Lista da equipe com evolução das avaliações e CSV. |
-| **Incluir lojas** | Cola links de lojas do iFood (até 30 por vez) para entrarem na base. |
+| **Incluir lojas** | Cola links de lojas do iFood (até 30 por vez) para entrarem na base, ou baixa a extensão do Chrome. |
 
 ### As contas (as mesmas do Power Data)
 
@@ -33,6 +33,19 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 - **Histórico:** o coletor agendado relê cada loja uma vez por dia e guarda o número de avaliações. “3 meses atrás” e a evolução mensal aparecem conforme o histórico se forma (90 dias para a primeira comparação).
 
 > O uso dos dados do iFood por coleta automática não é autorizado pelos termos de uso do iFood. A decisão de usar foi da Brase.
+
+## Extensão do Chrome
+
+A pasta `extensao/` tem a extensão **Brase · Restaurantes** (Manifest V3), o equivalente da extensão Menu Guru que o Power Data usa para incluir lojas. Com a página de uma loja aberta no iFood, o usuário clica no ícone da Brase e em **Incluir na Brase**. A extensão manda o código da loja (merchant_id, tirado do endereço da página) para a mesma função `restaurantes-api` e mostra a posição da loja na categoria e no geral (raio de 5 km), as avaliações e os pedidos estimados, com um botão para a ficha completa no app.
+
+- **Permissões:** só `activeTab` (lê o endereço da aba quando o ícone é clicado) e `storage` (guarda o código de acesso, se um dia o app exigir). Ela não lê nem altera o conteúdo das páginas do iFood.
+- **Instalar:** baixe `extensao-brase.zip` na tela Incluir lojas do app, descompacte, abra `chrome://extensions`, ligue o Modo do desenvolvedor e use **Carregar sem compactação**.
+- **Publicar na Chrome Web Store (opcional):** com uma conta de desenvolvedor do Google (taxa única de US$ 5), envie o mesmo zip; dá para publicar como “não listada” para só quem tiver o link instalar.
+- **Depois de mudar a extensão:** suba o `version` do `manifest.json` e gere o zip de novo, dentro de `restaurantes/`:
+
+```bash
+python3 -c "import zipfile,os;z=zipfile.ZipFile('extensao-brase.zip','w',zipfile.ZIP_DEFLATED);[z.write(os.path.join(r,f),os.path.relpath(os.path.join(r,f),'extensao')) for r,_,fs in os.walk('extensao') for f in sorted(fs)]"
+```
 
 ## Onde está no ar
 

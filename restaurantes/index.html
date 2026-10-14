@@ -879,7 +879,17 @@ function viewInclude(){
       <p class="hint">No navegador, abra a loja em ifood.com.br e copie o endereço da página. O ID é o código no formato 0a1b2c3d-1234-… que aparece no fim do link.</p>
       <div><button class="btn primary" id="include">Incluir</button></div>
       <div id="include-out" class="res-list" aria-live="polite"></div>
-    </div></section>`;
+    </div></section>
+    <section class="panel"><div class="panel-h"><h2>Extensão do Chrome</h2><a class="btn sm primary" href="extensao-brase.zip" download>Baixar extensão</a></div>
+      <div class="panel-b" style="display:grid;gap:8px">
+        <p>Com a extensão, você inclui a loja direto da página dela no iFood: clique no ícone da Brase e em “Incluir na Brase”. Ela também mostra a posição da loja no ranking da região.</p>
+        <ol class="hint" style="margin:0;padding-left:18px;display:grid;gap:3px">
+          <li>Baixe e descompacte o arquivo.</li>
+          <li>No Chrome, abra <b>chrome://extensions</b> e ligue o <b>Modo do desenvolvedor</b> (canto superior direito).</li>
+          <li>Clique em <b>Carregar sem compactação</b> e escolha a pasta descompactada.</li>
+          <li>Fixe o ícone da Brase na barra (ícone de quebra-cabeça › alfinete).</li>
+        </ol>
+      </div></section>`;
   $('#include').addEventListener('click', async () => {
     const btn = $('#include'), out = $('#include-out'), links = $('#links').value;
     if (!links.trim()) return;
