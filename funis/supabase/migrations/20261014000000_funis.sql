@@ -37,8 +37,54 @@ create index if not exists fn_sessions_recent on fn_sessions (funnel_id, created
 -- params = todos os parâmetros da URL do funil (vão no webhook, como no InLead). Para bancos criados antes desta coluna:
 alter table fn_sessions add column if not exists params jsonb not null default '{}'::jsonb;
 
+-- Leitura dos leads: linha do tempo das etapas, telefone/e-mail normalizados, etapa do CRM e eventos já mandados à Meta.
+alter table fn_sessions add column if not exists timeline jsonb not null default '[]'::jsonb;
+alter table fn_sessions add column if not exists phone text;
+alter table fn_sessions add column if not exists email text;
+alter table fn_sessions add column if not exists crm jsonb;
+alter table fn_sessions add column if not exists sent jsonb not null default '{}'::jsonb;
+create index if not exists fn_sessions_phone on fn_sessions (funnel_id, phone) where phone is not null;
+create index if not exists fn_sessions_email on fn_sessions (funnel_id, email) where email is not null;
+create index if not exists fn_sessions_abandon on fn_sessions (funnel_id, updated_at) where phone is not null and webhook is null;
+-- secrets = tokens da Meta e a chave dos webhooks que chegam (nunca vão para o editor nem para a página).
+alter table fn_funnels add column if not exists secrets jsonb not null default '{}'::jsonb;
+alter table fn_funnels add column if not exists swept_at timestamptz;
+
+-- Vendas avisadas pelo checkout (Kirvano, Hotmart, Kiwify…), ligadas ao visitante quando dá.
+create table if not exists fn_sales (
+  id bigserial primary key,
+  funnel_id uuid not null references fn_funnels (id) on delete cascade,
+  session_id text,
+  sale_id text,
+  event text,
+  status text not null,
+  value numeric not null default 0,
+  currency text not null default 'BRL',
+  product text,
+  email text,
+  phone text,
+  utm jsonb not null default '{}'::jsonb,
+  payload jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  unique (funnel_id, sale_id, status)
+);
+create index if not exists fn_sales_recent on fn_sales (funnel_id, created_at desc);
+
+-- Gasto por anúncio e dia (planilha do Gerenciador de Anúncios ou API da Meta). k = ID do anúncio (ou do conjunto/campanha, ou o nome).
+create table if not exists fn_spend (
+  funnel_id uuid not null references fn_funnels (id) on delete cascade,
+  day date not null,
+  k text not null,
+  campaign_id text, campaign_name text, adset_id text, adset_name text, ad_id text, ad_name text,
+  spend numeric not null default 0,
+  source text,
+  primary key (funnel_id, day, k)
+);
+
 alter table fn_funnels enable row level security;
 alter table fn_sessions enable row level security;
+alter table fn_sales enable row level security;
+alter table fn_spend enable row level security;
 
 -- Arquivos enviados pelo editor (imagens, áudios, vídeos), públicos para a página do funil.
 insert into storage.buckets (id, name, public, file_size_limit)

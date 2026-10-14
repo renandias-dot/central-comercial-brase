@@ -3,14 +3,18 @@
 // FUNIS_ACCESS_CODE existir, exigem esse código no cabeçalho x-fn-key (sem o segredo, o editor fica aberto).
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
-import {SESSION_RE, SLUG_RE, buildPayload, encodeBody, mergeSession, mergeWebhook, periodStart, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type Session, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
-const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 4, idle_timeout: 20});
+const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
 const ACCESS_CODE = env('FUNIS_ACCESS_CODE');
 const SUPABASE_URL = env('SUPABASE_URL').replace(/\/$/, '');
 const SERVICE_KEY = env('SUPABASE_SERVICE_ROLE_KEY');
 const BUCKET = 'funis';
+// App de Restaurantes (Raio-X do iFood no funil). Aberto hoje; se passar a pedir código, use o segredo RESTAURANTES_ACCESS_CODE.
+const RS_API = env('RESTAURANTES_API') || 'https://kxabfippeekyxpcgjytx.supabase.co/functions/v1/restaurantes-api';
+const RS_KEY = env('RESTAURANTES_ACCESS_CODE');
+const SELF_URL = SUPABASE_URL + '/functions/v1/funis-api';
 
 class HttpError extends Error { constructor(public status: number, message: string){ super(message) } }
 const bad = (message: string, status = 400) => new HttpError(status, message);
@@ -38,7 +42,12 @@ async function freeSlug(base: string, except?: string){
     s = `${root.slice(0, 55)}-${n++}`;
   }
 }
-const sessionCols = sql(['id', 'created_at', 'updated_at', 'tracking', 'params', 'answers', 'clicks', 'steps', 'last_step', 'interacted', 'completed', 'webhook']);
+const sessionCols = sql(['id', 'created_at', 'updated_at', 'tracking', 'params', 'answers', 'clicks', 'steps', 'last_step', 'interacted', 'completed', 'webhook', 'timeline', 'phone', 'email', 'crm', 'sent']);
+const iso = (d: unknown) => d ? new Date(d as string).toISOString() : undefined;
+const asSession = (r: Row) => ({...r, created_at: iso(r.created_at), updated_at: iso(r.updated_at)}) as Session;
+const leadsOf = (fun: Row | null | undefined) => ((fun && fun.settings && fun.settings.leads) || null) as LeadSettings | null;
+const stepTitle = (fun: Row | null | undefined, id: string | null | undefined) => ((fun && fun.steps || []).find((s: Row) => s.id === id) || {}).title || '';
+function layerById(fun: Row | null | undefined, id: string){ for (const st of (fun && fun.steps) || []) for (const l of st.layers || []) if (l.id === id) return l; return null }
 
 /* ---------- webhook ---------- */
 async function sendWebhook(w: Webhook, payload: Record<string, unknown>){
@@ -52,12 +61,87 @@ async function sendWebhook(w: Webhook, payload: Record<string, unknown>){
     return {ok: r.ok, status: r.status, body: text, error: r.ok ? null : text.slice(0, 300) || 'HTTP ' + r.status};
   } catch (e) { return {ok: false, status: 0, body: '', error: errText(e)} }
 }
-async function deliver(f: Row, s: Session){
-  const r = await sendWebhook(f.webhook, buildPayload(f.slug, s, f.webhook));
-  const mark = {at: new Date().toISOString(), ok: r.ok, status: r.status, error: r.error};
+// kind: 'lead' (envio normal) ou 'abandono' (deixou o WhatsApp e não enviou).
+async function deliver(f: Row, s: Session, kind = 'lead'){
+  const ls = leadsOf(f.published || f.draft);
+  // Repetidos: o mesmo telefone já enviado nos últimos N dias não vai de novo.
+  const days = Number(ls && ls.dedupeDays) || 0;
+  if (days > 0 && s.phone) {
+    const [dup] = await sql`select id from fn_sessions where funnel_id = ${f.id} and phone = ${s.phone} and id <> ${s.id} and (webhook ->> 'ok') = 'true' and created_at > now() - make_interval(days => ${days}) limit 1`;
+    if (dup) {
+      const mark = {at: new Date().toISOString(), ok: false, skipped: 'repetido', kind, same: dup.id};
+      await sql`update fn_sessions set webhook = ${json(mark)} where funnel_id = ${f.id} and id = ${s.id}`;
+      return {ok: false, status: 0, body: '', error: 'Telefone repetido (já enviado no lead ' + dup.id + ').', skipped: true};
+    }
+  }
+  const extra = payloadExtras(s, ls, kind, kind === 'abandono' ? stepTitle(f.published || f.draft, s.last_step) : '');
+  const r = await sendWebhook(f.webhook, buildPayload(f.slug, s, f.webhook, extra));
+  const mark = {at: new Date().toISOString(), ok: r.ok, status: r.status, error: r.error, kind};
   await sql`update fn_sessions set webhook = ${json(mark)} where funnel_id = ${f.id} and id = ${s.id}`;
   if (!r.ok) console.error('webhook falhou', f.slug, s.id, r.status, r.error);
   return r;
+}
+
+/* ---------- API de Conversões da Meta ---------- */
+// Manda os eventos ainda não mandados (o event_id é o mesmo do Pixel do navegador, então a Meta não conta duas vezes).
+async function capiSend(f: Row, s: Session, list: {name: string; id: string; value?: number; currency?: string; custom?: Record<string, unknown>}[], record = true){
+  const px = (f.published && f.published.settings && f.published.settings.pixel) || {};
+  const token = f.secrets && f.secrets.capiToken, pixel = String(px.facebook || '').split(/[\s,;]+/).filter(Boolean)[0];
+  if (!px.capi || !token || !pixel || !list.length) return;
+  const sent = (s.sent || {}) as Record<string, unknown>;
+  const todo = list.filter(e => !sent[e.id]);
+  if (!todo.length) return;
+  const data = await Promise.all(todo.map(e => capiEvent({...e, s})));
+  const body: Record<string, unknown> = {data};
+  if (f.secrets.capiTest) body.test_event_code = f.secrets.capiTest;
+  let ok = false, status = 0, error = '';
+  try {
+    const r = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${pixel}/events?access_token=${encodeURIComponent(token)}`, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(10000)});
+    ok = r.ok; status = r.status; if (!ok) error = (await r.text()).slice(0, 300); else await r.body?.cancel();
+  } catch (e) { error = errText(e) }
+  if (!ok) console.error('capi falhou', f.slug, s.id, status, error);
+  if (record) {
+    const mark: Record<string, unknown> = {};
+    for (const e of todo) mark[e.id] = {at: new Date().toISOString(), ok, status, name: e.name};
+    await sql`update fn_sessions set sent = coalesce(sent, '{}'::jsonb) || ${json(mark)} where funnel_id = ${f.id} and id = ${s.id}`;
+  }
+}
+
+/* ---------- envio de quem abandonou o formulário ---------- */
+// Roda no máximo uma vez por minuto por funil, a cada visita ou quando o editor abre os leads (sem agendador).
+async function sweep(fid: string){
+  try {
+    const [f] = await sql`update fn_funnels set swept_at = now() where id = ${fid} and (swept_at is null or swept_at < now() - interval '1 minute') returning id, slug, published, draft, webhook, secrets`;
+    if (!f) return;
+    const ls = leadsOf(f.published);
+    if (!ls || !ls.abandon || !ls.abandon.enabled || !f.webhook || !f.webhook.enabled || !f.webhook.url) return;
+    const min = Math.max(5, Number(ls.abandon.minutes) || 15);
+    const rows = await sql`
+      select ${sessionCols} from fn_sessions
+       where funnel_id = ${fid} and phone is not null and webhook is null
+         and updated_at < now() - make_interval(mins => ${min}) and updated_at > now() - interval '3 days'
+       order by updated_at limit 20`;
+    for (const r of rows) await deliver(f, asSession(r), 'abandono');
+  } catch (e) { console.error('sweep', fid, errText(e)) }
+}
+
+/* ---------- app de Restaurantes ---------- */
+async function rsCall(op: string, body: Record<string, unknown>){
+  const headers: Record<string, string> = {'content-type': 'application/json'};
+  if (RS_KEY) headers['x-rs-key'] = RS_KEY;
+  let r: Response;
+  try { r = await fetch(RS_API, {method: 'POST', headers, body: JSON.stringify({op, ...body}), signal: AbortSignal.timeout(20000)}) }
+  catch { throw bad('O Raio-X está indisponível agora. Tente de novo em instantes.', 502) }
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw bad(j.error || 'Não consegui ler essa loja no iFood agora.', r.status === 404 ? 404 : 502);
+  return j;
+}
+// Link curto (compartilhar do app) não tem o código: segue o redirecionamento para achar.
+async function resolveMerchant(link: string){
+  let id = merchantIdFrom(link);
+  if (id || !/^https?:\/\/[^\s]*ifood/i.test(link.trim())) return id;
+  try { const r = await fetch(link.trim(), {redirect: 'follow', signal: AbortSignal.timeout(8000)}); id = merchantIdFrom(r.url) || merchantIdFrom((await r.text()).slice(0, 200000)) } catch { /* sem código */ }
+  return id;
 }
 
 /* ---------- operações públicas (página do funil) ---------- */
@@ -73,7 +157,7 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
     const slug = String(b.slug || '').toLowerCase(), sid = String(b.session || '');
     if (!SLUG_RE.test(slug) || !SESSION_RE.test(sid)) throw bad('Dados inválidos.');
     const events: Event[] = Array.isArray(b.events) ? b.events.slice(0, 60) : [];
-    const [f] = await sql`select id, slug, published, webhook from fn_funnels where slug = ${slug} and published is not null`;
+    const [f] = await sql`select id, slug, published, webhook, secrets from fn_funnels where slug = ${slug} and published is not null`;
     if (!f) throw bad('Funil não encontrado.', 404);
     const [cur] = await sql`select ${sessionCols} from fn_sessions where funnel_id = ${f.id} and id = ${sid}`;
     let tracking = null, params = null;
@@ -83,15 +167,29 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
       const ip = (req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || '';
       if (ip) tracking.ip = ip.slice(0, 64);
     }
-    const next = mergeSession((cur as Session) || null, sid, events, tracking, f.published, params);
+    const prev = cur ? asSession(cur) : null;
+    const next = mergeSession(prev, sid, events, tracking, f.published, params);
+    next.created_at = prev ? prev.created_at : new Date().toISOString();
     await sql`
-      insert into fn_sessions (funnel_id, id, tracking, params, answers, clicks, steps, last_step, interacted, completed)
-      values (${f.id}, ${sid}, ${json(next.tracking)}, ${json(next.params || {})}, ${json(next.answers)}, ${json(next.clicks)}, ${next.steps}, ${next.last_step}, ${next.interacted}, ${next.completed})
+      insert into fn_sessions (funnel_id, id, tracking, params, answers, clicks, steps, last_step, interacted, completed, timeline, phone, email)
+      values (${f.id}, ${sid}, ${json(next.tracking)}, ${json(next.params || {})}, ${json(next.answers)}, ${json(next.clicks)}, ${next.steps}, ${next.last_step}, ${next.interacted}, ${next.completed}, ${json(next.timeline || [])}, ${next.phone || null}, ${next.email || null})
       on conflict (funnel_id, id) do update set
         tracking = excluded.tracking, params = excluded.params, answers = excluded.answers, clicks = excluded.clicks, steps = excluded.steps,
-        last_step = excluded.last_step, interacted = excluded.interacted, completed = excluded.completed, updated_at = now()`;
-    if (webhookDue(f.webhook, (cur as Session) || null, next, events)) {
-      next.created_at = cur ? new Date(cur.created_at).toISOString() : new Date().toISOString();
+        last_step = excluded.last_step, interacted = excluded.interacted, completed = excluded.completed,
+        timeline = excluded.timeline, phone = excluded.phone, email = excluded.email, updated_at = now()`;
+    // Eventos da API de Conversões: os de botão/opção configurados no editor e o "LeadQualificado" (regra de perfil).
+    const capi: {name: string; id: string}[] = [];
+    for (const e of events) {
+      if (!e || !e.layer) continue;
+      const L = layerById(f.published, String(e.layer)), c = (L && L.content) || {};
+      if (e.type === 'click' && c.pixelEvent) capi.push({name: String(c.pixelEvent), id: `${sid}-${e.layer}`});
+      if (e.type === 'answer' && e.answer && Array.isArray(e.answer.ids)) for (const oid of e.answer.ids) { const o = (c.options || []).find((x: Row) => x.id === oid); if (o && o.pixelEvent) capi.push({name: String(o.pixelEvent), id: `${sid}-${oid}`}) }
+    }
+    const px = (f.published.settings && f.published.settings.pixel) || {};
+    if (px.icpEvent !== false && leadMetrics(next, leadsOf(f.published)).icp) capi.push({name: 'LeadQualificado', id: `${sid}-icp`});
+    if (capi.length) waitUntil(capiSend(f, next, capi));
+    waitUntil(sweep(f.id));
+    if (webhookDue(f.webhook, prev, next, events)) {
       // Espera o envio (o navegador aguarda até 1,5 s antes de redirecionar); se demorar, termina em segundo plano.
       const job = deliver(f, next);
       waitUntil(job);
@@ -101,7 +199,56 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
   },
 };
 
+PUBLIC['public.ifood'] = async (b) => {
+  const slug = String(b.slug || '').toLowerCase();
+  if (!SLUG_RE.test(slug)) throw bad('Funil não encontrado.', 404);
+  const [f] = await sql`select id from fn_funnels where slug = ${slug} and published is not null`;
+  if (!f) throw bad('Funil não encontrado.', 404);
+  const id = await resolveMerchant(String(b.link || '').slice(0, 500));
+  if (!id) throw bad('Não achei sua loja nesse link. No iFood, abra a loja, toque em compartilhar e cole o link aqui.');
+  const km = Math.min(10, Math.max(1, Number(b.km) || 3));
+  const sum = ifoodSummary(await rsCall('detail', {id, km}), km);
+  if (!sum) throw bad('Não consegui ler essa loja no iFood agora.', 502);
+  return {ifood: sum};
+};
+
 /* ---------- operações da equipe (editor) ---------- */
+async function integrations(f: Row){
+  let sec = f.secrets || {};
+  if (!sec.hookKey) { sec = {...sec, hookKey: crypto.randomUUID().replace(/-/g, '')}; await sql`update fn_funnels set secrets = ${json(sec)} where id = ${f.id}` }
+  const hook = (h: string) => `${SELF_URL}?hook=${h}&id=${f.id}&key=${sec.hookKey}`;
+  return {capiTokenSet: !!sec.capiToken, capiTest: sec.capiTest || '', adsTokenSet: !!sec.adsToken, adsAccount: sec.adsAccount || '', saleUrl: hook('sale'), crmUrl: hook('crm')};
+}
+const sinceOf = (b: Row) => periodStart(String(b.period || 'week'));
+async function periodSessions(fid: string, since: Date){
+  return (await sql`select ${sessionCols} from fn_sessions where funnel_id = ${fid} and created_at >= ${since} order by created_at desc limit 20000`).map(asSession);
+}
+async function upsertSpend(fid: string, rows: SpendRow[], source: string){
+  const clean = rows.slice(0, 20000).map(r => {
+    const s = (v: unknown, n = 200) => v == null ? '' : String(v).trim().slice(0, n);
+    const row = {funnel_id: fid, day: s(r.day, 10), campaign_id: s(r.campaign_id, 40), campaign_name: s(r.campaign_name), adset_id: s(r.adset_id, 40), adset_name: s(r.adset_name), ad_id: s(r.ad_id, 40), ad_name: s(r.ad_name), spend: Number(r.spend) || 0, source, k: ''};
+    row.k = row.ad_id || row.adset_id || row.campaign_id || row.ad_name || row.adset_name || row.campaign_name;
+    return row;
+  }).filter(r => /^\d{4}-\d{2}-\d{2}$/.test(r.day) && r.k);
+  for (let i = 0; i < clean.length; i += 500) {
+    const part = clean.slice(i, i + 500);
+    await sql`insert into fn_spend ${sql(part, 'funnel_id', 'day', 'k', 'campaign_id', 'campaign_name', 'adset_id', 'adset_name', 'ad_id', 'ad_name', 'spend', 'source')}
+      on conflict (funnel_id, day, k) do update set spend = excluded.spend, campaign_id = excluded.campaign_id, campaign_name = excluded.campaign_name,
+        adset_id = excluded.adset_id, adset_name = excluded.adset_name, ad_id = excluded.ad_id, ad_name = excluded.ad_name, source = excluded.source`;
+  }
+  return clean.length;
+}
+async function applyCrm(fid: string, body: unknown){
+  let matched = 0;
+  for (const x of parseCrm(body)) {
+    const r = await sql`
+      update fn_sessions set crm = ${json({stage: x.stage, value: x.value || undefined, at: new Date().toISOString()})}
+       where funnel_id = ${fid} and id = (select id from fn_sessions where funnel_id = ${fid} and (${x.code} <> '' and id = ${x.code} or ${x.phone} <> '' and phone = ${x.phone}) order by created_at desc limit 1)
+      returning id`;
+    matched += r.length;
+  }
+  return matched;
+}
 const ops: Record<string, (b: Row) => Promise<unknown>> = {
   async ping(){ return {ok: true} },
   async 'funnels.list'(){
@@ -171,8 +318,7 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
     if (!f.webhook || !f.webhook.url) throw bad('O webhook não está configurado.');
     const [s] = await sql`select ${sessionCols} from fn_sessions where funnel_id = ${b.id} and id = ${String(b.session || '')}`;
     if (!s) throw bad('Lead não encontrado.', 404);
-    s.created_at = new Date(s.created_at).toISOString();
-    return await deliver(f, s as Session);
+    return await deliver(f, asSession(s));
   },
   async 'leads.list'(b){
     await funnelById(b.id);
@@ -183,7 +329,10 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
       ? await sql`select ${sessionCols} from fn_sessions where funnel_id = ${b.id} and created_at >= ${since} order by created_at asc limit ${limit} offset ${offset}`
       : await sql`select ${sessionCols} from fn_sessions where funnel_id = ${b.id} and created_at >= ${since} order by created_at desc limit ${limit} offset ${offset}`;
     const [c] = await sql`select count(*)::int as n from fn_sessions where funnel_id = ${b.id} and created_at >= ${since}`;
-    return {leads, total: c.n};
+    const ids = leads.map((l: Row) => l.id);
+    const sales = ids.length ? await sql`select session_id, status, value::float as value, product, created_at from fn_sales where funnel_id = ${b.id} and session_id = any(${ids})` : [];
+    waitUntil(sweep(b.id));
+    return {leads, total: c.n, sales};
   },
   async 'leads.stats'(b){
     const f = await funnelById(b.id);
@@ -191,6 +340,77 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
     const [r] = await sql`select fn_stats(${b.id}, ${periodStart(String(b.period || 'week'))}, ${total}) as s`;
     return r.s;
   },
+  async 'integrations.get'(b){ return integrations(await funnelById(b.id)) },
+  async 'integrations.save'(b){
+    const f = await funnelById(b.id), sec = {...(f.secrets || {})}, inc = b.integrations || {};
+    if (typeof inc.capiToken === 'string' && inc.capiToken.trim()) sec.capiToken = inc.capiToken.trim();
+    if (inc.clearCapiToken) delete sec.capiToken;
+    if (typeof inc.capiTest === 'string') sec.capiTest = inc.capiTest.trim().slice(0, 40);
+    if (typeof inc.adsToken === 'string' && inc.adsToken.trim()) sec.adsToken = inc.adsToken.trim();
+    if (inc.clearAdsToken) delete sec.adsToken;
+    if (typeof inc.adsAccount === 'string') sec.adsAccount = inc.adsAccount.replace(/\D/g, '').slice(0, 30);
+    if (inc.newHookKey) delete sec.hookKey;
+    await sql`update fn_funnels set secrets = ${json(sec)} where id = ${b.id}`;
+    return integrations({...f, secrets: sec});
+  },
+  async 'leads.ads'(b){
+    const f = await funnelById(b.id), since = sinceOf(b);
+    waitUntil(sweep(f.id));
+    const [sessions, sales, spend] = await Promise.all([
+      periodSessions(f.id, since),
+      sql`select session_id, status, value::float as value from fn_sales where funnel_id = ${f.id} and created_at >= ${since}`,
+      sql`select to_char(day, 'YYYY-MM-DD') as day, campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, spend::float as spend from fn_spend where funnel_id = ${f.id} and day >= ${since}::date`,
+    ]);
+    const settings = (b.settings || leadsOf(f.draft) || leadsOf(f.published)) as LeadSettings;
+    return aggregateAds(sessions, {level: String(b.level || 'ad'), settings, submitNames: String((f.webhook && f.webhook.component) || '').split(',').map(x => x.trim()), sales: sales as unknown as {session_id: string; status: string; value: number}[], spend: spend as unknown as SpendRow[]});
+  },
+  async 'leads.paths'(b){
+    const f = await funnelById(b.id);
+    const sessions = (await sql`select id, steps, timeline, completed from fn_sessions where funnel_id = ${f.id} and created_at >= ${sinceOf(b)} limit 20000`) as unknown as Session[];
+    return aggregatePaths(sessions, ((f.published || f.draft || {}).steps || []).map((s: Row) => ({id: s.id, title: s.title})));
+  },
+  async 'spend.import'(b){
+    const f = await funnelById(b.id);
+    if (b.replace) await sql`delete from fn_spend where funnel_id = ${f.id} and source = 'csv'`;
+    return {rows: await upsertSpend(f.id, Array.isArray(b.rows) ? b.rows : [], 'csv')};
+  },
+  async 'spend.clear'(b){ const f = await funnelById(b.id); await sql`delete from fn_spend where funnel_id = ${f.id}`; return {ok: true} },
+  async 'spend.sync'(b){
+    const f = await funnelById(b.id), sec = f.secrets || {};
+    if (!sec.adsToken || !sec.adsAccount) throw bad('Preencha o token e a conta de anúncios em Configurações › Pixel/Scripts.');
+    const since = new Date(Math.max(Date.now() - 90 * 864e5, b.since ? new Date(b.since).getTime() : Date.now() - 30 * 864e5)).toISOString().slice(0, 10);
+    const until = new Date().toISOString().slice(0, 10);
+    let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${sec.adsAccount}/insights?level=ad&fields=ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,spend&time_increment=1&limit=500&time_range=${encodeURIComponent(JSON.stringify({since, until}))}&access_token=${encodeURIComponent(sec.adsToken)}`;
+    const rows: SpendRow[] = [];
+    for (let page = 0; url && page < 40; page++) {
+      const r = await fetch(url, {signal: AbortSignal.timeout(20000)});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw bad('A Meta recusou: ' + ((j.error && j.error.message) || 'HTTP ' + r.status), 502);
+      for (const x of j.data || []) rows.push({day: x.date_start, campaign_id: x.campaign_id, campaign_name: x.campaign_name, adset_id: x.adset_id, adset_name: x.adset_name, ad_id: x.ad_id, ad_name: x.ad_name, spend: Number(x.spend) || 0});
+      url = j.paging && j.paging.next;
+    }
+    const n = await upsertSpend(f.id, rows, 'api');
+    return {rows: n, spend: Math.round(rows.reduce((t, x) => t + x.spend, 0) * 100) / 100, since, until};
+  },
+  // Leads antigos (InLead): não sobrescreve quem já existe aqui.
+  async 'leads.import'(b){
+    const f = await funnelById(b.id), fun = f.published || f.draft;
+    const rows = (Array.isArray(b.leads) ? b.leads.slice(0, 3000) : []).map((x: unknown) => importRow(x, fun)).filter(Boolean) as Session[];
+    let added = 0;
+    for (let i = 0; i < rows.length; i += 300) {
+      const part = rows.slice(i, i + 300).map(s => ({...s, updated_at: s.created_at}));
+      const r = await sql`
+        insert into fn_sessions (funnel_id, id, created_at, updated_at, tracking, params, answers, clicks, steps, last_step, interacted, completed, webhook, phone, email)
+        select ${f.id}, x.id, x.created_at, x.updated_at, coalesce(x.tracking, '{}'), coalesce(x.params, '{}'), coalesce(x.answers, '{}'), coalesce(x.clicks, '{}'),
+               coalesce((select array_agg(v) from jsonb_array_elements_text(x.steps) v), '{}'), x.last_step, x.interacted, x.completed, x.webhook, x.phone, x.email
+          from jsonb_to_recordset(${json(part)}) as x(id text, created_at timestamptz, updated_at timestamptz, tracking jsonb, params jsonb, answers jsonb, clicks jsonb,
+               steps jsonb, last_step text, interacted boolean, completed boolean, webhook jsonb, phone text, email text)
+        on conflict (funnel_id, id) do nothing returning id`;
+      added += r.length;
+    }
+    return {received: Array.isArray(b.leads) ? b.leads.length : 0, valid: rows.length, added};
+  },
+  async 'crm.import'(b){ const f = await funnelById(b.id); return {matched: await applyCrm(f.id, Array.isArray(b.rows) ? b.rows : [])} },
   async 'leads.reset'(b){ await funnelById(b.id); await sql`delete from fn_sessions where funnel_id = ${b.id}`; return {ok: true} },
   async upload(b){
     if (!SUPABASE_URL || !SERVICE_KEY) throw bad('Armazenamento indisponível.', 500);
@@ -207,8 +427,39 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
   },
 };
 
+/* ---------- webhooks que chegam: vendas do checkout e etapas do CRM ---------- */
+// URL: …/funis-api?hook=sale|crm&id=<funil>&key=<chave>  (em Configurações › Integrações).
+async function handleHook(hook: string, url: URL, text: string){
+  const id = url.searchParams.get('id') || '', key = url.searchParams.get('key') || '';
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return reply(404, {error: 'Funil não encontrado.'});
+  const [f] = await sql`select id, slug, published, webhook, secrets from fn_funnels where id = ${id}`;
+  if (!f || !f.secrets || !f.secrets.hookKey || !sameKey(key, f.secrets.hookKey)) return reply(401, {error: 'Chave inválida.'});
+  let body: unknown = {};
+  try { body = text ? JSON.parse(text) : {} } catch { body = Object.fromEntries(new URLSearchParams(text)) }
+  if (hook === 'crm') return reply(200, {ok: true, matched: await applyCrm(f.id, body)});
+  if (hook !== 'sale') return reply(400, {error: 'Webhook desconhecido.'});
+  if (!text) return reply(200, {ok: true});
+  const sale = parseSale(body);
+  const [hit] = sale.code ? await sql`select ${sessionCols} from fn_sessions where funnel_id = ${f.id} and id = ${sale.code}` : [];
+  const [byContact] = hit ? [hit] : (sale.phone || sale.email) ? await sql`
+    select ${sessionCols} from fn_sessions where funnel_id = ${f.id} and ((${sale.phone} <> '' and phone = ${sale.phone}) or (${sale.email} <> '' and email = ${sale.email}))
+     order by created_at desc limit 1` : [];
+  const s = byContact ? asSession(byContact) : null;
+  const ins = await sql`
+    insert into fn_sales (funnel_id, session_id, sale_id, event, status, value, currency, product, email, phone, utm, payload)
+    values (${f.id}, ${s ? s.id : null}, ${sale.saleId || null}, ${sale.event.slice(0, 60)}, ${sale.status}, ${sale.value}, ${sale.currency}, ${sale.product}, ${sale.email || null}, ${sale.phone || null}, ${json(sale.utm)}, ${json(body)})
+    on conflict (funnel_id, sale_id, status) do nothing returning id`;
+  if (ins.length && sale.status === 'approved') {
+    const who = s || {id: 'venda-' + (sale.saleId || ins[0].id), tracking: {}, params: {}, answers: {}, clicks: {}, steps: [], last_step: null, interacted: false, completed: false, phone: sale.phone, email: sale.email} as Session;
+    waitUntil(capiSend(f, who, [{name: 'Purchase', id: 'venda-' + (sale.saleId || ins[0].id), value: sale.value, currency: sale.currency, custom: sale.product ? {content_name: sale.product} : undefined}], !!s));
+  }
+  return reply(200, {ok: true, matched: !!s, status: sale.status});
+}
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response(null, {headers: CORS});
+  const url = new URL(req.url), hook = url.searchParams.get('hook');
+  if (hook) { try { return await handleHook(hook, url, req.method === 'POST' ? await req.text() : '') } catch (e) { console.error('hook', hook, e); return reply(500, {error: 'Erro interno.'}) } }
   if (req.method !== 'POST') return reply(405, {error: 'Use POST.'});
   let body: Row = {};
   try { body = JSON.parse(await req.text() || '{}') } catch { return reply(400, {error: 'JSON inválido.'}) }

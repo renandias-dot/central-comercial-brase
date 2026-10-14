@@ -203,7 +203,8 @@ function contentProps(l){
     case 'options': return optionsProps(l);
     case 'field': {
       const t = c.type || 'text';
-      return `<div class="psec">${P.sel(L('content.type'), 'Tipo', [['text', 'Texto'], ['email', 'E-mail'], ['phone', 'Telefone/WhatsApp'], ['number', 'Número'], ['textarea', 'Texto longo']])}${P.text(L('content.title'), 'Pergunta')}${P.text(L('content.placeholder'), 'Texto de exemplo (placeholder)')}${P.tog(L('content.required'), 'Obrigatório')}${t === 'number' ? `<div class="g2">${P.num(L('content.min'), 'Mínimo')}${P.num(L('content.max'), 'Máximo')}</div>` : ''}</div>`;
+      return `<div class="psec">${P.sel(L('content.type'), 'Tipo', [['text', 'Texto'], ['email', 'E-mail'], ['phone', 'Telefone/WhatsApp'], ['number', 'Número'], ['textarea', 'Texto longo']])}${P.text(L('content.title'), 'Pergunta')}${P.text(L('content.placeholder'), 'Texto de exemplo (placeholder)')}${P.tog(L('content.required'), 'Obrigatório')}${t === 'number' ? `<div class="g2">${P.num(L('content.min'), 'Mínimo')}${P.num(L('content.max'), 'Máximo')}</div>` : ''}
+        ${P.area(L('content.consent'), 'Texto de consentimento (LGPD, opcional)', {rows: 2, ph: 'Ao informar seu WhatsApp, você aceita receber o diagnóstico e o contato da Brase por lá.', hint: t === 'phone' ? 'Aparece embaixo do campo. Recomendado se for usar o envio de quem abandona o formulário (Configurações › Leads e dados).' : ''})}</div>`;
     }
     case 'date': return `<div class="psec">${P.text(L('content.title'), 'Pergunta')}${P.tog(L('content.required'), 'Obrigatório', {defOn: true})}${P.tog(L('content.disablePast'), 'Não deixar escolher datas passadas')}</div>`;
     case 'height': case 'weight': return `<div class="psec">${P.text(L('content.title'), 'Pergunta')}<div class="g3">${P.num(L('content.min'), 'Mínimo')}${P.num(L('content.max'), 'Máximo')}${P.num(L('content.value'), 'Inicial')}</div>${P.text(L('content.unit'), 'Unidade', {ph: l.type === 'height' ? 'cm' : 'kg'})}</div>`;
@@ -229,6 +230,9 @@ function contentProps(l){
       return `<div class="psec">${P.text(L('content.title'), 'Título (opcional)')}${P.seg(L('content.type'), 'Tipo', [['cartesian', 'Linha'], ['bar', 'Barras'], ['pie', 'Pizza']], 'cartesian')}${P.text(L('content.xAxis'), 'Rótulos (separe com |)', {t: 'list', ph: 'Ontem|Hoje|Amanhã', re: true})}${P.seg(L('content.datasetCount'), 'Conjuntos de dados', [['1', '1'], ['2', '2']], '1', true)}
         ${(c.datasets || []).slice(0, n).map((ds, i) => `<div class="item"><b class="hint">Conjunto ${i + 1}</b>${P.text(L(`content.datasets.${i}.title`), 'Nome')}${xs.map((x, j) => `<div class="g2">${P.text(L(`content.datasets.${i}.datas.${j}.value`), x || 'Valor ' + (j + 1))}${P.text(L(`content.datasets.${i}.datas.${j}.tooltip`), 'Etiqueta (opcional)')}</div>`).join('')}</div>`).join('')}<p class="hint">Os valores aceitam variáveis e calc(…).</p></div>`;
     }
+    case 'ifood': return `<div class="psec">${P.text(L('content.title'), 'Pergunta')}${P.text(L('content.placeholder'), 'Texto de exemplo')}${P.text(L('content.help'), 'Ajuda embaixo do campo')}${P.text(L('content.button'), 'Texto do botão')}${P.num(L('content.km'), 'Raio da comparação (km)', {min: 1, max: 10})}${P.tog(L('content.required'), 'Obrigatório')}
+      <p class="hint">A pessoa cola o link da loja no iFood e vê avaliações, pedidos estimados (avaliações × 2) e a posição entre as lojas da mesma categoria no raio, com os dados do app de Restaurantes. A posição só aparece quando a base tem pelo menos 5 lojas da categoria na região; cada loja analisada entra na base.</p>
+      <p class="hint">Variáveis para usar no texto e nas regras: <code>{{${esc(c.name || 'ifood')}.avaliacoes}}</code>, <code>.pedidos</code>, <code>.posicao</code>, <code>.total</code>, <code>.categoria</code>, <code>.proxima</code>, <code>.falta</code>, <code>.lider</code>.</p></div>`;
     case 'script': return `<div class="psec">${P.area(L('content.script'), 'HTML / Script', {rows: 12, code: true, hint: 'Roda só na página publicada e no teste. No editor aparece como um bloco.'})}</div>`;
     default: return '<p class="hint">Este componente não tem opções.</p>';
   }
@@ -268,6 +272,7 @@ function designProps(l){
     case 'arguments': return `<div class="psec">${P.sel(L('design.aspectImage'), 'Formato das imagens', ASPECTS, {def: 'aspect-[1/1]'})}${basis}</div>`;
     case 'carousel': return `<div class="psec">${P.sel(L('design.aspectImage'), 'Formato das imagens', ASPECTS, {def: 'aspect-[1/1]'})}${basis}</div>`;
     case 'compare': return `<div class="psec">${P.seg(L('design.ratio'), 'Formato', [['square', '1:1'], ['video', '16:9'], ['portrait', '3:4'], ['mobile', '9:16']], 'square')}${basis}</div>`;
+    case 'ifood': return `<div class="psec">${P.sel(L('design.style'), 'Cor do botão', BTN_STYLES, {def: 'theme'})}${customColors(L, d)}${basis}</div>`;
     case 'charts': return `<div class="psec">${P.tog(L('design.area'), 'Preencher a área (linha)', {defOn: true})}${P.tog(L('design.gridY'), 'Linhas de grade', {defOn: true})}${P.tog(L('design.axisX'), 'Eixo de baixo', {defOn: true})}${basis}</div>`;
     case 'clear': return '<p class="hint">O espaço não tem aparência própria.</p>';
     default: return `<div class="psec">${basis}<p class="hint">Cores, fontes e cantos vêm da aba Design (valem para o funil todo).</p></div>`;
@@ -302,7 +307,7 @@ const needsNumber = c => /count|percent/.test(c || '');
 function rolesProps(l){
   const roles = Array.isArray(l.roles) ? l.roles : [];
   const vs = allVars(), label = Object.fromEntries(FR.ROLE_OPERATORS);
-  const list = `<datalist id="fn-vars">${vs.map(x => `<option value="@${attr(x.name)}">${esc(x.stepTitle)}</option>${x.type === 'options' ? `<option value="@score.${attr(x.name)}">pontos · ${esc(x.stepTitle)}</option><option value="@responses.${attr(x.name)}">todas as opções · ${esc(x.stepTitle)}</option>` : ''}`).join('')}<option value="@score">pontuação total</option><option value="@tracking.utm_source">parâmetro da URL utm_source</option></datalist>`;
+  const list = `<datalist id="fn-vars">${vs.map(x => `<option value="@${attr(x.name)}">${esc(x.stepTitle)}</option>${x.type === 'options' ? `<option value="@score.${attr(x.name)}">pontos · ${esc(x.stepTitle)}</option><option value="@responses.${attr(x.name)}">todas as opções · ${esc(x.stepTitle)}</option>` : ''}`).join('')}<option value="@score">pontuação total</option><option value="@tracking.utm_content">anúncio (utm_content)</option><option value="@tracking.utm_campaign">campanha (utm_campaign)</option><option value="@tracking.utm_medium">conjunto (utm_medium)</option><option value="@tracking.utm_source">origem (utm_source)</option>${(typeof INS !== 'undefined' ? INS.utm : []).map(u => `<option value="${attr(u.split('|')[0])}">anúncio que trouxe visitas</option>`).join('')}</datalist>`;
   const cmpSel = (g, c, v) => `<select class="in" data-role="${g}.${c}.compare">${COMPARE_GROUPS.map(([gl, ops]) => `<optgroup label="${gl}">${ops.map(k => `<option value="${k}"${v === k ? ' selected' : ''}>${esc(label[k])}</option>`).join('')}</optgroup>`).join('')}${v && !label[v] ? `<option value="${attr(v)}" selected>${esc(v)}</option>` : ''}</select>`;
   const valIn = (g, c, cond) => {
     if (['empty', 'not_empty'].includes(cond.compare)) return '<span></span>';
@@ -315,7 +320,8 @@ function rolesProps(l){
   return `<div class="psec">${list}<p class="hint">Mostra este componente só quando as condições valem. Dentro de um grupo, todas precisam valer (E); entre grupos, basta um (OU). Sem regras, aparece sempre. Os dois lados aceitam @variáveis e viram número quando dá.</p>
     ${roles.map((g, gi) => `${gi ? '<div class="roles-or">OU</div>' : ''}<div class="roles-g">${g.map((c, ci) => row(gi, ci, c)).join('<div class="hint" style="font-weight:700">E</div>')}
       <button class="btn sm ghost" type="button" data-a="role-add" data-g="${gi}" style="justify-self:start">${IC.plus}E…</button></div>`).join('')}
-    <button class="btn sm" type="button" data-a="role-group">${IC.plus}${roles.length ? 'OU: novo grupo' : 'Adicionar condição'}</button>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm" type="button" data-a="role-group">${IC.plus}${roles.length ? 'OU: novo grupo' : 'Adicionar condição'}</button><button class="btn sm ghost" type="button" data-a="role-ad" title="Mostrar só para quem veio de um anúncio">${IC.plus}Condição de anúncio</button></div>
+    <p class="hint">Condição de anúncio: mostra este componente só para quem clicou num criativo (ex.: <code>@tracking.utm_content</code> contém <code>Escondeu</code>). Use para trocar o título da Capa conforme o anúncio.</p>
     <details><summary class="hint" style="cursor:pointer">Como funcionam “aparece” e “representa”</summary><p class="hint">Servem para múltipla escolha. Ex.: <code>ifood</code> aparece pelo menos <code>1</code> vezes em <code>@canais</code>; <code>sim</code> representa mais de <code>50</code>% em <code>@responses.quiz</code>.</p></details></div>`;
 }
 
@@ -324,6 +330,7 @@ function onPropInput(e){
   const t = e.target;
   if (t.dataset.rich != null) { const p = t.dataset.rich; applyValue(p, cleanRich(t.innerHTML), {key: p}); return }
   if (t.dataset.role) { setRole(t.dataset.role, t.value, e.type === 'change'); return }
+  if (t.dataset.rr) { setRuleAt(t.dataset.rr, t.value, e.type === 'change'); return }
   const p = t.dataset.p; if (!p) return;
   if (p === 'R:slug') { if (e.type === 'change') { const sl = slugify(t.value); t.value = sl; applyValue(p, sl, {key: p, props: true}) } return }
   let v = t.value;
@@ -382,7 +389,7 @@ function wireProps(){
       applyValue(p, t.value, {key: p, props: true}); return;
     }
     if (t.dataset.upload) { uploadTo(t.dataset.upload, t.files[0]); return }
-    if (t.matches('select,input[type=checkbox],input[type=color],input[type=datetime-local]') || t.dataset.role || t.dataset.re || t.dataset.p === 'R:slug') onPropInput(e);
+    if (t.matches('select,input[type=checkbox],input[type=color],input[type=datetime-local]') || t.dataset.role || t.dataset.rr || t.dataset.re || t.dataset.p === 'R:slug') onPropInput(e);
     else if (t.dataset.p && /destination$/.test(t.dataset.p)) renderProps();
   });
   el.addEventListener('click', e => {
@@ -436,6 +443,7 @@ Object.assign(ACT, {
   'li-up': t => { const l = layer(), arr = l.content[t.dataset.k], i = +t.dataset.i; if (i < 1) return; mutate(() => { const [x] = arr.splice(i, 1); arr.splice(i - 1, 0, x) }, {props: true}) },
   'li-down': t => { const l = layer(), arr = l.content[t.dataset.k], i = +t.dataset.i; if (i >= arr.length - 1) return; mutate(() => { const [x] = arr.splice(i, 1); arr.splice(i + 1, 0, x) }, {props: true}) },
   'opt-images': () => { const l = layer(); const has = (l.content.options || []).some(o => o.image && o.image.type !== 'emoji' && typeof o.image.src === 'string'); mutate(() => { l.content.options.forEach(o => { o.image = {type: 'image', src: has ? null : ''} }); if (!has && l.design.grid === 'grid-cols-1') l.design.grid = 'grid-cols-2' }, {props: true}) },
+  'role-ad': () => { const l = layer(); mutate(() => { l.roles = Array.isArray(l.roles) ? l.roles : []; l.roles.push([{variable: '@tracking.utm_content', compare: 'includes', value: ''}]) }, {props: true}); if (DB.server && typeof loadAds === 'function' && !INS.utm.length) { INS.level = 'ad'; loadAds().then(() => renderProps()).catch(() => {}) } },
   'role-group': () => { const l = layer(); mutate(() => { l.roles = Array.isArray(l.roles) ? l.roles : []; l.roles.push([{variable: '', compare: '==', value: ''}]) }, {props: true}) },
   'role-add': t => { const l = layer(); mutate(() => l.roles[+t.dataset.g].push({variable: '', compare: '==', value: ''}), {props: true}) },
   'role-del': t => { const l = layer(); mutate(() => { l.roles[+t.dataset.g].splice(+t.dataset.c, 1); l.roles = l.roles.filter(g => g.length); if (!l.roles.length) delete l.roles }, {props: true}) },

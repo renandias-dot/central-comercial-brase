@@ -57,15 +57,15 @@ async function loadLeads(more){
   if (!more && LEADS.cache && LEADS.cache.key === key && Date.now() - LEADS.cache.at < 60e3) return LEADS.cache;
   const off = more && LEADS.cache ? LEADS.cache.leads.length : 0;
   const [st, ls] = await Promise.all([more ? Promise.resolve(LEADS.cache.stats) : DB.stats(id, q), DB.leads(id, Object.assign({limit: 100, offset: off}, q))]);
-  LEADS.cache = {key, at: Date.now(), stats: st, leads: more ? LEADS.cache.leads.concat(ls.leads) : ls.leads, total: ls.total};
+  LEADS.cache = {key, at: Date.now(), stats: st, leads: more ? LEADS.cache.leads.concat(ls.leads) : ls.leads, total: ls.total, sales: (more ? LEADS.cache.sales || [] : []).concat(ls.sales || [])};
   return LEADS.cache;
 }
 async function renderLeads(main){
   const L = UI.leads;
   main.innerHTML = `<div class="leads" id="leads-root"><div class="leads-top">
-    <div class="seg">${[['respostas', 'Respostas'], ['resultados', 'Resultados'], ['performance', 'Performance']].map(([k, l]) => `<button data-a="lsub" data-v="${k}" aria-pressed="${L.sub === k}">${l}</button>`).join('')}</div>
+    <div class="seg">${[['respostas', 'Respostas'], ['resultados', 'Resultados'], ['performance', 'Performance'], ['anuncios', 'Anúncios'], ['caminhos', 'Caminhos']].map(([k, l]) => `<button data-a="lsub" data-v="${k}" aria-pressed="${L.sub === k}">${l}</button>`).join('')}</div>
     <div class="seg">${PERIODS.map(([k, l]) => `<button data-a="lperiod" data-v="${k}" aria-pressed="${L.period === k}">${l}</button>`).join('')}</div>
-    <span style="flex:1"></span><button class="btn sm" data-a="lrefresh">${IC.refresh}Atualizar</button><button class="btn sm" data-a="lexport">${IC.download}Exportar leads</button><button class="btn sm danger" data-a="lreset">${IC.trash}Resetar dados</button></div>
+    <span style="flex:1"></span><button class="btn sm" data-a="lrefresh">${IC.refresh}Atualizar</button><button class="btn sm" data-a="lexport">${IC.download}Exportar leads</button>${DB.server ? `<label class="btn sm" title="Planilha ou JSON do InLead">${IC.upload}Importar do InLead<input type="file" hidden accept=".csv,.json,text/csv,application/json" data-import="inlead" multiple></label>` : ''}<button class="btn sm danger" data-a="lreset">${IC.trash}Resetar dados</button></div>
     ${DB.server ? '' : '<div class="banner" style="margin-bottom:14px">Modo local: aqui aparecem só os testes feitos no botão ▶ deste navegador. Os leads reais aparecem quando o servidor estiver configurado.</div>'}
     <div id="leads-body"><div class="empty">Carregando…</div></div></div>`;
   let data;
@@ -81,6 +81,11 @@ function paintLeads(data){
   const body = $('#leads-body'); if (!body) return;
   const st = data.stats || {visits: 0, steps: {}};
   const sub = UI.leads.sub;
+  if (sub === 'anuncios' || sub === 'caminhos') {
+    body.innerHTML = kpis(st) + '<div id="ins-body"><div class="empty">Carregando…</div></div>';
+    (sub === 'anuncios' ? adsHtml() : pathsHtml()).then(h => { const b = $('#ins-body'); if (b && UI.leads.sub === sub) { b.innerHTML = h; wireTips(b) } }).catch(e => { const b = $('#ins-body'); if (b) b.innerHTML = `<div class="empty">${esc(e.message)}</div>` });
+    return;
+  }
   body.innerHTML = kpis(st) + (sub === 'resultados' ? resultsHtml(st) : sub === 'performance' ? perfHtml(st) : answersHtml(data));
   wireTips(body);
 }
@@ -94,9 +99,9 @@ function answersHtml(data){
   const groups = leadColumns().filter(g => g.cols.length && !UI.leads.hidden[g.step.id]);
   const st = data.stats || {}, visits = st.visits || 0;
   const track = UI.leads.hideTracking ? [] : TRACK;
-  const head1 = `<th class="sticky" colspan="3">Entrada</th>${groups.map(g => `<th class="stp" colspan="${g.cols.length}">${g.i + 1} · ${esc(g.step.title)}<span class="pc">${fmtPct((st.steps || {})[g.step.id] || 0, visits)}</span></th>`).join('')}${track.length ? `<th colspan="${track.length}">Rastreamento</th>` : ''}${DB.server ? '<th>Webhook</th>' : ''}`;
-  const head2 = `<th class="sticky">#</th><th>[ID] Lead</th><th>Data</th>${groups.map(g => g.cols.map(c => `<th>${esc(c.title)}<span class="nm">${esc(c.name)}</span></th>`).join('')).join('')}${track.map(t => `<th>${esc(t)}</th>`).join('')}${DB.server ? '<th></th>' : ''}`;
-  const rows = data.leads.map((l, k) => `<tr data-a="lead" data-k="${k}"><td class="sticky">${k + 1}</td><td><span class="tag">${esc(l.id)}</span>${l.test ? '<span class="chip">teste</span>' : ''}</td><td>${esc(fmtDateTime(l.created_at))}</td>${groups.map(g => g.cols.map(c => `<td>${cellOf(l, c)}</td>`).join('')).join('')}${track.map(t => `<td title="${attr((l.tracking || {})[t] || '')}">${esc((l.tracking || {})[t] || '')}</td>`).join('')}${DB.server ? `<td>${l.webhook ? (l.webhook.ok ? '<span class="chip ok">enviado</span>' : `<span class="chip bad" title="${attr(l.webhook.error || '')}">falhou</span>`) : ''}</td>` : ''}</tr>`).join('');
+  const head1 = `<th class="sticky" colspan="3">Entrada</th>${groups.map(g => `<th class="stp" colspan="${g.cols.length}">${g.i + 1} · ${esc(g.step.title)}<span class="pc">${fmtPct((st.steps || {})[g.step.id] || 0, visits)}</span></th>`).join('')}<th colspan="${insightHead().length}">Leitura</th>${track.length ? `<th colspan="${track.length}">Rastreamento</th>` : ''}`;
+  const head2 = `<th class="sticky">#</th><th>[ID] Lead</th><th>Data</th>${groups.map(g => g.cols.map(c => `<th>${esc(c.title)}<span class="nm">${esc(c.name)}</span></th>`).join('')).join('')}${insightHead().map(t => `<th>${t}</th>`).join('')}${track.map(t => `<th>${esc(t)}</th>`).join('')}`;
+  const rows = data.leads.map((l, k) => `<tr data-a="lead" data-k="${k}"><td class="sticky">${k + 1}</td><td><span class="tag">${esc(l.id)}</span>${l.test ? '<span class="chip">teste</span>' : ''}</td><td>${esc(fmtDateTime(l.created_at))}</td>${groups.map(g => g.cols.map(c => `<td>${cellOf(l, c)}</td>`).join('')).join('')}${insightCells(l, data).map(v => `<td>${v}</td>`).join('')}${track.map(t => `<td title="${attr((l.tracking || {})[t] || '')}">${esc((l.tracking || {})[t] || '')}</td>`).join('')}</tr>`).join('');
   return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap"><button class="btn sm" data-a="lsteps">${IC.layout}Etapas</button><button class="btn sm" data-a="lcols">Colunas</button><span class="seg"><button data-a="lorder" data-v="new" aria-pressed="${UI.leads.order === 'new'}">Mais recentes</button><button data-a="lorder" data-v="old" aria-pressed="${UI.leads.order === 'old'}">Mais antigos</button></span><span class="hint">${fmtInt(data.total)} registro(s) no período · mostrando ${fmtInt(data.leads.length)} · clique numa linha para ver tudo</span></div>
     ${data.leads.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>${head1}</tr><tr>${head2}</tr></thead><tbody>${rows}</tbody></table></div>${data.leads.length < data.total ? '<div style="text-align:center;margin-top:10px"><button class="btn" data-a="lmore">Carregar mais</button></div>' : ''}` : '<div class="panel"><div class="empty">Nenhum acesso no período.</div></div>'}`;
 }
@@ -151,6 +156,7 @@ function leadDrawer(lead){
   d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="font:800 18px/1.2 var(--f-display)">Lead <span class="tag" style="font:13px var(--f-mono)">${esc(lead.id)}</span></h2><button class="btn icon ghost" data-a="close-drawer" aria-label="Fechar">${IC.x}</button></div>
     <div class="row" style="flex-wrap:wrap">${lead.completed ? '<span class="chip ok">completou</span>' : ''}${lead.interacted ? '<span class="chip acc">interagiu</span>' : '<span class="chip">só acessou</span>'}<span class="hint">entrou ${esc(fmtDateTime(lead.created_at))} · última atividade ${esc(fmtDateTime(lead.updated_at))}</span></div>
     ${lead.webhook ? `<div class="banner${lead.webhook.ok ? '' : ' warn'}">Webhook: ${lead.webhook.ok ? 'enviado' : 'falhou'} em ${esc(fmtDateTime(lead.webhook.at))}${lead.webhook.status ? ' · HTTP ' + esc(String(lead.webhook.status)) : ''}${lead.webhook.error ? ' · ' + esc(lead.webhook.error) : ''}</div>` : ''}
+    ${insightDrawer(lead, LEADS.cache || {})}
     <div style="display:grid;gap:14px">${ans || '<p class="muted">Sem respostas.</p>'}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Etapas vistas</div><p class="hint">${(lead.steps || []).map(id => { const k = D.steps.findIndex(s => s.id === id); return k >= 0 ? (k + 1) + ' · ' + esc(D.steps[k].title) : esc(id) }).join(' → ') || '—'}</p></div>
     <div><div class="eyebrow" style="margin-bottom:6px">Rastreamento</div><div style="display:grid;gap:4px">${tr || '<span class="hint">—</span>'}</div></div>
@@ -166,9 +172,9 @@ async function exportCsv(){
   const all = []; let off = 0;
   for (;;) { const r = await DB.leads(REC.id, {period: UI.leads.period, order: 'old', limit: 1000, offset: off}); all.push(...r.leads); off += r.leads.length; if (!r.leads.length || off >= r.total || off >= 50000) break }
   const groups = leadColumns().filter(g => g.cols.length), cols = groups.flatMap(g => g.cols);
-  const head = ['id', 'data'].concat(cols.map(c => `${c.i + 1}. ${c.step.title} · ${c.name}`), ['completou', 'interagiu'], TRACK);
+  const head = ['id', 'data'].concat(cols.map(c => `${c.i + 1}. ${c.step.title} · ${c.name}`), ['completou', 'interagiu', 'nota', 'no perfil', 'whatsapp', 'etapa no crm'], TRACK);
   const plain = (l, c) => { if (c.type === 'button') return l.clicks && l.clicks[c.key] ? 'clicou' : ''; const a = l.answers && l.answers[c.key]; if (!a) return ''; return c.type === 'options' ? (a.label || a.value) : (Array.isArray(a.value) ? a.value.join(', ') : a.value) };
-  const lines = [head.map(csvCell).join(';')].concat(all.map(l => [l.id, fmtDateTime(l.created_at)].concat(cols.map(c => plain(l, c)), [l.completed ? 'sim' : 'não', l.interacted ? 'sim' : 'não'], TRACK.map(t => (l.tracking || {})[t] || '')).map(csvCell).join(';')));
+  const lines = [head.map(csvCell).join(';')].concat(all.map(l => [l.id, fmtDateTime(l.created_at)].concat(cols.map(c => plain(l, c)), [l.completed ? 'sim' : 'não', l.interacted ? 'sim' : 'não'], (m => [m.score == null ? '' : m.score, m.icp == null ? '' : m.icp ? 'sim' : 'não', l.phone || '', (l.crm && l.crm.stage) || ''])(leadInsight(l)), TRACK.map(t => (l.tracking || {})[t] || '')).map(csvCell).join(';')));
   download(`leads-${REC.slug}-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
 Object.assign(ACT, {
@@ -189,7 +195,7 @@ Object.assign(ACT, {
 
 /* ================= Configurações ================= */
 const WH = {data: null, dirty: false, id: null};
-const CFG_TABS = [['geral', 'Geral', IC.gear], ['dominio', 'Domínio', IC.globe], ['pixel', 'Pixel/Scripts', IC.code], ['seo', 'SEO & Favicon', IC.search], ['webhook', 'Webhooks', IC.hook], ['filtro', 'Filtro de tráfego', IC.shield]];
+const CFG_TABS = [['geral', 'Geral', IC.gear], ['dominio', 'Domínio', IC.globe], ['pixel', 'Pixel/Scripts', IC.code], ['seo', 'SEO & Favicon', IC.search], ['webhook', 'Webhooks', IC.hook], ['leads', 'Leads e dados', IC.sliders], ['integracoes', 'Integrações', IC.ext], ['filtro', 'Filtro de tráfego', IC.shield]];
 const CRM_KEYS = [['nome', 'Nome da pessoa'], ['empresa', 'Empresa/loja'], ['telefone', 'Telefone/WhatsApp'], ['email', 'E-mail'], ['faturamento', 'Faturamento'], ['dor', 'Dor/problema'], ['estrutura', 'Estrutura/equipe'], ['instagram', 'Instagram'], ['observacoes', 'Observações'], ['responsavel', 'Responsável (SDR)']];
 function renderConfig(main){
   if (WH.id !== REC.id) { WH.id = REC.id; WH.data = Object.assign({enabled: false, method: 'POST', contentType: 'JSON', trigger: 'component', mapping: []}, clone(REC.webhook || {})); WH.dirty = false }
@@ -211,7 +217,9 @@ function renderConfigBody(){
       <p class="hint">Os parâmetros do anúncio vão no fim do link (…&amp;utm_source=FB&amp;utm_campaign=…). Para abrir direto numa etapa, use <code>&amp;step=</code> com o ID da etapa (como no InLead) ou <code>&amp;etapa=3</code> (número da etapa).</p>`; break;
     case 'pixel': h = `<h2>Pixel/Scripts</h2><div class="banner">Códigos que rodam quando a página do funil abre. Para eventos em momentos específicos, use “Evento do Pixel” ou “Script” na aba Avançado de botões e opções.</div>
       ${P.text(S('pixel.facebook'), 'Facebook Pixel ID', {ph: '1234567890', hint: 'Dispara PageView ao abrir. Vários pixels: separe por vírgula.'})}${P.text(S('pixel.ga4'), 'Google Analytics ID', {ph: 'G-XXXXXXXXXX'})}${P.text(S('pixel.gtm'), 'Google Tag Manager ID', {ph: 'GTM-XXXXXX'})}${P.text(S('pixel.gsv'), 'Google Site Verification', {ph: 'XXXXXXXXXXXX'})}
-      ${P.area(S('scripts.head'), 'Head', {rows: 6, code: true, ph: 'Digite seu script…'})}${P.area(S('scripts.body'), 'Body', {rows: 6, code: true, ph: 'Digite seu script…'})}<p class="hint">Publique o funil para as mudanças valerem na página.</p>`; break;
+      ${P.area(S('scripts.head'), 'Head', {rows: 6, code: true, ph: 'Digite seu script…'})}${P.area(S('scripts.body'), 'Body', {rows: 6, code: true, ph: 'Digite seu script…'})}<p class="hint">Publique o funil para as mudanças valerem na página.</p>${metaHtml()}`; break;
+    case 'leads': h = leadsDataHtml(); break;
+    case 'integracoes': h = intHtml(); break;
     case 'seo': h = `<h2>SEO & Favicon</h2>${P.text(S('seo.title'), 'Título da página', {ph: REC.title})}${P.area(S('seo.description'), 'Descrição', {rows: 3})}${P.media(S('seo.image'), 'Imagem de compartilhamento', 'image/*')}${P.media(S('seo.favicon'), 'Favicon', 'image/*')}${P.tog(S('seo.noindex'), 'Não aparecer no Google (noindex)')}`; break;
     case 'webhook': h = webhookHtml(); break;
     case 'filtro': h = `<h2>Filtro de tráfego</h2>${P.tog(S('filter.enabled'), 'Ativar regras de filtro')}<p class="hint">O funil só abre para quem estiver dentro das regras abaixo.</p>
