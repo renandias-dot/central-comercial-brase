@@ -13,6 +13,7 @@ export type Session = {
 export type LeadSettings = {
   icp?: Roles; score?: {when?: Roles; points?: number | string; label?: string}[]; hot?: number | string;
   abandon?: {enabled?: boolean; minutes?: number | string}; dedupeDays?: number | string;
+  tags?: {when?: Roles; label?: string}[];
 };
 export type Webhook = {enabled?: boolean; url?: string; token?: string; method?: string; contentType?: string; trigger?: string; component?: string; mapping?: {key?: string; name?: string; mode?: string}[]};
 type Funnel = {steps?: {id: string; layers?: {id: string; type: string; content?: Record<string, unknown>}[]}[]};
@@ -151,7 +152,7 @@ const asText = (v: unknown) => Array.isArray(v) ? v.join(', ') : v == null ? '' 
 // responses.nome, campo = texto digitado, botão = "clicked", tracking.<parâmetro>, tracking.screen e tracking.platform.
 export function sessionVars(s: Session){
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(s.params || {})) out['tracking.' + k] = v;
+  for (const [k, v] of Object.entries(s.params || {})) { out['tracking.' + k] = v; if (/^teste_\w+$/.test(k)) out['teste.' + k.slice(6)] = v }
   if (s.tracking && s.tracking.screen) out['tracking.screen'] = s.tracking.screen;
   if (s.tracking && s.tracking.platform) out['tracking.platform'] = s.tracking.platform;
   for (const c of Object.values(s.clicks || {})) if (c && c.name) out[c.name] = 'clicked';
@@ -255,11 +256,13 @@ export function leadMetrics(s: Session, ls?: LeadSettings | null){
   for (const r of rules) if (evalRoles(r.when, vars, true)) { score += Number(r.points); if (r.label) reasons.push(r.label) }
   score = Math.max(0, Math.min(100, Math.round(score)));
   const hotMin = Number(ls && ls.hot);
+  // Etiquetas para o SDR (ex.: "DI, prioridade alta", "Já pagou agência"): as que valem para o lead, na ordem.
+  const tags = (ls && Array.isArray(ls.tags) ? ls.tags : []).filter(t => t && String(t.label || '').trim() && Array.isArray(t.when) && t.when.some(g => Array.isArray(g) && g.length) && evalRoles(t.when, vars, false)).map(t => String(t.label).trim());
   return {
     icp: icpRules ? evalRoles(icpRules, vars, false) : null,
     score: rules.length ? score : null,
     hot: rules.length && hotMin > 0 ? score >= hotMin : null,
-    reasons,
+    reasons, tags,
   };
 }
 // Campos que o webhook ganha com a leitura do lead (só os que estiverem configurados).
@@ -268,6 +271,7 @@ export function payloadExtras(s: Session, ls: LeadSettings | null | undefined, k
   if (m.score != null) out.nota_lead = m.score;
   if (m.icp != null) out.lead_no_perfil = m.icp;
   if (m.hot != null) out.lead_quente = m.hot;
+  if (ls && Array.isArray(ls.tags) && ls.tags.length) out.etiquetas = m.tags.join(', ');
   if (s.phone) out.telefone_valido = validBrPhone(s.phone);
   if (kind === 'abandono') { out.abandonou = true; if (stepTitle) out.etapa_abandono = stepTitle }
   return out;
@@ -344,6 +348,8 @@ export function parseCrm(body: any){
 /* ================= relatórios: anúncios, caminhos e tempo ================= */
 // O link do anúncio usa o modelo da Meta "Nome|ID" (ex.: utm_content=IFood Escondeu|120244276786450151).
 export const LEVELS: Record<string, string> = {campaign: 'utm_campaign', adset: 'utm_medium', ad: 'utm_content', placement: 'utm_term', source: 'utm_source'};
+// Teste A/B: nível "ab:<nome>" agrupa pela variante (parâmetro teste_<nome>).
+const levelParam = (level: string) => /^ab:\w{1,30}$/.test(level) ? 'teste_' + level.slice(3).toLowerCase() : LEVELS[level];
 export function splitUtm(v: unknown){
   const t = String(v ?? '').trim(), k = t.lastIndexOf('|');
   return k > 0 && /^\d{6,}$/.test(t.slice(k + 1).trim()) ? {name: t.slice(0, k).trim(), id: t.slice(k + 1).trim()} : {name: t, id: ''};
@@ -352,7 +358,7 @@ export type SpendRow = {day: string; campaign_id?: string; campaign_name?: strin
 type SaleRow = {session_id?: string | null; status: string; value: number};
 const SPEND_KEYS: Record<string, [string, string]> = {campaign: ['campaign_id', 'campaign_name'], adset: ['adset_id', 'adset_name'], ad: ['ad_id', 'ad_name']};
 export function aggregateAds(sessions: Session[], o: {level?: string; settings?: LeadSettings | null; submitNames?: string[]; sales?: SaleRow[]; spend?: SpendRow[]}){
-  const level = LEVELS[o.level || ''] ? o.level as string : 'ad', param = LEVELS[level];
+  const level = levelParam(o.level || '') ? o.level as string : 'ad', param = levelParam(level);
   const submit = new Set((o.submitNames || []).filter(Boolean));
   const salesBy = new Map<string, SaleRow[]>();
   for (const x of o.sales || []) if (x.session_id) { const l = salesBy.get(x.session_id) || []; l.push(x); salesBy.set(x.session_id, l) }

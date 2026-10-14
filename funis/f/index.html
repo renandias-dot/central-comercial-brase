@@ -162,6 +162,8 @@ function tracker(live){
   if (blocked(f)) { const to = f.settings.filter.redirect; if (to) location.replace(to); else show('Página indisponível', ''); return }
   setup(f);
   const T = tracker(got.live && !!API);
+  // Teste A/B: a variante do visitante vai nos parâmetros (teste_<nome>), que seguem para o servidor, o webhook e as regras.
+  Object.assign(urlParams, FR.abAssign(f, T.code, urlParams));
   // ?step=<id da etapa> (InLead) ou ?etapa=<número ou id>
   const startAt = params.step ? params.step : params.etapa != null ? (/^\d+$/.test(params.etapa) ? Math.max(0, +params.etapa - 1) : params.etapa) : 0;
   // Tag Manager: StepView a cada etapa e FormSubmit ao sair por um link, com os mesmos campos do InLead.
@@ -177,10 +179,13 @@ function tracker(live){
     window.dataLayer.push(Object.assign({event: url ? 'FormSubmit' : 'StepView'}, url ? {url} : {}, {funnelName: f.title, funnelID: f.id || f.slug, stepName: st.title || '', stepID: ev.step, stepIndex: k + 1, userCode: T.code, params: urlParams, content}));
   };
   // Lead no perfil (Configurações › Leads e dados): avisa o Pixel e o Tag Manager uma vez, com o mesmo event_id do servidor.
+  // Com "Só quando…" (Pixel/Scripts), espera também essa condição, ex.: o lead no perfil clicar no botão do formulário.
   const S = f.settings || {}, icpRules = ((S.leads || {}).icp || []).filter(g => Array.isArray(g) && g.length);
+  const icpWhen = ((S.pixel || {}).icpWhen || []).filter(g => Array.isArray(g) && g.length);
   let icpSent = false;
   const checkIcp = ev => {
     if (icpSent || !icpRules.length || !ev.vars || !FR.evalRoles(icpRules, {vars: ev.vars})) return;
+    if (icpWhen.length && !FR.evalRoles(icpWhen, {vars: ev.vars})) return;
     icpSent = true;
     if ((S.pixel || {}).icpEvent !== false) try { if (window.fbq) window.fbq('trackCustom', 'LeadQualificado', {}, {eventID: T.code + '-icp'}) } catch (e) {}
     window.dataLayer = window.dataLayer || []; window.dataLayer.push({event: 'LeadQualificado', userCode: T.code});
@@ -197,7 +202,7 @@ function tracker(live){
     mode: 'live', params: urlParams, step: startAt,
     eventId: k => T.code + '-' + k, decorateUrl,
     onIfood: got.live && API ? (link, km) => api('public.ifood', {slug, link, km}).then(j => j.ifood) : null,
-    onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url); if (ev.type === 'answer') checkIcp(ev) },
+    onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url); if (ev.type === 'answer' || ev.type === 'click') checkIcp(ev) },
     beforeRedirect: () => Promise.race([T.flush(true), new Promise(r => setTimeout(r, 1500))]),
   });
   addEventListener('pagehide', () => T.beacon());

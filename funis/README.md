@@ -81,20 +81,28 @@ Opções para personalizar o funil e ler melhor os leads e a performance. Cada u
 | **Gasto dos anúncios** | Configurações › Pixel/Scripts | Planilha do Gerenciador de Anúncios (Dia, Identificação/Nome do anúncio, Valor usado) ou busca automática com conta e token `ads_read`. |
 | **Vendas do checkout** | Configurações › Integrações | Endereço para o webhook de vendas da Kirvano (ou Hotmart/Kiwify). A venda volta ligada ao lead pela marca `sck=fn-<código>` que o funil põe no link do checkout, ou pelo telefone/e-mail. Reembolsos descontam. |
 | **Etapas do CRM** | Configurações › Integrações | Endereço para receber `{codigo ou telefone, etapa, valor}` ou planilha com essas colunas. Reuniões e vendas aparecem por anúncio. |
+| **Teste A/B** | Configurações › Leads e dados › Testes A/B | Cada visitante cai numa variante fixa (sorteada pelo código dele). O componente aparece só numa variante com a condição `@teste.capa` é igual a `v1`. A variante vai no webhook (`teste_capa`) e a aba Leads › Anúncios › Teste compara visitas, inícios, perfil e envios de cada uma. `?teste_capa=v1` no link força a variante. Sem variante (página antiga), aparece a que usa “diferente de”. |
+| **Etiquetas para o SDR** | Configurações › Leads e dados › Etiquetas | Regras que dão etiquetas ao lead (ex.: “DI, prioridade alta”, “Já pagou agência”, “Dor: lucro baixo”). Vão no webhook em `etiquetas` e aparecem na aba Leads. |
+| **LeadQualificado só no envio** | Configurações › Pixel/Scripts › Só quando… | O evento espera, além da regra de perfil, uma condição (ex.: `@VT19S2` = `clicked`). Assim a Meta aprende com o lead no perfil que deixou o WhatsApp, não com quem só respondeu o faturamento. |
 | **Leads antigos do InLead** | Leads › Importar do InLead (ou Integrações) | Planilha do “Exportar leads” ou JSON da API do painel do InLead. Entram com nota, perfil e WhatsApp validado, marcados como importados (não vão de novo ao CRM). |
 
 Os tokens (API de Conversões, gasto da Meta) e a chave dos endereços de vendas/CRM ficam só no servidor, na coluna `secrets`; o editor e a página nunca recebem.
 
 ### BRASE 2 · otimizado
 
-`data/brase-2-otimizado.json` (gerado por `tools/brase-2-otimizado.js`) é uma cópia do BRASE 2 publicado com as opções acima aplicadas, para comparar sem mexer no original:
+`data/brase-2-otimizado.json` (gerado por `tools/brase-2-otimizado.js`) é o BRASE 2 com as decisões de 13/10/2026 do documento “Funil Inlead Brase — Análise e Testes de Conversão”. O BRASE 2 original não muda.
 
-- Formulário em 3 passos: WhatsApp primeiro (com consentimento), depois nome, depois loja com o Raio-X opcional.
-- Resultado parcial na hora (“Seu diagnóstico”): o que já apareceu nas respostas (dor, fotos, cardápio, canal), os números do iFood quando a pessoa cola o link e a resposta à objeção de quem já pagou agência. O botão leva ao mesmo WhatsApp do envio.
-- Regra de perfil (faturamento ≥ R$ 10 mil), nota do lead com o modelo Brase, abandono depois de 15 min e repetidos por 30 dias.
-- O webhook continua no clique do `VT19S2` (agora no passo da loja), com os mesmos campos do CRM.
+- **Capa em teste A/B:** a capa atual (só com “menos de 2 minutos” no lugar de “45 segundos”) contra a V1, “Sua loja vende menos no iFood do que deveria?”, com botão âmbar “Ver onde minha loja trava” e a linha “a partir de R$ 10 mil”. Metade dos visitantes vê cada uma.
+- **Faturamento:** a pergunta fica como está. A etapa 6 foi corrigida: de R$ 5 a 10 mil, quem vende pelo iFood/99 vai para o formulário (passando pela pergunta de marketing) e quem vende no balcão ou no cardápio próprio vai para o ramo de baixo.
+- **Formulário V7:** “Pelas suas respostas, já dá pra ver onde sua loja perde pedido” com uma linha ❌ por resposta (dor, fotos, cardápio e marketing; ✅ quando fotos e cardápio estão bons), o próximo passo explicado, 3 campos (primeiro nome, loja no iFood, WhatsApp com DDD) e o botão “Quero ver o resto da minha loja”, que abre o WhatsApp do Lipe com o texto “Oi, Lipe! Sou {nome}, da {loja}. Acabei de fazer o teste da Brase.”
+- **Formulário V5:** quem marca “Já paguei agência” vê “Você já pagou por isso e não viu resultado”, as linhas ❌ e o botão “Quero ver o número da minha loja”. Os campos e o botão têm os mesmos nomes do V7, então o webhook e o CRM recebem igual.
+- **Ramo abaixo de R$ 5 mil, no arco do Hunt Cash:** ponte honesta → tipo de loja → frase que já pensou → de quem é a culpa → tempo de entrega, adicional, promoção e entrega grátis (com a pior opção na voz do dono) → carregando → diagnóstico com o Score calculado, o que tira pedido e a causa única → cena de futuro → demonstração do Scanner com exemplo do tipo de loja → quando quer começar → oferta.
+- **Checkout honesto do ZapFood:** sem cronômetro, sem “Tempo limitado!”, sem “DE R$ 297” e sem a barra fixa de 14%. Mostra o Score da pessoa, o vídeo, o depoimento da Michele, R$ 97 à vista ou 12x de R$ 9,94, pagamento único e garantia de 7 dias.
+- **Leitura:** regra de perfil (faturamento ≥ R$ 10 mil), nota do lead, abandono depois de 15 min, repetidos por 30 dias, etiquetas (DI/Plano IA pela faixa, “Já pagou agência” e a dor) e `LeadQualificado` só quando o lead no perfil clica no botão do formulário.
 
-Já está criado e publicado no servidor: `f/?f=brase-2-otimizado`. O BRASE 2 original (`f/?f=brase-2`) continua igual; dá para dividir o tráfego entre os dois e comparar na aba Leads.
+Está publicado no servidor: `f/?f=brase-2-otimizado`. Para conferir uma capa: `f/?f=brase-2-otimizado&teste_capa=v1` ou `&teste_capa=atual`.
+
+Ficou de fora do funil (fora da página): a planilha diária do Lipe e o modelo M4 no NicoChat ligado ao webhook. A foto do Lipe, os casos com autorização e o número real de horários (V7 da capa, V6 do formulário) dependem de material seu.
 
 ## O BRASE 2 copiado
 
@@ -154,7 +162,7 @@ node --test funis/tests/*.test.js
 deno test --allow-read funis/supabase/functions/funis-api/logic.test.ts
 ```
 
-Cobrem o motor (contas, variáveis com `{{}}` e `@`, celular válido, Raio-X, regras com todos os operadores do InLead, links com os parâmetros da URL, modelos de link do botão, máscara de telefone, importação do InLead), a navegação e o score do BRASE 2 iguais aos do InLead, a junção das respostas no servidor, o gatilho e o corpo do webhook no formato do InLead e do CRM, a conta de qualificados, a guarda do token e a leitura dos leads no servidor (regras iguais às do funil, nota, perfil, abandono, vendas da Kirvano, etapas do CRM, relatório por anúncio, caminhos, eventos da API de Conversões e importação do InLead).
+Cobrem o motor (contas, variáveis com `{{}}` e `@`, celular válido, Raio-X, regras com todos os operadores do InLead, links com os parâmetros da URL, modelos de link do botão, máscara de telefone, importação do InLead), a navegação e o score do BRASE 2 iguais aos do InLead, a junção das respostas no servidor, o gatilho e o corpo do webhook no formato do InLead e do CRM, a conta de qualificados, a guarda do token e a leitura dos leads no servidor (regras iguais às do funil, nota, perfil, abandono, vendas da Kirvano, etapas do CRM, relatório por anúncio, caminhos, eventos da API de Conversões, importação do InLead, etiquetas e relatório por variante do teste A/B) e o sorteio do teste A/B (variante fixa por visitante, forçada pelo link).
 
 ## O que ficou de fora
 

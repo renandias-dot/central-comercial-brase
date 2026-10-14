@@ -174,9 +174,9 @@ async function exportCsv(){
   const all = []; let off = 0;
   for (;;) { const r = await DB.leads(REC.id, {period: UI.leads.period, order: 'old', limit: 1000, offset: off}); all.push(...r.leads); off += r.leads.length; if (!r.leads.length || off >= r.total || off >= 50000) break }
   const groups = leadColumns().filter(g => g.cols.length), cols = groups.flatMap(g => g.cols);
-  const head = ['id', 'data'].concat(cols.map(c => `${c.i + 1}. ${c.step.title} · ${c.name}`), ['completou', 'interagiu', 'nota', 'no perfil', 'whatsapp', 'etapa no crm'], TRACK);
+  const head = ['id', 'data'].concat(cols.map(c => `${c.i + 1}. ${c.step.title} · ${c.name}`), ['completou', 'interagiu', 'nota', 'no perfil', 'etiquetas', 'teste a/b', 'whatsapp', 'etapa no crm'], TRACK);
   const plain = (l, c) => { if (c.type === 'button') return l.clicks && l.clicks[c.key] ? 'clicou' : ''; const a = l.answers && l.answers[c.key]; if (!a) return ''; return c.type === 'options' ? (a.label || a.value) : (Array.isArray(a.value) ? a.value.join(', ') : a.value) };
-  const lines = [head.map(csvCell).join(';')].concat(all.map(l => [l.id, fmtDateTime(l.created_at)].concat(cols.map(c => plain(l, c)), [l.completed ? 'sim' : 'não', l.interacted ? 'sim' : 'não'], (m => [m.score == null ? '' : m.score, m.icp == null ? '' : m.icp ? 'sim' : 'não', l.phone || '', (l.crm && l.crm.stage) || ''])(leadInsight(l)), TRACK.map(t => (l.tracking || {})[t] || '')).map(csvCell).join(';')));
+  const lines = [head.map(csvCell).join(';')].concat(all.map(l => [l.id, fmtDateTime(l.created_at)].concat(cols.map(c => plain(l, c)), [l.completed ? 'sim' : 'não', l.interacted ? 'sim' : 'não'], (m => [m.score == null ? '' : m.score, m.icp == null ? '' : m.icp ? 'sim' : 'não', m.tags.join(', '), abOf(l), l.phone || '', (l.crm && l.crm.stage) || ''])(leadInsight(l)), TRACK.map(t => (l.tracking || {})[t] || '')).map(csvCell).join(';')));
   download(`leads-${REC.slug}-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
 }
 Object.assign(ACT, {

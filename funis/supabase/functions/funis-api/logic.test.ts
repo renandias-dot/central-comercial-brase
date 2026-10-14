@@ -154,11 +154,11 @@ Deno.test('nota do lead, perfil e quente', () => {
   const s = sess({answers: {a: {name: 'fat', type: 'options', value: '30000'}, b: {name: 'canal', type: 'options', value: '0'}, c: {name: 'zap', type: 'field', title: 'Qual seu Whatsapp?', value: '(11) 98888-7777'}}});
   s.phone = normPhone('(11) 98888-7777');
   const m = leadMetrics(s, LS);
-  assertEquals(m, {icp: true, score: 100, hot: true, reasons: ['Fatura 10 mil+', 'Vende no iFood']});
+  assertEquals(m, {icp: true, score: 100, hot: true, reasons: ['Fatura 10 mil+', 'Vende no iFood'], tags: []});
   const pobre = sess({answers: {a: {name: 'fat', type: 'options', value: '0'}}});
   assertEquals(leadMetrics(pobre, LS).icp, false);
   assertEquals(leadMetrics(pobre, LS).score, 0);
-  assertEquals(leadMetrics(pobre, null), {icp: null, score: null, hot: null, reasons: []});
+  assertEquals(leadMetrics(pobre, null), {icp: null, score: null, hot: null, reasons: [], tags: []});
   const extra = payloadExtras(s, LS, 'abandono', 'Análise pré-aprovada');
   assertEquals(extra, {nota_lead: 100, lead_no_perfil: true, lead_quente: true, telefone_valido: true, abandonou: true, etapa_abandono: 'Análise pré-aprovada'});
 });
@@ -261,4 +261,23 @@ Deno.test('importa leads do InLead sem reenviar ao CRM', () => {
   r.params = {utm_content: 'IFood Escondeu|120244276786450151'};
   const row = aggregateAds([r, sem], {level: 'ad', submitNames: ['VT19S2']}).rows[0];
   assertEquals([row.visits, row.submitted], [2, 1]);
+});
+
+Deno.test('etiquetas no webhook e relatório por variante do teste A/B', () => {
+  const ls = {tags: [
+    {label: 'DI, prioridade alta', when: [[{variable: '@fat', compare: '>=', value: '50000'}]]},
+    {label: 'Plano IA', when: [[{variable: '@fat', compare: '==', value: '10000'}]]},
+    {label: 'Já pagou agência', when: [[{variable: '@mkt', compare: '==', value: 'B'}]]},
+    {label: 'sem regra', when: []},
+  ]};
+  const lead = (id: string, fat: string, mkt: string, capa: string) => ({id, tracking: {}, params: {teste_capa: capa}, answers: {f: {name: 'fat', type: 'options', value: fat}, m: {name: 'mkt', type: 'options', value: mkt}}, clicks: {}, steps: [], last_step: null, interacted: true, completed: false} as Session);
+  const a = lead('aaaa', '50000', 'B', 'v1'), b = lead('bbbb', '10000', 'A', 'atual'), c = lead('cccc', '0', 'A', 'v1');
+  assertEquals(payloadExtras(a, ls).etiquetas, 'DI, prioridade alta, Já pagou agência');
+  assertEquals(payloadExtras(b, ls).etiquetas, 'Plano IA');
+  assertEquals(payloadExtras(c, ls).etiquetas, '');
+  assertEquals(payloadExtras(c, {}).etiquetas, undefined, 'sem etiquetas configuradas, o campo não vai');
+  assertEquals(sessionVars(a)['teste.capa'], 'v1');
+  const r = aggregateAds([a, b, c], {level: 'ab:capa'});
+  assertEquals(r.param, 'teste_capa');
+  assertEquals(r.rows.map(x => [x.key, x.visits]), [['v1', 2], ['atual', 1]]);
 });

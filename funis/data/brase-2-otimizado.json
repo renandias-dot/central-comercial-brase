@@ -1,11 +1,11 @@
 {
  "format": "brase-funil-export/1",
- "exportedAt": "2026-10-14T02:06:43.135Z",
+ "exportedAt": "2026-10-14T15:20:37.773Z",
  "slug": "brase-2-otimizado",
  "title": "BRASE 2 · otimizado",
  "source": {
   "basedOn": "brase-2",
-  "note": "Cópia do BRASE 2 publicado com formulário em 3 passos (WhatsApp primeiro, com consentimento), Raio-X do iFood, resultado parcial na hora, regra de perfil, nota do lead, envio de abandono e bloqueio de repetidos."
+  "note": "BRASE 2 com as decisões de 13/10/2026: capa atual × V1 em teste A/B, etapa 6 corrigida, formulário V7 com a cópia V5 (já pagou agência), WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio."
  },
  "draft": {
   "schema": "brase-funil/1",
@@ -31,7 +31,16 @@
        "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>",
        "id": "VhEhnI",
        "name": "dmGo3e"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
      },
      {
       "id": "9Z567P",
@@ -40,10 +49,19 @@
       "type": "text",
       "design": {},
       "content": {
-       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;45&nbsp;segundos.</em></p>",
+       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>",
        "id": "i5ho8Y",
        "name": "RBnItX"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
      },
      {
       "id": "rPJrLL",
@@ -62,7 +80,111 @@
        "pulse": false,
        "target": false,
        "id": "YoScvS"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "huNzpc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "3YLweQ",
+       "name": "cVdC94",
+       "text": "<h1 class=\"ql-align-center\">Sua loja vende menos no iFood <span style=\"color: rgb(245, 158, 11);\">do que deveria?</span></h1>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "7DehSC",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "wYFTY6",
+       "name": "mtKBit",
+       "text": "<h3 class=\"ql-align-center\">Leva menos de 2 minutos. Depois, a gente te mostra onde o ranking está segurando a sua loja.</h3>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "5a9wLk",
+      "title": "Botão",
+      "type": "button",
+      "design": {
+       "basis": 100,
+       "style": "custom",
+       "backgroundColor": "#f59e0b",
+       "color": "#171717"
+      },
+      "content": {
+       "id": "FKBx2G",
+       "name": "iniciar_v1",
+       "type": "next",
+       "label": "Ver onde minha loja trava ➔",
+       "destination": "next",
+       "pulse": false,
+       "target": false
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "iTThVN",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Z3VnB7",
+       "name": "Gtxbw3",
+       "text": "<p class=\"ql-align-center\"><em>Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
      }
     ]
    },
@@ -70,7 +192,7 @@
     "id": "xRIqRm",
     "title": "Dor",
     "position": {
-     "x": 288,
+     "x": 300,
      "y": 0
     },
     "layers": [
@@ -166,7 +288,7 @@
     "id": "Kqi5Pw",
     "title": "Fotos",
     "position": {
-     "x": 576,
+     "x": 600,
      "y": 0
     },
     "layers": [
@@ -249,8 +371,8 @@
     "id": "wYTieX",
     "title": "Cardápio",
     "position": {
-     "x": 877.1961661341854,
-     "y": 6.469009584664548
+     "x": 900,
+     "y": 0
     },
     "layers": [
      {
@@ -332,8 +454,8 @@
     "id": "bhFAaE",
     "title": "Faturamento",
     "position": {
-     "x": 1164.1494497067804,
-     "y": -17.561041582097545
+     "x": 1200,
+     "y": 0
     },
     "layers": [
      {
@@ -386,7 +508,7 @@
         {
          "id": "5LkYqH",
          "label": "<p>Menos&nbsp;de&nbsp;5.000/mês</p>",
-         "destination": "VKCmGQ",
+         "destination": "zElcAr",
          "value": "0"
         },
         {
@@ -444,8 +566,8 @@
     "id": "1tLAnV",
     "title": "De onde vem as vendas",
     "position": {
-     "x": 1297.8486497955575,
-     "y": 665.933880847427
+     "x": 1500,
+     "y": 0
     },
     "layers": [
      {
@@ -486,7 +608,7 @@
         {
          "id": "a2fEZ1",
          "label": "<p>IFood&nbsp;/&nbsp;99</p>",
-         "destination": "VKCmGQ",
+         "destination": "3LDtps",
          "value": "0"
         },
         {
@@ -498,7 +620,7 @@
          "score": 1,
          "value": "5000",
          "label": "<p>Presencial&nbsp;/&nbsp;Balcão</p>",
-         "destination": "3LDtps"
+         "destination": "zElcAr"
         },
         {
          "id": "xEvRVL",
@@ -509,7 +631,7 @@
          "score": 2,
          "value": "10000",
          "label": "<p>Cardápio&nbsp;Próprio&nbsp;/&nbsp;Whatsapp</p>",
-         "destination": "3LDtps"
+         "destination": "zElcAr"
         }
        ],
        "type": "options",
@@ -522,8 +644,8 @@
     "id": "3LDtps",
     "title": "Como cuida do mkt",
     "position": {
-     "x": 1776.6345047923323,
-     "y": -24.31725239616611
+     "x": 1800,
+     "y": 0
     },
     "layers": [
      {
@@ -581,7 +703,7 @@
          "score": 2,
          "value": "B",
          "label": "<p>😤&nbsp;<strong>Já&nbsp;paguei&nbsp;agência/gestor/consultoria:</strong>&nbsp;(Mas&nbsp;não&nbsp;tive&nbsp;resultado)</p>",
-         "destination": "eVsUdO"
+         "destination": "QRtsgk"
         },
         {
          "id": "utUKlX",
@@ -614,332 +736,36 @@
    },
    {
     "id": "eVsUdO",
-    "title": "Análise pré-aprovada",
+    "title": "Formulário V7",
     "position": {
-     "x": 2016,
+     "x": 2100,
      "y": 0
     },
     "layers": [
      {
-      "id": "6lgfoy",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
-      "design": {},
-      "content": {
-       "text": "<h1 class=\"ql-align-center\">ANÁLISE&nbsp;PRÉ-APROVADA&nbsp;✅</h1>",
-       "id": "azg07O",
-       "name": "3yN0AZ"
-      }
-     },
-     {
-      "id": "bwNjAi",
+      "id": "mBrCaL",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "5edbZi",
-       "name": "j61oTD",
-       "text": "<h3 class=\"ql-align-center\">Seu perfil técnico foi recebido e <span style=\"color: rgb(245, 158, 11);\">já apareceram pontos travando sua loja.</span></h3><p class=\"ql-align-center\">Eu analiso pessoalmente e te mando o diagnóstico completo.</p>"
+       "id": "FNujEO",
+       "name": "fBAsW3",
+       "text": "<h2 class=\"ql-align-center\">Pelas suas respostas, já dá pra ver <span style=\"color: rgb(245, 158, 11);\">onde sua loja perde pedido:</span></h2>"
       }
      },
      {
-      "id": "wRTqPH",
-      "title": "Telefone",
-      "icon": "phone",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "L5Lzbe",
-       "title": "Para qual WhatsApp eu mando seu diagnóstico?",
-       "placeholder": "Digite seu Whatsapp...",
-       "type": "phone",
-       "mask": "phone",
-       "id": "vWQssV",
-       "required": true,
-       "consent": "<p>Ao informar seu WhatsApp, você aceita receber o diagnóstico e o contato da Brase por lá.</p>"
-      }
-     },
-     {
-      "id": "JJuRGy",
-      "title": "Botão",
-      "type": "button",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "h0x9m7",
-       "name": "button_bgg9ut",
-       "type": "next",
-       "label": "CONTINUAR ➔",
-       "destination": "next",
-       "pulse": false,
-       "target": false
-      }
-     }
-    ]
-   },
-   {
-    "id": "gOk4IN",
-    "title": "Seu nome",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "cMtReH",
+      "id": "I68nu8",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "n0cWgC",
-       "name": "lFh0JB",
-       "text": "<h2 class=\"ql-align-center\">Como você se chama?</h2>"
-      }
-     },
-     {
-      "id": "EoNTCh",
-      "title": "Campo",
-      "icon": "inputText",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "ukieyT",
-       "title": "Qual o seu nome?",
-       "placeholder": "Digite seu nome...",
-       "type": "text",
-       "id": "Fi6q18",
-       "required": true
-      }
-     },
-     {
-      "id": "GeEHti",
-      "title": "Botão",
-      "type": "button",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "jgnkT3",
-       "name": "button_oK8Ppw",
-       "type": "next",
-       "label": "CONTINUAR ➔",
-       "destination": "next",
-       "pulse": false,
-       "target": false
-      }
-     }
-    ]
-   },
-   {
-    "id": "TgFVYm",
-    "title": "Sua loja",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "hOqv7r",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "0cmN60",
-       "name": "dZ1o0v",
-       "text": "<h2 class=\"ql-align-center\">E qual o nome da sua loja?</h2>"
-      }
-     },
-     {
-      "id": "U2NPZj",
-      "title": "Campo",
-      "icon": "inputText",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "KVvZKi",
-       "title": "Qual o nome da sua loja?",
-       "placeholder": "Digite o nome da sua loja...",
-       "type": "text",
-       "id": "prcxYd",
-       "required": true
-      }
-     },
-     {
-      "id": "pNqCpn",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "yvOogW",
-       "name": "P8rBnM",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "ZSVihA",
-      "title": "Raio-X iFood",
-      "type": "ifood",
-      "design": {
-       "basis": 100,
-       "style": "dark"
-      },
-      "content": {
-       "id": "D9T3Yb",
-       "name": "ifood_loja",
-       "title": "Quer que eu já olhe sua loja no iFood? Cole o link",
-       "placeholder": "https://www.ifood.com.br/delivery/…",
-       "help": "No app do iFood: abra sua loja, toque em compartilhar e copie o link.",
-       "button": "VER O RAIO-X DA MINHA LOJA 🔎",
-       "km": 3,
-       "required": false
-      }
-     },
-     {
-      "id": "3fRLQR",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "acJKxY",
-       "name": "hlnfmO",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "nGdNsj",
-      "title": "Botão",
-      "icon": "rectangleWide",
-      "type": "button",
-      "design": {
-       "style": "theme"
-      },
-      "content": {
-       "name": "VT19S2",
-       "type": "next",
-       "label": "ENVIAR APLICAÇÃO!",
-       "destination": "next",
-       "pulse": false,
-       "target": false,
-       "id": "tTKZ4M"
-      }
-     }
-    ]
-   },
-   {
-    "id": "JTSxbz",
-    "title": "Seu diagnóstico",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "lRThcA",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "ZT6vtI",
-       "name": "C3GrRo",
-       "text": "<h1 class=\"ql-align-center\">Recebi sua aplicação, <span style=\"color: rgb(245, 158, 11);\">{{ukieyT}}</span>! ✅</h1>"
-      }
-     },
-     {
-      "id": "HZLmEy",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "CyxaNI",
-       "name": "v7uhN7",
-       "text": "<h3 class=\"ql-align-center\">Enquanto preparo o diagnóstico completo da {{KVvZKi}}, veja o que já apareceu nas suas respostas:</h3>"
-      }
-     },
-     {
-      "id": "uXHw7b",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "a1Pv5F",
-       "name": "yAKpEx",
-       "clear": "h-[0.5rem]"
-      }
-     },
-     {
-      "id": "9BuJw4",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "SIokMg",
-       "name": "QNzv1y",
-       "text": "<p>🔎 <b>Pelo iFood:</b> sua loja tem {{ifood_loja.avaliacoes}} avaliações, cerca de {{ifood_loja.pedidos}} pedidos até hoje.</p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@ifood_loja.avaliacoes",
-         "compare": ">",
-         "value": "0"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "iZXVGK",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "lYgJ1x",
-       "name": "QT44o0",
-       "text": "<p>🏁 <b>Na sua região:</b> você está em {{ifood_loja.posicao}}º de {{ifood_loja.total}} lojas de {{ifood_loja.categoria}}. Faltam uns {{ifood_loja.falta}} pedidos para passar {{ifood_loja.proxima}}.</p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@ifood_loja.confiavel",
-         "compare": "==",
-         "value": "true"
-        },
-        {
-         "variable": "@ifood_loja.falta",
-         "compare": ">",
-         "value": "0"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "zJONX8",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "UiDH7Z",
-       "name": "6xd3MU",
-       "text": "<p>🔇 <b>Queda do nada</b> costuma ser configuração: tempo de entrega, entrega grátis e produto em promoção mexem direto na sua posição na lista.</p>"
+       "id": "yg3S9i",
+       "name": "B31kUr",
+       "text": "<p>❌ Seus pedidos caíram do nada. Quando isso acontece, costuma ser a loja perdendo posição no ranking.</p>"
       },
       "roles": [
        [
@@ -952,16 +778,16 @@
       ]
      },
      {
-      "id": "qLn5Dk",
+      "id": "J8wM2c",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "RXO1kT",
-       "name": "V04iuR",
-       "text": "<p>👀 <b>Visita sem venda</b> é vitrine: foto, nome do produto e preço âncora decidem se o pedido sai.</p>"
+       "id": "NMtV3F",
+       "name": "CuUXMC",
+       "text": "<p>❌ Muita gente entra e pouca gente pede. O problema está no cardápio, depois do clique.</p>"
       },
       "roles": [
        [
@@ -974,16 +800,16 @@
       ]
      },
      {
-      "id": "TChVBU",
+      "id": "uIv9nO",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "o902lc",
-       "name": "Gknvbz",
-       "text": "<p>📉 <b>Lucro baixo</b> costuma vir de cupom no cardápio todo e entrega grátis do bolso. Dá para vender mais sem baixar o preço.</p>"
+       "id": "VE7VwW",
+       "name": "P5ReGi",
+       "text": "<p>❌ Você vende bem e sobra pouco. Promoção e taxa estão comendo a margem.</p>"
       },
       "roles": [
        [
@@ -996,16 +822,16 @@
       ]
      },
      {
-      "id": "xF1WrD",
+      "id": "KsOzQr",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "wHvuoL",
-       "name": "ljeeYH",
-       "text": "<p>🚀 <b>Começando:</b> cardápio estratégico desde o início evita depender de cupom.</p>"
+       "id": "59Pu14",
+       "name": "zs3ZSb",
+       "text": "<p>❌ Loja nova ainda não tem histórico no ranking, então cada detalhe do cardápio pesa mais.</p>"
       },
       "roles": [
        [
@@ -1018,16 +844,16 @@
       ]
      },
      {
-      "id": "j0SPSj",
+      "id": "y0bt21",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "kL2yvf",
-       "name": "5gs4LR",
-       "text": "<p>📸 <b>Fotos de celular:</b> o algoritmo mostra antes quem tem foto profissional, nítida e iluminada.</p>"
+       "id": "VZn6eG",
+       "name": "cUIn37",
+       "text": "<p>❌ Foto tirada na hora faz o cliente passar direto pelo seu prato.</p>"
       },
       "roles": [
        [
@@ -1040,16 +866,16 @@
       ]
      },
      {
-      "id": "5TJH9m",
+      "id": "MpVJcE",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "eJLf7y",
-       "name": "20V7Yw",
-       "text": "<p>📸 <b>Fotos do Google ou sem foto:</b> produto sem foto real quase não aparece e vende bem menos.</p>"
+       "id": "GdtVnF",
+       "name": "3zxHro",
+       "text": "<p>❌ Sem foto própria, seu prato some no meio dos concorrentes.</p>"
       },
       "roles": [
        [
@@ -1062,16 +888,16 @@
       ]
      },
      {
-      "id": "PQ99iE",
+      "id": "wjEpng",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "kdSASH",
-       "name": "UEed62",
-       "text": "<p>🧭 <b>Cardápio em lista:</b> sem isca, âncora e combo, o cliente compra só o mínimo.</p>"
+       "id": "cxXHnE",
+       "name": "IXiiJ8",
+       "text": "<p>❌ Sem produto de entrada e sem combo, o cliente novo não arrisca o primeiro pedido.</p>"
       },
       "roles": [
        [
@@ -1084,16 +910,16 @@
       ]
      },
      {
-      "id": "02hUf2",
+      "id": "xyFBea",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "N9jnyQ",
-       "name": "SbujAD",
-       "text": "<p>🧭 <b>Cardápio bagunçado:</b> o cliente se perde para escolher e sai sem pedir.</p>"
+       "id": "Wj50Zl",
+       "name": "NZMCuw",
+       "text": "<p>❌ O cliente se perde pra escolher, e quem se perde volta pra lista.</p>"
       },
       "roles": [
        [
@@ -1106,71 +932,43 @@
       ]
      },
      {
-      "id": "kxjjcM",
+      "id": "6A6bAA",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "I63sLr",
-       "name": "qLGV1w",
-       "text": "<p>📱 <b>Quase tudo vem do iFood:</b> qualquer mudança no algoritmo pesa direto no seu caixa.</p>"
+       "id": "JWM647",
+       "name": "Ajb0pY",
+       "text": "<p>✅ Fotos e cardápio estão no caminho. O que falta aparece no seu portal.</p>"
       },
       "roles": [
        [
         {
-         "variable": "@opcoes_26I6it",
+         "variable": "@opcoes_BAoGLH",
          "compare": "==",
-         "value": "0"
+         "value": "A"
+        },
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "A"
         }
        ]
       ]
      },
      {
-      "id": "yIUNZA",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "YFtDkb",
-       "name": "5jgpan",
-       "clear": "h-[0.5rem]"
-      }
-     },
-     {
-      "id": "C0d0E7",
+      "id": "8o4bBo",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "yKt5OG",
-       "name": "xgdgYt",
-       "text": "<p><em>Você já pagou agência e não teve resultado. Aqui é diferente: eu olho o seu cardápio e a configuração da loja, não vendo anúncio.</em></p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@opcoes_8HsUvT",
-         "compare": "==",
-         "value": "B"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "ceKkAx",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "AaVA2h",
-       "name": "r3EOOB",
-       "text": "<p><em>Você faz tudo sozinho: o diagnóstico mostra o que arrumar primeiro, em ordem, para caber na sua rotina.</em></p>"
+       "id": "iHDebz",
+       "name": "mJY4kJ",
+       "text": "<p>❌ Você cuida de tudo, então o iFood fica pra quando sobra tempo.</p>"
       },
       "roles": [
        [
@@ -1183,34 +981,498 @@
       ]
      },
      {
-      "id": "rdwNJy",
+      "id": "fBDe4J",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "MKfIAc",
-       "name": "rpaJUv",
-       "text": "<h3 class=\"ql-align-center\">O diagnóstico completo, com o que fazer em ordem, eu te mando no WhatsApp.</h3>"
+       "id": "8qjVbB",
+       "name": "RPs1Hi",
+       "text": "<p>❌ Você já pagou e não viu resultado. Por isso a conversa começa pelo número da sua loja.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "6BakKS",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Ru60ds",
+       "name": "hL743T",
+       "text": "<p>❌ Tem gente cuidando, mas ninguém olhando o ranking de perto.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Jbs1qd",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "YYccMs",
+       "name": "9kPcro",
+       "text": "<p>❌ Ninguém cuidou do iFood até agora, então tem espaço fácil pra ganhar.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "iBHBj0",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "pjdHa7",
+       "name": "LqkmBZ",
+       "text": "<p>O resto eu só vejo abrindo sua loja no iFood. Deixa seus dados que o Lipe, do meu time, marca uma conversa comigo. Nela eu te mostro onde sua loja aparece na região e o que mexer primeiro.</p>"
       }
      },
      {
-      "id": "epxTFJ",
+      "id": "EoNTCh",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "ukieyT",
+       "title": "Seu primeiro nome",
+       "placeholder": "Digite seu primeiro nome",
+       "type": "text",
+       "id": "Fi6q18",
+       "required": true
+      }
+     },
+     {
+      "id": "U2NPZj",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "KVvZKi",
+       "title": "Nome da loja no iFood",
+       "placeholder": "Como ela aparece no iFood",
+       "type": "text",
+       "id": "prcxYd",
+       "required": true
+      }
+     },
+     {
+      "id": "wRTqPH",
+      "title": "Telefone",
+      "icon": "phone",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "L5Lzbe",
+       "title": "WhatsApp com DDD",
+       "placeholder": "(00) 00000-0000",
+       "type": "phone",
+       "mask": "phone",
+       "id": "vWQssV",
+       "required": true
+      }
+     },
+     {
+      "id": "nGdNsj",
       "title": "Botão",
+      "icon": "rectangleWide",
       "type": "button",
       "design": {
-       "basis": 100,
        "style": "theme"
       },
       "content": {
-       "id": "JWdHp4",
-       "name": "zap_resultado",
+       "name": "VT19S2",
        "type": "redirect",
-       "label": "FALAR COM RENAN AGORA 📲",
-       "destination": "https://wa.link/bay8db",
+       "label": "Quero ver o resto da minha loja ➔",
+       "destination": "https://wa.me/553193877523",
        "pulse": false,
-       "target": false
+       "target": false,
+       "id": "tTKZ4M",
+       "model": {
+        "type": "whatsapp",
+        "phone": "553193877523",
+        "message": "Oi, Lipe! Sou {{ukieyT}}, da {{KVvZKi}}. Acabei de fazer o teste da Brase."
+       }
+      }
+     },
+     {
+      "id": "Pxuhlq",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "sqceCy",
+       "name": "WIie1s",
+       "text": "<p class=\"ql-align-center\"><em>O botão abre o WhatsApp do Lipe. Sem spam.</em></p>"
+      }
+     }
+    ]
+   },
+   {
+    "id": "QRtsgk",
+    "title": "Formulário V5 · já pagou agência",
+    "position": {
+     "x": 2400,
+     "y": 0
+    },
+    "layers": [
+     {
+      "id": "fiyV21",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "gds6T6",
+       "name": "EDkzTF",
+       "text": "<h2 class=\"ql-align-center\">Você já pagou por isso <span style=\"color: rgb(245, 158, 11);\">e não viu resultado.</span></h2>"
+      }
+     },
+     {
+      "id": "whAJAc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "vxmKvk",
+       "name": "Asrqcr",
+       "text": "<p>Então a primeira conversa é só sobre o número da sua loja. Eu abro o Portal do Parceiro com você e mostro onde está a trava. Se não fizer sentido, você sai sabendo onde está o problema.</p>"
+      }
+     },
+     {
+      "id": "amsxUA",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "WalqA5",
+       "name": "Oz4MZI",
+       "text": "<p><strong>Pelas suas respostas, já dá pra ver por onde começar:</strong></p>"
+      }
+     },
+     {
+      "id": "pmd64p",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "HHfqm1",
+       "name": "MYanp8",
+       "text": "<p>❌ Seus pedidos caíram do nada. Quando isso acontece, costuma ser a loja perdendo posição no ranking.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "7zY7UU",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "2Srmca",
+       "name": "kEl2YP",
+       "text": "<p>❌ Muita gente entra e pouca gente pede. O problema está no cardápio, depois do clique.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "fEWMrQ",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "b7O0nq",
+       "name": "WicV0P",
+       "text": "<p>❌ Você vende bem e sobra pouco. Promoção e taxa estão comendo a margem.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "aH7wY7",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rQTCqP",
+       "name": "5JxwQs",
+       "text": "<p>❌ Loja nova ainda não tem histórico no ranking, então cada detalhe do cardápio pesa mais.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "nnvHDo",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "poHDFH",
+       "name": "0leUks",
+       "text": "<p>❌ Foto tirada na hora faz o cliente passar direto pelo seu prato.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "0fgcWV",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7RHtIi",
+       "name": "EDnRT2",
+       "text": "<p>❌ Sem foto própria, seu prato some no meio dos concorrentes.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "wyNtzo",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ysZFJZ",
+       "name": "P791Yg",
+       "text": "<p>❌ Sem produto de entrada e sem combo, o cliente novo não arrisca o primeiro pedido.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "ASgo7T",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "99RDMA",
+       "name": "gnC7HJ",
+       "text": "<p>❌ O cliente se perde pra escolher, e quem se perde volta pra lista.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "TiKghW",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "QRpglG",
+       "name": "Svzk0h",
+       "text": "<p>✅ Fotos e cardápio estão no caminho. O que falta aparece no seu portal.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "A"
+        },
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "mXuF4e",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "ukieyT",
+       "title": "Seu primeiro nome",
+       "placeholder": "Digite seu primeiro nome",
+       "type": "text",
+       "id": "8Eisyo",
+       "required": true
+      }
+     },
+     {
+      "id": "2nUgiE",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "KVvZKi",
+       "title": "Nome da loja no iFood",
+       "placeholder": "Como ela aparece no iFood",
+       "type": "text",
+       "id": "QTXzQX",
+       "required": true
+      }
+     },
+     {
+      "id": "BO2Q2B",
+      "title": "Telefone",
+      "icon": "phone",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "L5Lzbe",
+       "title": "WhatsApp com DDD",
+       "placeholder": "(00) 00000-0000",
+       "type": "phone",
+       "mask": "phone",
+       "id": "ZKwyn9",
+       "required": true
+      }
+     },
+     {
+      "id": "JDV103",
+      "title": "Botão",
+      "icon": "rectangleWide",
+      "type": "button",
+      "design": {
+       "style": "theme"
+      },
+      "content": {
+       "name": "VT19S2",
+       "type": "redirect",
+       "label": "Quero ver o número da minha loja ➔",
+       "destination": "https://wa.me/553193877523",
+       "pulse": false,
+       "target": false,
+       "id": "NFYljo",
+       "model": {
+        "type": "whatsapp",
+        "phone": "553193877523",
+        "message": "Oi, Lipe! Sou {{ukieyT}}, da {{KVvZKi}}. Acabei de fazer o teste da Brase."
+       }
+      }
+     },
+     {
+      "id": "8xtntL",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rwVwNH",
+       "name": "hP6C0K",
+       "text": "<p class=\"ql-align-center\"><em>O botão abre o WhatsApp do Lipe. Sem spam.</em></p>"
       }
      }
     ]
@@ -1219,8 +1481,8 @@
     "id": "7ZLrbh",
     "title": "Obrigado",
     "position": {
-     "x": 2312.105750798722,
-     "y": 16.211501597444055
+     "x": 2700,
+     "y": 0
     },
     "layers": [
      {
@@ -1280,27 +1542,945 @@
     ]
    },
    {
-    "id": "VKCmGQ",
-    "title": "Zapfood",
+    "id": "zElcAr",
+    "title": "Ponte · abaixo de R$ 5 mil",
     "position": {
-     "x": 1952.750798722045,
-     "y": -449.8691693290735
+     "x": 0,
+     "y": 520
     },
     "layers": [
      {
-      "id": "s2XlmK",
+      "id": "xbMlY7",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h1 class=\"ql-align-center\">⚠️&nbsp;ALERTA:&nbsp;SUA&nbsp;LOJA&nbsp;ESTÁ&nbsp;&quot;OPERANDO&nbsp;NO&nbsp;ESCURO&quot;!!!</h1>",
-       "id": "xhVGnn",
-       "name": "nkAdP2"
+       "id": "62vWP2",
+       "name": "gLSR8D",
+       "text": "<h1 class=\"ql-align-center\">Nossa análise individual é só pra loja que já vende <span style=\"color: rgb(245, 158, 11);\">mais de R$ 5 mil por mês no iFood.</span></h1>"
       }
      },
      {
-      "id": "3zgHop",
+      "id": "9eh0eF",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ZbQbBt",
+       "name": "xWOPPr",
+       "text": "<h3 class=\"ql-align-center\">Mas o que trava loja pequena no iFood dá pra arrumar sozinho. Responda umas perguntas rápidas e você vê o que mexer primeiro.</h3>"
+      }
+     },
+     {
+      "id": "0DadaW",
+      "title": "Botão",
+      "icon": "rectangle-horizontal",
+      "type": "button",
+      "design": {
+       "style": "theme",
+       "basis": 100
+      },
+      "content": {
+       "id": "QqF23D",
+       "name": "KZkH5V",
+       "type": "next",
+       "label": "Me mostra ➔",
+       "destination": "next",
+       "pulse": false,
+       "target": false
+      }
+     }
+    ]
+   },
+   {
+    "id": "lvZ2i6",
+    "title": "Tipo de loja",
+    "position": {
+     "x": 300,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "hBZIwO",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "5I6C0L",
+       "name": "OlaYLD",
+       "text": "<h1 class=\"ql-align-center\">Que tipo de loja <span style=\"color: rgb(245, 158, 11);\">é a sua?</span></h1>"
+      }
+     },
+     {
+      "id": "xNFQHS",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "fW6gTb",
+       "name": "ztdUPg",
+       "text": "<p class=\"ql-align-center\">Pra adaptar os exemplos do seu resultado ao que você vende.</p>"
+      }
+     },
+     {
+      "id": "HZyLNe",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "p7mUXM",
+       "name": "tipo_loja",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "HzEIac",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "hamburgueria",
+         "label": "<p>🍔 <strong>Hamburgueria</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "NVLwJY",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "pizzaria",
+         "label": "<p>🍕 <strong>Pizzaria</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "xBflIp",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "acai",
+         "label": "<p>🍧 <strong>Açaí ou sorvete</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "Lz0cyn",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "marmita",
+         "label": "<p>🍱 <strong>Marmita</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "RIh61b",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "japones",
+         "label": "<p>🍣 <strong>Japonês</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "w9TKeP",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "doces",
+         "label": "<p>🍰 <strong>Doces e bolos</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "cvoX71",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "outro",
+         "label": "<p>🍽️ <strong>Outro</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "VIetKH",
+    "title": "PP 02 - Identificação",
+    "position": {
+     "x": 600,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "pMI4SS",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "upIyRo",
+       "text": "<h1 class=\"ql-align-center\">Qual dessas frases você <span style=\"color: rgb(245, 158, 11);\">já pensou?</span></h1>",
+       "name": "sFCpwn"
+      }
+     },
+     {
+      "id": "Uww97g",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "vZsjvd",
+       "name": "frase",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "HPg7Xv",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "esperando",
+         "label": "<p>⏳ <strong>Silêncio no iFood:</strong> Fico esperando tocar e o pedido não vem.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "zvSPVB",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "lojadolado",
+         "label": "<p>👀 <strong>Loja do lado:</strong> Vende muito, e a comida dela nem é melhor.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "mrj7yk",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "cupom",
+         "label": "<p>🏷️ <strong>Cupom:</strong> Liguei, vendeu mais e sobrou menos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "6HlcPc",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "sair",
+         "label": "<p>🚪 <strong>Largar tudo:</strong> Já pensei em sair do iFood.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "IRyNPO",
+    "title": "PP 03 - A culpa",
+    "position": {
+     "x": 900,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "At24J0",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "z8pp8r",
+       "text": "<h1 class=\"ql-align-center\">De quem você acha que é a <span style=\"color: rgb(245, 158, 11);\">culpa?</span></h1>",
+       "name": "vOeyGt"
+      }
+     },
+     {
+      "id": "97DzyK",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "GTIrVV",
+       "name": "culpa",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "LUqVxs",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "concorrencia",
+         "label": "<p>🥊 <strong>Concorrência:</strong> Tem loja demais por aí.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "NmqsDc",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "ifood",
+         "label": "<p>📱 <strong>iFood:</strong> Ele não mostra a minha loja.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "JeNhsq",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "anuncio",
+         "label": "<p>💸 <strong>Anúncio:</strong> Falta dinheiro pra anunciar.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "HD60rx",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "preco",
+         "label": "<p>🏷️ <strong>Meu preço:</strong> Acho que tô caro.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "sAYFlD",
+         "label": "<p>🤷 <strong>Não sei mais:</strong> Já tentei de tudo.</p>",
+         "score": "0",
+         "value": "naosei"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "l1b6ac",
+    "title": "PP 04 - Tempo de entrega",
+    "position": {
+     "x": 1200,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "UhrggE",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "urjzXx",
+       "text": "<h1 class=\"ql-align-center\">O tempo de entrega no iFood, comparado ao <span style=\"color: rgb(245, 158, 11);\">tempo real</span>, é:</h1>",
+       "name": "6PmG1q"
+      }
+     },
+     {
+      "id": "yS7NZM",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "Jyyd1k",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Essa pesa mais do que parece.</em></p>",
+       "name": "yNP29j"
+      }
+     },
+     {
+      "id": "482Ewa",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "G2jcSA",
+       "name": "tempo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "t1QkT8",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "250",
+         "value": "igual",
+         "label": "<p>✅ <strong>Igual ou menor:</strong> Entrego no tempo que aparece.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "Nvcagd",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "125",
+         "value": "5a10",
+         "label": "<p>⚠️ <strong>5 a 10 min a mais:</strong> Demoro um pouco mais.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "ttJ7ut",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "mais10",
+         "label": "<p>❌ <strong>Mais de 10 min a mais:</strong> O cliente vê um tempo e o pedido chega bem depois.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "SXPlk3",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "60",
+         "value": "nunca",
+         "label": "<p>🤷 <strong>Nunca reparei:</strong> Não sei dizer.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "J43rSg",
+    "title": "PP 05 - Adicional pago",
+    "position": {
+     "x": 1500,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "KTapIR",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "5TKAg0",
+       "text": "<h1 class=\"ql-align-center\">Seus produtos têm <span style=\"color: rgb(245, 158, 11);\">adicional pago?</span></h1>",
+       "name": "ZOwZv4"
+      }
+     },
+     {
+      "id": "tDBxIx",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "aTrLUy",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">Ex.: bacon extra, porção maior, acompanhamento.</em></p>",
+       "name": "ou3SQg"
+      }
+     },
+     {
+      "id": "ayr6C7",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "TfmbW7",
+       "name": "adicional",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "6QMvbR",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "250",
+         "value": "maioria",
+         "label": "<p>✅ <strong>Sim, na maioria:</strong> A maior parte tem adicional.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "oYZHZv",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "125",
+         "value": "alguns",
+         "label": "<p>⚠️ <strong>Em alguns:</strong> Só em alguns produtos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "zspEEe",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "nao",
+         "label": "<p>❌ <strong>Não tenho:</strong> O cliente pede o lanche e pronto, não tem o que somar.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "iuPnbP",
+    "title": "PP 06 - Produto em promoção",
+    "position": {
+     "x": 1800,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "IcjocV",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "orSbSz",
+       "text": "<h1 class=\"ql-align-center\">Tem algum produto em <span style=\"color: rgb(245, 158, 11);\">promoção</span> pra puxar cliente novo?</h1>",
+       "name": "2Wz7K6"
+      }
+     },
+     {
+      "id": "IehniD",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "sxQyI9",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Aqui mora um dos conselhos mais caros do delivery.</em></p>",
+       "name": "1XOwQZ"
+      }
+     },
+     {
+      "id": "YUOVxK",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "eMMUbm",
+       "name": "promo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "68ZO8P",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "300",
+         "value": "carrochefe",
+         "label": "<p>🏆 <strong>Sim, no carro-chefe:</strong> Ou num dos mais vendidos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "mTYfIO",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "100",
+         "value": "barato",
+         "label": "<p>💰 <strong>Sim, num produto barato:</strong> Ou que sai pouco.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "OYznba",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "60",
+         "value": "cupom",
+         "label": "<p>🏷️ <strong>Só cupom:</strong> No cardápio todo.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "u7T1Gu",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "nao",
+         "label": "<p>🚫 <strong>Não tenho:</strong> Tenho medo de dar desconto e não sobrar nada.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "vNggKU",
+    "title": "PP 07 - Entrega grátis",
+    "position": {
+     "x": 2100,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "F3qoBQ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "CnJOfp",
+       "text": "<h1 class=\"ql-align-center\">Sua loja tem <span style=\"color: rgb(245, 158, 11);\">entrega grátis?</span></h1>",
+       "name": "YTSvTy"
+      }
+     },
+     {
+      "id": "u919Nm",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "PMM3MY",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🏁 Última pergunta.</em></p>",
+       "name": "TAA77P"
+      }
+     },
+     {
+      "id": "djd9Hy",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "eYZs73",
+       "name": "entrega",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "5exOdh",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "200",
+         "value": "noPreco",
+         "label": "<p>✅ <strong>Sim, com o custo no preço:</strong> Já embuti a entrega.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "vb2Mou",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "70",
+         "value": "bolso",
+         "label": "<p>💸 <strong>Sim, do meu bolso:</strong> Eu pago e nem sei quanto isso me custa no mês.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "5QWZTH",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "cliente",
+         "label": "<p>❌ <strong>Não:</strong> O cliente paga a taxa.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "pGr1pE",
+    "title": "PP 08 - Carregando",
+    "position": {
+     "x": 2400,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "HPIqSZ",
+      "title": "Loading",
+      "icon": "loader-circle",
+      "type": "loading",
+      "design": {
+       "layout": "default"
+      },
+      "content": {
+       "id": "51rFif",
+       "title": "Calculando o Score da sua loja com as suas respostas...",
+       "name": "FCymAc",
+       "description": "<p></p>",
+       "seconds": 3,
+       "starts": 0,
+       "destination": "next",
+       "show_title": true,
+       "show_percent": false,
+       "show_progress": true
+      }
+     }
+    ]
+   },
+   {
+    "id": "n8N1eT",
+    "title": "Diagnóstico · abaixo de R$ 5 mil",
+    "position": {
+     "x": 2700,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "nNcyZg",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "82iRFk",
+       "text": "<h1 class=\"ql-align-center\">📊 Seu resultado <span style=\"color: rgb(245, 158, 11);\">está pronto</span></h1>",
+       "name": "pIm5mK"
+      }
+     },
+     {
+      "id": "AtPFmr",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "4Dxo4M",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Fico esperando o iFood tocar”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "F6m0Xm"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "esperando"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "hlLycJ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "xhn6Aq",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“A loja do lado vende mais que eu”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "2rXwbn"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "lojadolado"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "TBMI8C",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "1Xh74X",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Liguei cupom e sobrou menos”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "P5yFcU"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "cupom"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "SNlqj2",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "E5g4wP",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Já pensei em sair do iFood”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "k9Gwgu"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "sair"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "zRalCX",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "siz52X",
+       "name": "IEZDgs"
+      }
+     },
+     {
+      "id": "Zz6mnm",
       "title": "Nível",
       "icon": "slidersH",
       "type": "metric",
@@ -1310,84 +2490,927 @@
        "basis": 100
       },
       "content": {
-       "title": "Potencial usado da sua loja:",
-       "name": "potencial_usado_da_sua_loja_",
-       "subtitle": "O quanto você está agradando o algoritmo:",
-       "percent": "14",
+       "title": "Score da sua loja:",
+       "name": "score_da_sua_loja",
+       "subtitle": "calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000 · score prévio, calculado com 4 respostas",
+       "percent": "calc(({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}})/10)",
        "show_title": true,
        "show_percent": true,
        "show_dot": true,
-       "id": "JSq9nB",
+       "id": "ExECnU",
        "tooltip": null,
        "legends": null
       }
      },
      {
-      "id": "YLhzHW",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
+      "id": "m0fqI1",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
       "design": {},
       "content": {
-       "text": "<h3 class=\"ql-align-center\">Analisamos seus dados. A realidade é dura: <strong style=\"color: rgb(245, 158, 11);\">você está tentando crescer na sorte!</strong></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">E pro Robô do iFood, sorte não existe!</h3><h3 class=\"ql-align-center\"><br></h3><h3 class=\"ql-align-center\">Enquanto você não souber <span style=\"color: rgb(255, 255, 255);\">EXATAMENTE </span>onde está o erro, você <span style=\"color: rgb(245, 158, 11);\">vai continuar trabalhando 12 horas por dia pra ganhar mixaria (ou prejuízo).</span></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">Você <strong>NÃO PRECISA</strong> de uma reunião de consultoria agora. Conversa não paga boleto. <span style=\"color: rgb(245, 158, 11);\">Você precisa de </span><strong style=\"color: rgb(245, 158, 11);\">VENDAS HOJE!</strong></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">E pra vender, você precisa tirar a venda dos olhos e ver o que está travando sua loja...</h3>",
-       "id": "UzUA0h",
-       "name": "ZnwnvX"
+       "clear": "h-[1rem]",
+       "id": "WPaNxz",
+       "name": "o4vSqv"
       }
      },
      {
-      "id": "U1NxuG",
-      "title": "Botão",
-      "icon": "rectangleWide",
-      "type": "button",
+      "id": "X1uJy5",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "0UD1P4",
+       "text": "<h3 class=\"ql-align-center\">Você acha que a culpa é da concorrência. O iFood mostra quem tem <strong style=\"color: rgb(245, 158, 11);\">tempo curto, volume e promoção</strong>, e é aí que a loja do lado ganha de você.</h3>",
+       "name": "mkn365"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "concorrencia"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "0Nmhgh",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "cVZMd3",
+       "text": "<h3 class=\"ql-align-center\">Você acha que a culpa é do iFood. Ele mostra mais quem <strong style=\"color: rgb(245, 158, 11);\">segue as regras dele</strong>: tempo curto, entrega grátis, produto em promoção. A sua loja tá jogando contra elas.</h3>",
+       "name": "ZCmZcZ"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "ifood"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "8lFyaI",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "SZNh1K",
+       "text": "<h3 class=\"ql-align-center\">Você acha que falta dinheiro pra anúncio. Que bom que não gastou: anúncio pra um <strong style=\"color: rgb(245, 158, 11);\">cardápio que não vende</strong> é dinheiro jogado fora.</h3>",
+       "name": "ESjehL"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "anuncio"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "wM1lTc",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "q87Egy",
+       "text": "<h3 class=\"ql-align-center\">Você acha que o problema é o preço. Cliente paga preço cheio quando o cardápio <strong style=\"color: rgb(245, 158, 11);\">dá vontade</strong>. Baixar tudo só acostuma ele a comprar barato.</h3>",
+       "name": "OfLA9h"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "preco"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "FOsS9Q",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "eSNUr5",
+       "text": "<h3 class=\"ql-align-center\">Você não sabe mais o que fazer, e é normal depois de tentar de tudo. <strong style=\"color: rgb(245, 158, 11);\">As suas respostas mostram por onde começar.</strong></h3>",
+       "name": "H5U7YD"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "naosei"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "64GOKX",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "Rk96uC",
+       "name": "KGJxEd"
+      }
+     },
+     {
+      "id": "BrDHTn",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "z1dn7p",
+       "text": "<h2 class=\"ql-align-center\">O que tá <span style=\"color: rgb(245, 158, 11);\">tirando pedido</span> da sua loja:</h2>",
+       "name": "xwRqxn"
+      }
+     },
+     {
+      "id": "JbKCEX",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "sjYkHu",
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span></p>",
+       "name": "ARsOFR"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tempo",
+         "compare": "!=",
+         "value": "igual"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "zZeLia",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "aPDqS3",
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo, e adicional rende R$ 5 a R$ 10 a mais por pedido.</span></p>",
+       "name": "9shnLo"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@adicional",
+         "compare": "!=",
+         "value": "maioria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Tznhir",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "rhFB7O",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span></p>",
+       "name": "XsV98L"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "barato"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VHbD14",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "TZbrZi",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span></p>",
+       "name": "qr2pf9"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "cupom"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "1FpZ4M",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "lNOcLY",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span></p>",
+       "name": "Whuc3B"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "nao"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Z7CfCf",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "BkJkMR",
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span></p>",
+       "name": "VhFlAD"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@entrega",
+         "compare": "==",
+         "value": "bolso"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "QuIeTn",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "qpPFUi",
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Cerca de 70% das listas que trazem pedido exigem entrega grátis.</span></p>",
+       "name": "5wppwh"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@entrega",
+         "compare": "==",
+         "value": "cliente"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "EZUHrL",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "e3iyRj",
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span></p>",
+       "name": "JrzwDk"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "9b6xA3",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "9BoaXU",
+       "name": "FbtOA5"
+      }
+     },
+     {
+      "id": "phwq2h",
+      "title": "Texto",
+      "type": "text",
       "design": {
-       "style": "theme"
+       "basis": 100
       },
       "content": {
-       "name": "GQeYAk",
+       "id": "NMhk1U",
+       "name": "wDd3Yl",
+       "text": "<p><strong>A causa é uma só:</strong> o cliente novo não tem um bom motivo pra fazer o primeiro pedido na sua loja. <span style=\"color: rgb(245, 158, 11);\">Sem esse primeiro pedido, sua loja não sobe na lista.</span></p>"
+      }
+     },
+     {
+      "id": "LXwnHb",
+      "title": "Espaço",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "yLJNZj",
+       "name": "bOt2ar",
+       "clear": "h-[1rem]"
+      }
+     },
+     {
+      "id": "cHrnOt",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "DdlmhZ",
+       "text": "<h2 class=\"ql-align-center\">Quase tudo isso você fez <span style=\"color: rgb(245, 158, 11);\">porque alguém mandou</span>:</h2>",
+       "name": "Q5SQH3"
+      }
+     },
+     {
+      "id": "PxW7uv",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "8gnPYK",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Põe o tempo de entrega alto, pra não atrasar.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Liga um cupom, que vende.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Põe o mais barato em promoção.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Investe em anúncio.”</em></p>",
+       "name": "tyireh"
+      }
+     },
+     {
+      "id": "xk2tO8",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "7cAYp6",
+       "text": "<h3 class=\"ql-align-center\">Parece conselho de quem entende, mas vem de grupo, de guru e de agência que vende anúncio <strong style=\"color: rgb(245, 158, 11);\">antes de olhar o seu cardápio</strong>.</h3>",
+       "name": "pOeAJ8"
+      }
+     },
+     {
+      "id": "boCVeJ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "06PmvK",
+       "text": "<h1 class=\"ql-align-center\">Você fez o que mandaram. <span style=\"color: rgb(245, 158, 11);\">Quem mandou nunca abriu o seu cardápio.</span></h1>",
+       "name": "qKzKcn"
+      }
+     },
+     {
+      "id": "uyZFv1",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "1qjxGk",
+       "text": "<h3 class=\"ql-align-center\">A boa notícia: tudo isso se arruma pelo Portal, <strong style=\"color: rgb(245, 158, 11);\">sem anúncio e sem agência</strong>. Dá pra começar hoje.</h3>",
+       "name": "cYnoM5"
+      }
+     },
+     {
+      "id": "jfTGaS",
+      "title": "Botão",
+      "icon": "rectangle-horizontal",
+      "type": "button",
+      "design": {
+       "style": "theme",
+       "basis": 100
+      },
+      "content": {
+       "id": "QmlLNr",
+       "name": "fK7Dsj",
        "type": "next",
-       "label": "QUERO VER O QUE ESTÁ TRAVANDO MINHA LOJA!",
-       "destination": "6UihTn",
+       "label": "QUERO ARRUMAR A MINHA LOJA ➔",
+       "destination": "next",
        "pulse": false,
-       "target": false,
-       "id": "cPqrZq"
+       "target": false
+      }
+     }
+    ]
+   },
+   {
+    "id": "7KrhzJ",
+    "title": "Cena de futuro",
+    "position": {
+     "x": 3000,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "3G3CUv",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "JhMD84",
+       "name": "qiOt7o",
+       "text": "<h1 class=\"ql-align-center\">Agora <span style=\"color: rgb(245, 158, 11);\">imagine:</span></h1>"
+      }
+     },
+     {
+      "id": "W3o5Ku",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "6ew1mT",
+       "name": "4UFE2x",
+       "text": "<h3 class=\"ql-align-center\">Domingo à noite, você abre o portal e vê 3 pedidos de gente que nunca tinha comprado de você, todos pelo mesmo produto.</h3>"
+      }
+     },
+     {
+      "id": "yfIyu2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "psUPtV",
+       "name": "lTbWxN",
+       "text": "<p class=\"ql-align-center\"><strong>Isso mudaria sua semana?</strong></p>"
+      }
+     },
+     {
+      "id": "Ofodik",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "VgfGQb",
+       "name": "futuro",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "F3rksm",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "muito",
+         "label": "<p>🔥 <strong>Mudaria muito</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "pCKlcp",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "preciso",
+         "label": "<p>🎯 <strong>É exatamente o que eu preciso</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "rpBwCQ",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "nao",
+         "label": "<p>🤷 <strong>Acho que não faria diferença</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "2yy0P6",
+    "title": "Demonstração",
+    "position": {
+     "x": 3300,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "pRhxOD",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "2iXdkQ",
+       "name": "ZaOmE5",
+       "text": "<h1 class=\"ql-align-center\">E se você recebesse, no WhatsApp, <span style=\"color: rgb(245, 158, 11);\">o que está errado na sua loja</span> e o que fazer pra arrumar?</h1>"
+      }
+     },
+     {
+      "id": "mJCkMV",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rSvQTP",
+       "name": "6Z1uUT",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do X-Bacon está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no X-Bacon.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "hamburgueria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "GQYncy",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "9uhfA8",
+       "name": "0Yr0il",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da pizza de calabresa está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na pizza de calabresa.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "pizzaria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VV11i2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "TVpUXA",
+       "name": "jm6vdm",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do açaí de 500 ml está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no açaí de 500 ml.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "acai"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "eh7pFz",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "vGOF6X",
+       "name": "R7Zfhf",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da marmita de frango está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na marmita de frango.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "marmita"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "6ww1TZ",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "hh0D2K",
+       "name": "CbmnA5",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do combinado de 20 peças está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no combinado de 20 peças.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "japones"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "py3Owd",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "iD1wne",
+       "name": "oAPGLc",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do bolo de pote está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no bolo de pote.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "doces"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "1o6pZ1",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "i7UzSb",
+       "name": "lyBEfv",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do prato mais vendido está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no prato mais vendido.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "outro"
+        }
+       ],
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "empty",
+         "value": ""
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VvzQ3Y",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "SZkbOs",
+       "name": "4Qgzqa",
+       "text": "<p class=\"ql-align-center\"><strong>Você conseguiria arrumar isso sozinho?</strong></p>"
+      }
+     },
+     {
+      "id": "11CL2p",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "xjWpk8",
+       "name": "demo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "gnJgQ5",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "consigo",
+         "label": "<p>💪 <strong>Consigo em poucos minutos</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "bXEkqQ",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "acho",
+         "label": "<p>🙂 <strong>Acho que sim</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "UqlFBA",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "ajuda",
+         "label": "<p>🙋 <strong>Precisaria de ajuda</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "Zor9eB",
+    "title": "Quando quer começar",
+    "position": {
+     "x": 3600,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "GbLOnt",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "oFJSXQ",
+       "name": "HFPqKR",
+       "text": "<h1 class=\"ql-align-center\">Quando você quer <span style=\"color: rgb(245, 158, 11);\">parar de esperar o iFood tocar?</span></h1>"
+      }
+     },
+     {
+      "id": "kNyzW2",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "bbKyCX",
+       "name": "quando",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "O8updu",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "semana",
+         "label": "<p>🚀 <strong>Esta semana</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "pSu8Xd",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "depois",
+         "label": "<p>⏳ <strong>Ainda não é prioridade</strong></p>",
+         "destination": "next"
+        }
+       ]
       }
      }
     ]
    },
    {
     "id": "6UihTn",
-    "title": "Checkout",
+    "title": "Oferta · ZapFood",
     "position": {
-     "x": 2731.1487220447284,
-     "y": -539.032428115016
+     "x": 3900,
+     "y": 520
     },
     "layers": [
      {
-      "id": "Aoigk8",
-      "title": "Timer",
-      "icon": "clock",
-      "type": "timer",
+      "id": "QugDFX",
+      "title": "Texto",
+      "type": "text",
       "design": {
-       "style": "danger",
        "basis": 100
       },
       "content": {
-       "text": "<p class=\"ql-align-center\">Aproveite&nbsp;essa&nbsp;oportunidade:&nbsp;[time]</p>",
-       "time": "300",
-       "id": "NO5LGk",
-       "name": "jwvvnV"
+       "id": "bl6Eyd",
+       "name": "hjn7ab",
+       "text": "<h1 class=\"ql-align-center\">Seu Score está em <span style=\"color: rgb(245, 158, 11);\">calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000.</span></h1>"
       }
      },
      {
-      "id": "92VHud",
+      "id": "e9abud",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h1 class=\"ql-align-center\"><strong>PARE&nbsp;DE&nbsp;ADIVINHAR.&nbsp;USE&nbsp;O</strong><strong style=\"color: rgb(245, 158, 11);\">&nbsp;RAIO-X:</strong></h1><p class=\"ql-align-center\"></p><h3 class=\"ql-align-center\">Eu&nbsp;liberei&nbsp;o&nbsp;meu&nbsp;<strong style=\"color: rgb(245, 158, 11);\">SCANNER&nbsp;DE&nbsp;ALGORITMO</strong>&nbsp;pra&nbsp;você.&nbsp;Ele&nbsp;não&nbsp;&quot;acha&quot;&nbsp;nada.&nbsp;Ele&nbsp;<strong>PROVA</strong>&nbsp;onde&nbsp;você&nbsp;está&nbsp;errando.</h3><p class=\"ql-align-center\"></p><h2 class=\"ql-align-center\">👇&nbsp;<strong>Veja&nbsp;em&nbsp;1&nbsp;minuto&nbsp;como&nbsp;transformar&nbsp;&quot;erro&quot;&nbsp;em&nbsp;&quot;dinheiro&nbsp;no&nbsp;bolso&quot;:</strong></h2>",
-       "id": "RselgD",
-       "name": "xCTiAT"
+       "id": "3wBgjV",
+       "name": "nUJCRs",
+       "text": "<h3 class=\"ql-align-center\">O que sobe primeiro está aqui: o ZapFood é o Scanner de Algoritmo da Brase. Ele aponta o que está travando sua loja, em vermelho, e diz o que fazer pra ficar verde.</h3>"
+      }
+     },
+     {
+      "id": "hytM1Z",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "VXwJWj",
+       "name": "FmApkE",
+       "text": "<p class=\"ql-align-center\">👇 Veja em 1 minuto como funciona:</p>"
       }
      },
      {
@@ -1408,27 +3431,27 @@
       }
      },
      {
-      "id": "KPk4o6",
+      "id": "5ecHyZ",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h3 class=\"ql-align-center\">🎧&nbsp;Ouça&nbsp;a&nbsp;Michele,&nbsp;dona&nbsp;do&nbsp;&quot;Lanche&nbsp;dos&nbsp;Guri&quot;&nbsp;que&nbsp;<span style=\"color: rgb(245, 158, 11);\">saiu&nbsp;de&nbsp;R$&nbsp;600&nbsp;pra&nbsp;R$&nbsp;4.000</span>&nbsp;usando&nbsp;o&nbsp;Scanner:</h3>",
-       "id": "mazk76",
-       "name": "8GKfEI"
+       "id": "8uGuBJ",
+       "name": "FTiQE9",
+       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês usando o Scanner:</p>"
       }
      },
      {
-      "id": "MlfoWD",
+      "id": "gwgqDF",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "9n3lDB",
-       "name": "wKg8JC"
+       "id": "U4C8gn",
+       "name": "5xkKMn",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -1456,28 +3479,72 @@
       }
      },
      {
-      "id": "5LoCOw",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
+      "id": "9kWm9F",
+      "title": "Espaço",
+      "type": "clear",
       "design": {},
       "content": {
-       "text": "<h1 class=\"ql-align-center\">É simples: O Scanner aponta o erro ➔ Você corrige <span style=\"color: rgb(245, 158, 11);\">➔ </span><strong style=\"color: rgb(245, 158, 11);\">O pedido toca.</strong></h1><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">Chega de ser ignorado pelo iFood.</h3><h3 class=\"ql-align-center\"><br></h3><h3 class=\"ql-align-center\">✅ Descubra a trava agora.</h3><h3 class=\"ql-align-center\">✅ Arrume sua loja hoje.</h3><h3 class=\"ql-align-center\">✅ Volte a vender amanhã.</h3><p class=\"ql-align-center\"><br></p>",
-       "id": "FGdNSC",
-       "name": "UeJIDB"
+       "id": "8aFopf",
+       "name": "UKl8Ow",
+       "clear": "h-[1rem]"
       }
      },
      {
-      "id": "3HWtel",
+      "id": "K2MKmZ",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<p class=\"ql-align-center\"><s style=\"color: rgb(220, 38, 38);\">DE:&nbsp;R$297</s></p><h3 class=\"ql-align-center\"></h3><h3 class=\"ql-align-center\"><strong style=\"color: rgb(255, 255, 255);\">POR:</strong><span style=\"color: rgb(245, 158, 11);\">&nbsp;Menos&nbsp;de&nbsp;0,33&nbsp;por&nbsp;dia</span>&nbsp;para&nbsp;destravar&nbsp;suas&nbsp;vendas,&nbsp;com<strong style=\"color: rgb(255, 255, 255);\">&nbsp;</strong><strong style=\"color: rgb(245, 158, 11);\">GARANTIA&nbsp;DE&nbsp;7&nbsp;DIAS!</strong></h3>",
-       "id": "ucllYW",
-       "name": "lqGnS3"
+       "id": "maix3b",
+       "name": "rSfrh8",
+       "text": "<p class=\"ql-align-center\">É simples: o Scanner aponta o erro ➔ você corrige ➔ o pedido toca.</p><p class=\"ql-align-center\">✅ Descubra a trava agora. ✅ Arrume sua loja hoje. ✅ Volte a vender.</p>"
       }
+     },
+     {
+      "id": "2EnjH2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7pR5qW",
+       "name": "DmxeVl",
+       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o acesso é vitalício, você usa quando quiser.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@quando",
+         "compare": "==",
+         "value": "depois"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "veP0Qc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "omrmyT",
+       "name": "nwaTFH",
+       "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@demo",
+         "compare": "==",
+         "value": "ajuda"
+        }
+       ]
+      ]
      },
      {
       "id": "vBJaT5",
@@ -1492,23 +3559,22 @@
        "title": "<p><strong>ZapFood</strong></p>",
        "value": "R$ 9,94",
        "before": "12x de",
-       "after": "ou 97 à vista",
+       "after": "ou R$ 97 à vista",
        "redirect": true,
        "id": "u69pfQ",
        "name": "JheSV9",
-       "featured": "Tempo limitado!"
+       "featured": "Pagamento único · acesso vitalício"
       }
      },
      {
-      "id": "XkRNpd",
+      "id": "JyCSRW",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "FSw7VO",
-       "name": "Fo1Ujb"
+       "id": "qzDWeF",
+       "name": "b5FfnL",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -1523,7 +3589,7 @@
       "content": {
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "QUERO DESTRAVAR MINHAS VENDAS!!",
+       "label": "Quero destravar minhas vendas ➔",
        "destination": "https://pay.kirvano.com/75eef98a-0ae5-4761-8952-5912f0942c86",
        "pulse": false,
        "target": false,
@@ -1531,15 +3597,27 @@
       }
      },
      {
-      "id": "eLcKaO",
+      "id": "x7w3Xv",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "NZl6YE",
+       "name": "nHlDMA",
+       "text": "<p class=\"ql-align-center\">🛡️ Pagamento único de R$ 97, sem mensalidade. Não gostou? Pede o dinheiro de volta em até 7 dias.</p>"
+      }
+     },
+     {
+      "id": "dTJ8wG",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "bprF53",
-       "name": "8pHU5P"
+       "id": "LlyvXh",
+       "name": "UgCYiE",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -1611,7 +3689,16 @@
   "settings": {
    "pixel": {
     "facebook": "1696577860982247",
-    "icpEvent": true
+    "icpEvent": true,
+    "icpWhen": [
+     [
+      {
+       "variable": "@VT19S2",
+       "compare": "==",
+       "value": "clicked"
+      }
+     ]
+    ]
    },
    "scripts": {
     "head": "",
@@ -1622,6 +3709,13 @@
     "enabled": false
    },
    "checkoutMark": true,
+   "ab": [
+    {
+     "name": "capa",
+     "variants": "atual, v1",
+     "enabled": true
+    }
+   ],
    "leads": {
     "icp": [
      [
@@ -1744,7 +3838,117 @@
      "enabled": true,
      "minutes": 15
     },
-    "dedupeDays": 30
+    "dedupeDays": 30,
+    "tags": [
+     {
+      "label": "DI, prioridade alta",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "50000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "DI",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "30000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Plano IA",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "10000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Plano IA, prioridade baixa",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "5000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Já pagou agência",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: pedidos caíram do nada",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: visita sem venda",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: lucro baixo",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: está começando",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     }
+    ]
    }
   },
   "origin": {
@@ -1778,7 +3982,16 @@
        "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>",
        "id": "VhEhnI",
        "name": "dmGo3e"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
      },
      {
       "id": "9Z567P",
@@ -1787,10 +4000,19 @@
       "type": "text",
       "design": {},
       "content": {
-       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;45&nbsp;segundos.</em></p>",
+       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>",
        "id": "i5ho8Y",
        "name": "RBnItX"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
      },
      {
       "id": "rPJrLL",
@@ -1809,7 +4031,111 @@
        "pulse": false,
        "target": false,
        "id": "YoScvS"
-      }
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "!=",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "huNzpc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "3YLweQ",
+       "name": "cVdC94",
+       "text": "<h1 class=\"ql-align-center\">Sua loja vende menos no iFood <span style=\"color: rgb(245, 158, 11);\">do que deveria?</span></h1>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "7DehSC",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "wYFTY6",
+       "name": "mtKBit",
+       "text": "<h3 class=\"ql-align-center\">Leva menos de 2 minutos. Depois, a gente te mostra onde o ranking está segurando a sua loja.</h3>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "5a9wLk",
+      "title": "Botão",
+      "type": "button",
+      "design": {
+       "basis": 100,
+       "style": "custom",
+       "backgroundColor": "#f59e0b",
+       "color": "#171717"
+      },
+      "content": {
+       "id": "FKBx2G",
+       "name": "iniciar_v1",
+       "type": "next",
+       "label": "Ver onde minha loja trava ➔",
+       "destination": "next",
+       "pulse": false,
+       "target": false
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "iTThVN",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Z3VnB7",
+       "name": "Gtxbw3",
+       "text": "<p class=\"ql-align-center\"><em>Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@teste.capa",
+         "compare": "==",
+         "value": "v1"
+        }
+       ]
+      ]
      }
     ]
    },
@@ -1817,7 +4143,7 @@
     "id": "xRIqRm",
     "title": "Dor",
     "position": {
-     "x": 288,
+     "x": 300,
      "y": 0
     },
     "layers": [
@@ -1913,7 +4239,7 @@
     "id": "Kqi5Pw",
     "title": "Fotos",
     "position": {
-     "x": 576,
+     "x": 600,
      "y": 0
     },
     "layers": [
@@ -1996,8 +4322,8 @@
     "id": "wYTieX",
     "title": "Cardápio",
     "position": {
-     "x": 877.1961661341854,
-     "y": 6.469009584664548
+     "x": 900,
+     "y": 0
     },
     "layers": [
      {
@@ -2079,8 +4405,8 @@
     "id": "bhFAaE",
     "title": "Faturamento",
     "position": {
-     "x": 1164.1494497067804,
-     "y": -17.561041582097545
+     "x": 1200,
+     "y": 0
     },
     "layers": [
      {
@@ -2133,7 +4459,7 @@
         {
          "id": "5LkYqH",
          "label": "<p>Menos&nbsp;de&nbsp;5.000/mês</p>",
-         "destination": "VKCmGQ",
+         "destination": "zElcAr",
          "value": "0"
         },
         {
@@ -2191,8 +4517,8 @@
     "id": "1tLAnV",
     "title": "De onde vem as vendas",
     "position": {
-     "x": 1297.8486497955575,
-     "y": 665.933880847427
+     "x": 1500,
+     "y": 0
     },
     "layers": [
      {
@@ -2233,7 +4559,7 @@
         {
          "id": "a2fEZ1",
          "label": "<p>IFood&nbsp;/&nbsp;99</p>",
-         "destination": "VKCmGQ",
+         "destination": "3LDtps",
          "value": "0"
         },
         {
@@ -2245,7 +4571,7 @@
          "score": 1,
          "value": "5000",
          "label": "<p>Presencial&nbsp;/&nbsp;Balcão</p>",
-         "destination": "3LDtps"
+         "destination": "zElcAr"
         },
         {
          "id": "xEvRVL",
@@ -2256,7 +4582,7 @@
          "score": 2,
          "value": "10000",
          "label": "<p>Cardápio&nbsp;Próprio&nbsp;/&nbsp;Whatsapp</p>",
-         "destination": "3LDtps"
+         "destination": "zElcAr"
         }
        ],
        "type": "options",
@@ -2269,8 +4595,8 @@
     "id": "3LDtps",
     "title": "Como cuida do mkt",
     "position": {
-     "x": 1776.6345047923323,
-     "y": -24.31725239616611
+     "x": 1800,
+     "y": 0
     },
     "layers": [
      {
@@ -2328,7 +4654,7 @@
          "score": 2,
          "value": "B",
          "label": "<p>😤&nbsp;<strong>Já&nbsp;paguei&nbsp;agência/gestor/consultoria:</strong>&nbsp;(Mas&nbsp;não&nbsp;tive&nbsp;resultado)</p>",
-         "destination": "eVsUdO"
+         "destination": "QRtsgk"
         },
         {
          "id": "utUKlX",
@@ -2361,332 +4687,36 @@
    },
    {
     "id": "eVsUdO",
-    "title": "Análise pré-aprovada",
+    "title": "Formulário V7",
     "position": {
-     "x": 2016,
+     "x": 2100,
      "y": 0
     },
     "layers": [
      {
-      "id": "6lgfoy",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
-      "design": {},
-      "content": {
-       "text": "<h1 class=\"ql-align-center\">ANÁLISE&nbsp;PRÉ-APROVADA&nbsp;✅</h1>",
-       "id": "azg07O",
-       "name": "3yN0AZ"
-      }
-     },
-     {
-      "id": "bwNjAi",
+      "id": "mBrCaL",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "5edbZi",
-       "name": "j61oTD",
-       "text": "<h3 class=\"ql-align-center\">Seu perfil técnico foi recebido e <span style=\"color: rgb(245, 158, 11);\">já apareceram pontos travando sua loja.</span></h3><p class=\"ql-align-center\">Eu analiso pessoalmente e te mando o diagnóstico completo.</p>"
+       "id": "FNujEO",
+       "name": "fBAsW3",
+       "text": "<h2 class=\"ql-align-center\">Pelas suas respostas, já dá pra ver <span style=\"color: rgb(245, 158, 11);\">onde sua loja perde pedido:</span></h2>"
       }
      },
      {
-      "id": "wRTqPH",
-      "title": "Telefone",
-      "icon": "phone",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "L5Lzbe",
-       "title": "Para qual WhatsApp eu mando seu diagnóstico?",
-       "placeholder": "Digite seu Whatsapp...",
-       "type": "phone",
-       "mask": "phone",
-       "id": "vWQssV",
-       "required": true,
-       "consent": "<p>Ao informar seu WhatsApp, você aceita receber o diagnóstico e o contato da Brase por lá.</p>"
-      }
-     },
-     {
-      "id": "JJuRGy",
-      "title": "Botão",
-      "type": "button",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "h0x9m7",
-       "name": "button_bgg9ut",
-       "type": "next",
-       "label": "CONTINUAR ➔",
-       "destination": "next",
-       "pulse": false,
-       "target": false
-      }
-     }
-    ]
-   },
-   {
-    "id": "gOk4IN",
-    "title": "Seu nome",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "cMtReH",
+      "id": "I68nu8",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "n0cWgC",
-       "name": "lFh0JB",
-       "text": "<h2 class=\"ql-align-center\">Como você se chama?</h2>"
-      }
-     },
-     {
-      "id": "EoNTCh",
-      "title": "Campo",
-      "icon": "inputText",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "ukieyT",
-       "title": "Qual o seu nome?",
-       "placeholder": "Digite seu nome...",
-       "type": "text",
-       "id": "Fi6q18",
-       "required": true
-      }
-     },
-     {
-      "id": "GeEHti",
-      "title": "Botão",
-      "type": "button",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "jgnkT3",
-       "name": "button_oK8Ppw",
-       "type": "next",
-       "label": "CONTINUAR ➔",
-       "destination": "next",
-       "pulse": false,
-       "target": false
-      }
-     }
-    ]
-   },
-   {
-    "id": "TgFVYm",
-    "title": "Sua loja",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "hOqv7r",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "0cmN60",
-       "name": "dZ1o0v",
-       "text": "<h2 class=\"ql-align-center\">E qual o nome da sua loja?</h2>"
-      }
-     },
-     {
-      "id": "U2NPZj",
-      "title": "Campo",
-      "icon": "inputText",
-      "type": "field",
-      "design": {},
-      "content": {
-       "name": "KVvZKi",
-       "title": "Qual o nome da sua loja?",
-       "placeholder": "Digite o nome da sua loja...",
-       "type": "text",
-       "id": "prcxYd",
-       "required": true
-      }
-     },
-     {
-      "id": "pNqCpn",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "yvOogW",
-       "name": "P8rBnM",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "ZSVihA",
-      "title": "Raio-X iFood",
-      "type": "ifood",
-      "design": {
-       "basis": 100,
-       "style": "dark"
-      },
-      "content": {
-       "id": "D9T3Yb",
-       "name": "ifood_loja",
-       "title": "Quer que eu já olhe sua loja no iFood? Cole o link",
-       "placeholder": "https://www.ifood.com.br/delivery/…",
-       "help": "No app do iFood: abra sua loja, toque em compartilhar e copie o link.",
-       "button": "VER O RAIO-X DA MINHA LOJA 🔎",
-       "km": 3,
-       "required": false
-      }
-     },
-     {
-      "id": "3fRLQR",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "acJKxY",
-       "name": "hlnfmO",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "nGdNsj",
-      "title": "Botão",
-      "icon": "rectangleWide",
-      "type": "button",
-      "design": {
-       "style": "theme"
-      },
-      "content": {
-       "name": "VT19S2",
-       "type": "next",
-       "label": "ENVIAR APLICAÇÃO!",
-       "destination": "next",
-       "pulse": false,
-       "target": false,
-       "id": "tTKZ4M"
-      }
-     }
-    ]
-   },
-   {
-    "id": "JTSxbz",
-    "title": "Seu diagnóstico",
-    "position": {
-     "x": 0,
-     "y": 0
-    },
-    "layers": [
-     {
-      "id": "lRThcA",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "ZT6vtI",
-       "name": "C3GrRo",
-       "text": "<h1 class=\"ql-align-center\">Recebi sua aplicação, <span style=\"color: rgb(245, 158, 11);\">{{ukieyT}}</span>! ✅</h1>"
-      }
-     },
-     {
-      "id": "HZLmEy",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "CyxaNI",
-       "name": "v7uhN7",
-       "text": "<h3 class=\"ql-align-center\">Enquanto preparo o diagnóstico completo da {{KVvZKi}}, veja o que já apareceu nas suas respostas:</h3>"
-      }
-     },
-     {
-      "id": "uXHw7b",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "a1Pv5F",
-       "name": "yAKpEx",
-       "clear": "h-[0.5rem]"
-      }
-     },
-     {
-      "id": "9BuJw4",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "SIokMg",
-       "name": "QNzv1y",
-       "text": "<p>🔎 <b>Pelo iFood:</b> sua loja tem {{ifood_loja.avaliacoes}} avaliações, cerca de {{ifood_loja.pedidos}} pedidos até hoje.</p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@ifood_loja.avaliacoes",
-         "compare": ">",
-         "value": "0"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "iZXVGK",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "lYgJ1x",
-       "name": "QT44o0",
-       "text": "<p>🏁 <b>Na sua região:</b> você está em {{ifood_loja.posicao}}º de {{ifood_loja.total}} lojas de {{ifood_loja.categoria}}. Faltam uns {{ifood_loja.falta}} pedidos para passar {{ifood_loja.proxima}}.</p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@ifood_loja.confiavel",
-         "compare": "==",
-         "value": "true"
-        },
-        {
-         "variable": "@ifood_loja.falta",
-         "compare": ">",
-         "value": "0"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "zJONX8",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "UiDH7Z",
-       "name": "6xd3MU",
-       "text": "<p>🔇 <b>Queda do nada</b> costuma ser configuração: tempo de entrega, entrega grátis e produto em promoção mexem direto na sua posição na lista.</p>"
+       "id": "yg3S9i",
+       "name": "B31kUr",
+       "text": "<p>❌ Seus pedidos caíram do nada. Quando isso acontece, costuma ser a loja perdendo posição no ranking.</p>"
       },
       "roles": [
        [
@@ -2699,16 +4729,16 @@
       ]
      },
      {
-      "id": "qLn5Dk",
+      "id": "J8wM2c",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "RXO1kT",
-       "name": "V04iuR",
-       "text": "<p>👀 <b>Visita sem venda</b> é vitrine: foto, nome do produto e preço âncora decidem se o pedido sai.</p>"
+       "id": "NMtV3F",
+       "name": "CuUXMC",
+       "text": "<p>❌ Muita gente entra e pouca gente pede. O problema está no cardápio, depois do clique.</p>"
       },
       "roles": [
        [
@@ -2721,16 +4751,16 @@
       ]
      },
      {
-      "id": "TChVBU",
+      "id": "uIv9nO",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "o902lc",
-       "name": "Gknvbz",
-       "text": "<p>📉 <b>Lucro baixo</b> costuma vir de cupom no cardápio todo e entrega grátis do bolso. Dá para vender mais sem baixar o preço.</p>"
+       "id": "VE7VwW",
+       "name": "P5ReGi",
+       "text": "<p>❌ Você vende bem e sobra pouco. Promoção e taxa estão comendo a margem.</p>"
       },
       "roles": [
        [
@@ -2743,16 +4773,16 @@
       ]
      },
      {
-      "id": "xF1WrD",
+      "id": "KsOzQr",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "wHvuoL",
-       "name": "ljeeYH",
-       "text": "<p>🚀 <b>Começando:</b> cardápio estratégico desde o início evita depender de cupom.</p>"
+       "id": "59Pu14",
+       "name": "zs3ZSb",
+       "text": "<p>❌ Loja nova ainda não tem histórico no ranking, então cada detalhe do cardápio pesa mais.</p>"
       },
       "roles": [
        [
@@ -2765,16 +4795,16 @@
       ]
      },
      {
-      "id": "j0SPSj",
+      "id": "y0bt21",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "kL2yvf",
-       "name": "5gs4LR",
-       "text": "<p>📸 <b>Fotos de celular:</b> o algoritmo mostra antes quem tem foto profissional, nítida e iluminada.</p>"
+       "id": "VZn6eG",
+       "name": "cUIn37",
+       "text": "<p>❌ Foto tirada na hora faz o cliente passar direto pelo seu prato.</p>"
       },
       "roles": [
        [
@@ -2787,16 +4817,16 @@
       ]
      },
      {
-      "id": "5TJH9m",
+      "id": "MpVJcE",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "eJLf7y",
-       "name": "20V7Yw",
-       "text": "<p>📸 <b>Fotos do Google ou sem foto:</b> produto sem foto real quase não aparece e vende bem menos.</p>"
+       "id": "GdtVnF",
+       "name": "3zxHro",
+       "text": "<p>❌ Sem foto própria, seu prato some no meio dos concorrentes.</p>"
       },
       "roles": [
        [
@@ -2809,16 +4839,16 @@
       ]
      },
      {
-      "id": "PQ99iE",
+      "id": "wjEpng",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "kdSASH",
-       "name": "UEed62",
-       "text": "<p>🧭 <b>Cardápio em lista:</b> sem isca, âncora e combo, o cliente compra só o mínimo.</p>"
+       "id": "cxXHnE",
+       "name": "IXiiJ8",
+       "text": "<p>❌ Sem produto de entrada e sem combo, o cliente novo não arrisca o primeiro pedido.</p>"
       },
       "roles": [
        [
@@ -2831,16 +4861,16 @@
       ]
      },
      {
-      "id": "02hUf2",
+      "id": "xyFBea",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "N9jnyQ",
-       "name": "SbujAD",
-       "text": "<p>🧭 <b>Cardápio bagunçado:</b> o cliente se perde para escolher e sai sem pedir.</p>"
+       "id": "Wj50Zl",
+       "name": "NZMCuw",
+       "text": "<p>❌ O cliente se perde pra escolher, e quem se perde volta pra lista.</p>"
       },
       "roles": [
        [
@@ -2853,71 +4883,43 @@
       ]
      },
      {
-      "id": "kxjjcM",
+      "id": "6A6bAA",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "I63sLr",
-       "name": "qLGV1w",
-       "text": "<p>📱 <b>Quase tudo vem do iFood:</b> qualquer mudança no algoritmo pesa direto no seu caixa.</p>"
+       "id": "JWM647",
+       "name": "Ajb0pY",
+       "text": "<p>✅ Fotos e cardápio estão no caminho. O que falta aparece no seu portal.</p>"
       },
       "roles": [
        [
         {
-         "variable": "@opcoes_26I6it",
+         "variable": "@opcoes_BAoGLH",
          "compare": "==",
-         "value": "0"
+         "value": "A"
+        },
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "A"
         }
        ]
       ]
      },
      {
-      "id": "yIUNZA",
-      "title": "Espaço",
-      "type": "clear",
-      "design": {},
-      "content": {
-       "id": "YFtDkb",
-       "name": "5jgpan",
-       "clear": "h-[0.5rem]"
-      }
-     },
-     {
-      "id": "C0d0E7",
+      "id": "8o4bBo",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "yKt5OG",
-       "name": "xgdgYt",
-       "text": "<p><em>Você já pagou agência e não teve resultado. Aqui é diferente: eu olho o seu cardápio e a configuração da loja, não vendo anúncio.</em></p>"
-      },
-      "roles": [
-       [
-        {
-         "variable": "@opcoes_8HsUvT",
-         "compare": "==",
-         "value": "B"
-        }
-       ]
-      ]
-     },
-     {
-      "id": "ceKkAx",
-      "title": "Texto",
-      "type": "text",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "AaVA2h",
-       "name": "r3EOOB",
-       "text": "<p><em>Você faz tudo sozinho: o diagnóstico mostra o que arrumar primeiro, em ordem, para caber na sua rotina.</em></p>"
+       "id": "iHDebz",
+       "name": "mJY4kJ",
+       "text": "<p>❌ Você cuida de tudo, então o iFood fica pra quando sobra tempo.</p>"
       },
       "roles": [
        [
@@ -2930,34 +4932,498 @@
       ]
      },
      {
-      "id": "rdwNJy",
+      "id": "fBDe4J",
       "title": "Texto",
       "type": "text",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "MKfIAc",
-       "name": "rpaJUv",
-       "text": "<h3 class=\"ql-align-center\">O diagnóstico completo, com o que fazer em ordem, eu te mando no WhatsApp.</h3>"
+       "id": "8qjVbB",
+       "name": "RPs1Hi",
+       "text": "<p>❌ Você já pagou e não viu resultado. Por isso a conversa começa pelo número da sua loja.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "6BakKS",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Ru60ds",
+       "name": "hL743T",
+       "text": "<p>❌ Tem gente cuidando, mas ninguém olhando o ranking de perto.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Jbs1qd",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "YYccMs",
+       "name": "9kPcro",
+       "text": "<p>❌ Ninguém cuidou do iFood até agora, então tem espaço fácil pra ganhar.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "iBHBj0",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "pjdHa7",
+       "name": "LqkmBZ",
+       "text": "<p>O resto eu só vejo abrindo sua loja no iFood. Deixa seus dados que o Lipe, do meu time, marca uma conversa comigo. Nela eu te mostro onde sua loja aparece na região e o que mexer primeiro.</p>"
       }
      },
      {
-      "id": "epxTFJ",
+      "id": "EoNTCh",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "ukieyT",
+       "title": "Seu primeiro nome",
+       "placeholder": "Digite seu primeiro nome",
+       "type": "text",
+       "id": "Fi6q18",
+       "required": true
+      }
+     },
+     {
+      "id": "U2NPZj",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "KVvZKi",
+       "title": "Nome da loja no iFood",
+       "placeholder": "Como ela aparece no iFood",
+       "type": "text",
+       "id": "prcxYd",
+       "required": true
+      }
+     },
+     {
+      "id": "wRTqPH",
+      "title": "Telefone",
+      "icon": "phone",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "L5Lzbe",
+       "title": "WhatsApp com DDD",
+       "placeholder": "(00) 00000-0000",
+       "type": "phone",
+       "mask": "phone",
+       "id": "vWQssV",
+       "required": true
+      }
+     },
+     {
+      "id": "nGdNsj",
       "title": "Botão",
+      "icon": "rectangleWide",
       "type": "button",
       "design": {
-       "basis": 100,
        "style": "theme"
       },
       "content": {
-       "id": "JWdHp4",
-       "name": "zap_resultado",
+       "name": "VT19S2",
        "type": "redirect",
-       "label": "FALAR COM RENAN AGORA 📲",
-       "destination": "https://wa.link/bay8db",
+       "label": "Quero ver o resto da minha loja ➔",
+       "destination": "https://wa.me/553193877523",
        "pulse": false,
-       "target": false
+       "target": false,
+       "id": "tTKZ4M",
+       "model": {
+        "type": "whatsapp",
+        "phone": "553193877523",
+        "message": "Oi, Lipe! Sou {{ukieyT}}, da {{KVvZKi}}. Acabei de fazer o teste da Brase."
+       }
+      }
+     },
+     {
+      "id": "Pxuhlq",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "sqceCy",
+       "name": "WIie1s",
+       "text": "<p class=\"ql-align-center\"><em>O botão abre o WhatsApp do Lipe. Sem spam.</em></p>"
+      }
+     }
+    ]
+   },
+   {
+    "id": "QRtsgk",
+    "title": "Formulário V5 · já pagou agência",
+    "position": {
+     "x": 2400,
+     "y": 0
+    },
+    "layers": [
+     {
+      "id": "fiyV21",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "gds6T6",
+       "name": "EDkzTF",
+       "text": "<h2 class=\"ql-align-center\">Você já pagou por isso <span style=\"color: rgb(245, 158, 11);\">e não viu resultado.</span></h2>"
+      }
+     },
+     {
+      "id": "whAJAc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "vxmKvk",
+       "name": "Asrqcr",
+       "text": "<p>Então a primeira conversa é só sobre o número da sua loja. Eu abro o Portal do Parceiro com você e mostro onde está a trava. Se não fizer sentido, você sai sabendo onde está o problema.</p>"
+      }
+     },
+     {
+      "id": "amsxUA",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "WalqA5",
+       "name": "Oz4MZI",
+       "text": "<p><strong>Pelas suas respostas, já dá pra ver por onde começar:</strong></p>"
+      }
+     },
+     {
+      "id": "pmd64p",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "HHfqm1",
+       "name": "MYanp8",
+       "text": "<p>❌ Seus pedidos caíram do nada. Quando isso acontece, costuma ser a loja perdendo posição no ranking.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "7zY7UU",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "2Srmca",
+       "name": "kEl2YP",
+       "text": "<p>❌ Muita gente entra e pouca gente pede. O problema está no cardápio, depois do clique.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "fEWMrQ",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "b7O0nq",
+       "name": "WicV0P",
+       "text": "<p>❌ Você vende bem e sobra pouco. Promoção e taxa estão comendo a margem.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "aH7wY7",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rQTCqP",
+       "name": "5JxwQs",
+       "text": "<p>❌ Loja nova ainda não tem histórico no ranking, então cada detalhe do cardápio pesa mais.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "nnvHDo",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "poHDFH",
+       "name": "0leUks",
+       "text": "<p>❌ Foto tirada na hora faz o cliente passar direto pelo seu prato.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "0fgcWV",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7RHtIi",
+       "name": "EDnRT2",
+       "text": "<p>❌ Sem foto própria, seu prato some no meio dos concorrentes.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "wyNtzo",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ysZFJZ",
+       "name": "P791Yg",
+       "text": "<p>❌ Sem produto de entrada e sem combo, o cliente novo não arrisca o primeiro pedido.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "ASgo7T",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "99RDMA",
+       "name": "gnC7HJ",
+       "text": "<p>❌ O cliente se perde pra escolher, e quem se perde volta pra lista.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "TiKghW",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "QRpglG",
+       "name": "Svzk0h",
+       "text": "<p>✅ Fotos e cardápio estão no caminho. O que falta aparece no seu portal.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "A"
+        },
+        {
+         "variable": "@opcoes_V8j0wv",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "mXuF4e",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "ukieyT",
+       "title": "Seu primeiro nome",
+       "placeholder": "Digite seu primeiro nome",
+       "type": "text",
+       "id": "8Eisyo",
+       "required": true
+      }
+     },
+     {
+      "id": "2nUgiE",
+      "title": "Campo",
+      "icon": "inputText",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "KVvZKi",
+       "title": "Nome da loja no iFood",
+       "placeholder": "Como ela aparece no iFood",
+       "type": "text",
+       "id": "QTXzQX",
+       "required": true
+      }
+     },
+     {
+      "id": "BO2Q2B",
+      "title": "Telefone",
+      "icon": "phone",
+      "type": "field",
+      "design": {},
+      "content": {
+       "name": "L5Lzbe",
+       "title": "WhatsApp com DDD",
+       "placeholder": "(00) 00000-0000",
+       "type": "phone",
+       "mask": "phone",
+       "id": "ZKwyn9",
+       "required": true
+      }
+     },
+     {
+      "id": "JDV103",
+      "title": "Botão",
+      "icon": "rectangleWide",
+      "type": "button",
+      "design": {
+       "style": "theme"
+      },
+      "content": {
+       "name": "VT19S2",
+       "type": "redirect",
+       "label": "Quero ver o número da minha loja ➔",
+       "destination": "https://wa.me/553193877523",
+       "pulse": false,
+       "target": false,
+       "id": "NFYljo",
+       "model": {
+        "type": "whatsapp",
+        "phone": "553193877523",
+        "message": "Oi, Lipe! Sou {{ukieyT}}, da {{KVvZKi}}. Acabei de fazer o teste da Brase."
+       }
+      }
+     },
+     {
+      "id": "8xtntL",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rwVwNH",
+       "name": "hP6C0K",
+       "text": "<p class=\"ql-align-center\"><em>O botão abre o WhatsApp do Lipe. Sem spam.</em></p>"
       }
      }
     ]
@@ -2966,8 +5432,8 @@
     "id": "7ZLrbh",
     "title": "Obrigado",
     "position": {
-     "x": 2312.105750798722,
-     "y": 16.211501597444055
+     "x": 2700,
+     "y": 0
     },
     "layers": [
      {
@@ -3027,27 +5493,945 @@
     ]
    },
    {
-    "id": "VKCmGQ",
-    "title": "Zapfood",
+    "id": "zElcAr",
+    "title": "Ponte · abaixo de R$ 5 mil",
     "position": {
-     "x": 1952.750798722045,
-     "y": -449.8691693290735
+     "x": 0,
+     "y": 520
     },
     "layers": [
      {
-      "id": "s2XlmK",
+      "id": "xbMlY7",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h1 class=\"ql-align-center\">⚠️&nbsp;ALERTA:&nbsp;SUA&nbsp;LOJA&nbsp;ESTÁ&nbsp;&quot;OPERANDO&nbsp;NO&nbsp;ESCURO&quot;!!!</h1>",
-       "id": "xhVGnn",
-       "name": "nkAdP2"
+       "id": "62vWP2",
+       "name": "gLSR8D",
+       "text": "<h1 class=\"ql-align-center\">Nossa análise individual é só pra loja que já vende <span style=\"color: rgb(245, 158, 11);\">mais de R$ 5 mil por mês no iFood.</span></h1>"
       }
      },
      {
-      "id": "3zgHop",
+      "id": "9eh0eF",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ZbQbBt",
+       "name": "xWOPPr",
+       "text": "<h3 class=\"ql-align-center\">Mas o que trava loja pequena no iFood dá pra arrumar sozinho. Responda umas perguntas rápidas e você vê o que mexer primeiro.</h3>"
+      }
+     },
+     {
+      "id": "0DadaW",
+      "title": "Botão",
+      "icon": "rectangle-horizontal",
+      "type": "button",
+      "design": {
+       "style": "theme",
+       "basis": 100
+      },
+      "content": {
+       "id": "QqF23D",
+       "name": "KZkH5V",
+       "type": "next",
+       "label": "Me mostra ➔",
+       "destination": "next",
+       "pulse": false,
+       "target": false
+      }
+     }
+    ]
+   },
+   {
+    "id": "lvZ2i6",
+    "title": "Tipo de loja",
+    "position": {
+     "x": 300,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "hBZIwO",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "5I6C0L",
+       "name": "OlaYLD",
+       "text": "<h1 class=\"ql-align-center\">Que tipo de loja <span style=\"color: rgb(245, 158, 11);\">é a sua?</span></h1>"
+      }
+     },
+     {
+      "id": "xNFQHS",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "fW6gTb",
+       "name": "ztdUPg",
+       "text": "<p class=\"ql-align-center\">Pra adaptar os exemplos do seu resultado ao que você vende.</p>"
+      }
+     },
+     {
+      "id": "HZyLNe",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "p7mUXM",
+       "name": "tipo_loja",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "HzEIac",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "hamburgueria",
+         "label": "<p>🍔 <strong>Hamburgueria</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "NVLwJY",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "pizzaria",
+         "label": "<p>🍕 <strong>Pizzaria</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "xBflIp",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "acai",
+         "label": "<p>🍧 <strong>Açaí ou sorvete</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "Lz0cyn",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "marmita",
+         "label": "<p>🍱 <strong>Marmita</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "RIh61b",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "japones",
+         "label": "<p>🍣 <strong>Japonês</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "w9TKeP",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "doces",
+         "label": "<p>🍰 <strong>Doces e bolos</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "cvoX71",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "outro",
+         "label": "<p>🍽️ <strong>Outro</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "VIetKH",
+    "title": "PP 02 - Identificação",
+    "position": {
+     "x": 600,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "pMI4SS",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "upIyRo",
+       "text": "<h1 class=\"ql-align-center\">Qual dessas frases você <span style=\"color: rgb(245, 158, 11);\">já pensou?</span></h1>",
+       "name": "sFCpwn"
+      }
+     },
+     {
+      "id": "Uww97g",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "vZsjvd",
+       "name": "frase",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "HPg7Xv",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "esperando",
+         "label": "<p>⏳ <strong>Silêncio no iFood:</strong> Fico esperando tocar e o pedido não vem.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "zvSPVB",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "lojadolado",
+         "label": "<p>👀 <strong>Loja do lado:</strong> Vende muito, e a comida dela nem é melhor.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "mrj7yk",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "cupom",
+         "label": "<p>🏷️ <strong>Cupom:</strong> Liguei, vendeu mais e sobrou menos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "6HlcPc",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "sair",
+         "label": "<p>🚪 <strong>Largar tudo:</strong> Já pensei em sair do iFood.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "IRyNPO",
+    "title": "PP 03 - A culpa",
+    "position": {
+     "x": 900,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "At24J0",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "z8pp8r",
+       "text": "<h1 class=\"ql-align-center\">De quem você acha que é a <span style=\"color: rgb(245, 158, 11);\">culpa?</span></h1>",
+       "name": "vOeyGt"
+      }
+     },
+     {
+      "id": "97DzyK",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "GTIrVV",
+       "name": "culpa",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "LUqVxs",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "concorrencia",
+         "label": "<p>🥊 <strong>Concorrência:</strong> Tem loja demais por aí.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "NmqsDc",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "ifood",
+         "label": "<p>📱 <strong>iFood:</strong> Ele não mostra a minha loja.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "JeNhsq",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "anuncio",
+         "label": "<p>💸 <strong>Anúncio:</strong> Falta dinheiro pra anunciar.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "HD60rx",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "preco",
+         "label": "<p>🏷️ <strong>Meu preço:</strong> Acho que tô caro.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "sAYFlD",
+         "label": "<p>🤷 <strong>Não sei mais:</strong> Já tentei de tudo.</p>",
+         "score": "0",
+         "value": "naosei"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "l1b6ac",
+    "title": "PP 04 - Tempo de entrega",
+    "position": {
+     "x": 1200,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "UhrggE",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "urjzXx",
+       "text": "<h1 class=\"ql-align-center\">O tempo de entrega no iFood, comparado ao <span style=\"color: rgb(245, 158, 11);\">tempo real</span>, é:</h1>",
+       "name": "6PmG1q"
+      }
+     },
+     {
+      "id": "yS7NZM",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "Jyyd1k",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Essa pesa mais do que parece.</em></p>",
+       "name": "yNP29j"
+      }
+     },
+     {
+      "id": "482Ewa",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "G2jcSA",
+       "name": "tempo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "t1QkT8",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "250",
+         "value": "igual",
+         "label": "<p>✅ <strong>Igual ou menor:</strong> Entrego no tempo que aparece.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "Nvcagd",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "125",
+         "value": "5a10",
+         "label": "<p>⚠️ <strong>5 a 10 min a mais:</strong> Demoro um pouco mais.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "ttJ7ut",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "mais10",
+         "label": "<p>❌ <strong>Mais de 10 min a mais:</strong> O cliente vê um tempo e o pedido chega bem depois.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "SXPlk3",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "60",
+         "value": "nunca",
+         "label": "<p>🤷 <strong>Nunca reparei:</strong> Não sei dizer.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "J43rSg",
+    "title": "PP 05 - Adicional pago",
+    "position": {
+     "x": 1500,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "KTapIR",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "5TKAg0",
+       "text": "<h1 class=\"ql-align-center\">Seus produtos têm <span style=\"color: rgb(245, 158, 11);\">adicional pago?</span></h1>",
+       "name": "ZOwZv4"
+      }
+     },
+     {
+      "id": "tDBxIx",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "aTrLUy",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">Ex.: bacon extra, porção maior, acompanhamento.</em></p>",
+       "name": "ou3SQg"
+      }
+     },
+     {
+      "id": "ayr6C7",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "TfmbW7",
+       "name": "adicional",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "6QMvbR",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "250",
+         "value": "maioria",
+         "label": "<p>✅ <strong>Sim, na maioria:</strong> A maior parte tem adicional.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "oYZHZv",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "125",
+         "value": "alguns",
+         "label": "<p>⚠️ <strong>Em alguns:</strong> Só em alguns produtos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "zspEEe",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "nao",
+         "label": "<p>❌ <strong>Não tenho:</strong> O cliente pede o lanche e pronto, não tem o que somar.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "iuPnbP",
+    "title": "PP 06 - Produto em promoção",
+    "position": {
+     "x": 1800,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "IcjocV",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "orSbSz",
+       "text": "<h1 class=\"ql-align-center\">Tem algum produto em <span style=\"color: rgb(245, 158, 11);\">promoção</span> pra puxar cliente novo?</h1>",
+       "name": "2Wz7K6"
+      }
+     },
+     {
+      "id": "IehniD",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "sxQyI9",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Aqui mora um dos conselhos mais caros do delivery.</em></p>",
+       "name": "1XOwQZ"
+      }
+     },
+     {
+      "id": "YUOVxK",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "eMMUbm",
+       "name": "promo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "68ZO8P",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "300",
+         "value": "carrochefe",
+         "label": "<p>🏆 <strong>Sim, no carro-chefe:</strong> Ou num dos mais vendidos.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "mTYfIO",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "100",
+         "value": "barato",
+         "label": "<p>💰 <strong>Sim, num produto barato:</strong> Ou que sai pouco.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "OYznba",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "60",
+         "value": "cupom",
+         "label": "<p>🏷️ <strong>Só cupom:</strong> No cardápio todo.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "u7T1Gu",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "nao",
+         "label": "<p>🚫 <strong>Não tenho:</strong> Tenho medo de dar desconto e não sobrar nada.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "vNggKU",
+    "title": "PP 07 - Entrega grátis",
+    "position": {
+     "x": 2100,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "F3qoBQ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "CnJOfp",
+       "text": "<h1 class=\"ql-align-center\">Sua loja tem <span style=\"color: rgb(245, 158, 11);\">entrega grátis?</span></h1>",
+       "name": "YTSvTy"
+      }
+     },
+     {
+      "id": "u919Nm",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "PMM3MY",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🏁 Última pergunta.</em></p>",
+       "name": "TAA77P"
+      }
+     },
+     {
+      "id": "djd9Hy",
+      "title": "Opções",
+      "icon": "list",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "eYZs73",
+       "name": "entrega",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "options": [
+        {
+         "id": "5exOdh",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "200",
+         "value": "noPreco",
+         "label": "<p>✅ <strong>Sim, com o custo no preço:</strong> Já embuti a entrega.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "vb2Mou",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "70",
+         "value": "bolso",
+         "label": "<p>💸 <strong>Sim, do meu bolso:</strong> Eu pago e nem sei quanto isso me custa no mês.</p>",
+         "destination": "next"
+        },
+        {
+         "id": "5QWZTH",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": "0",
+         "value": "cliente",
+         "label": "<p>❌ <strong>Não:</strong> O cliente paga a taxa.</p>",
+         "destination": "next"
+        }
+       ],
+       "type": "options"
+      }
+     }
+    ]
+   },
+   {
+    "id": "pGr1pE",
+    "title": "PP 08 - Carregando",
+    "position": {
+     "x": 2400,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "HPIqSZ",
+      "title": "Loading",
+      "icon": "loader-circle",
+      "type": "loading",
+      "design": {
+       "layout": "default"
+      },
+      "content": {
+       "id": "51rFif",
+       "title": "Calculando o Score da sua loja com as suas respostas...",
+       "name": "FCymAc",
+       "description": "<p></p>",
+       "seconds": 3,
+       "starts": 0,
+       "destination": "next",
+       "show_title": true,
+       "show_percent": false,
+       "show_progress": true
+      }
+     }
+    ]
+   },
+   {
+    "id": "n8N1eT",
+    "title": "Diagnóstico · abaixo de R$ 5 mil",
+    "position": {
+     "x": 2700,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "nNcyZg",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "82iRFk",
+       "text": "<h1 class=\"ql-align-center\">📊 Seu resultado <span style=\"color: rgb(245, 158, 11);\">está pronto</span></h1>",
+       "name": "pIm5mK"
+      }
+     },
+     {
+      "id": "AtPFmr",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "4Dxo4M",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Fico esperando o iFood tocar”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "F6m0Xm"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "esperando"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "hlLycJ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "xhn6Aq",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“A loja do lado vende mais que eu”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "2rXwbn"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "lojadolado"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "TBMI8C",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "1Xh74X",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Liguei cupom e sobrou menos”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "P5yFcU"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "cupom"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "SNlqj2",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "E5g4wP",
+       "text": "<h3 class=\"ql-align-center\">Você disse: <strong style=\"color: rgb(245, 158, 11);\">“Já pensei em sair do iFood”</strong>. Isso tem explicação, e ela tá nas suas respostas.</h3>",
+       "name": "k9Gwgu"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@frase",
+         "compare": "==",
+         "value": "sair"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "zRalCX",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "siz52X",
+       "name": "IEZDgs"
+      }
+     },
+     {
+      "id": "Zz6mnm",
       "title": "Nível",
       "icon": "slidersH",
       "type": "metric",
@@ -3057,84 +6441,927 @@
        "basis": 100
       },
       "content": {
-       "title": "Potencial usado da sua loja:",
-       "name": "potencial_usado_da_sua_loja_",
-       "subtitle": "O quanto você está agradando o algoritmo:",
-       "percent": "14",
+       "title": "Score da sua loja:",
+       "name": "score_da_sua_loja",
+       "subtitle": "calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000 · score prévio, calculado com 4 respostas",
+       "percent": "calc(({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}})/10)",
        "show_title": true,
        "show_percent": true,
        "show_dot": true,
-       "id": "JSq9nB",
+       "id": "ExECnU",
        "tooltip": null,
        "legends": null
       }
      },
      {
-      "id": "YLhzHW",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
+      "id": "m0fqI1",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
       "design": {},
       "content": {
-       "text": "<h3 class=\"ql-align-center\">Analisamos seus dados. A realidade é dura: <strong style=\"color: rgb(245, 158, 11);\">você está tentando crescer na sorte!</strong></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">E pro Robô do iFood, sorte não existe!</h3><h3 class=\"ql-align-center\"><br></h3><h3 class=\"ql-align-center\">Enquanto você não souber <span style=\"color: rgb(255, 255, 255);\">EXATAMENTE </span>onde está o erro, você <span style=\"color: rgb(245, 158, 11);\">vai continuar trabalhando 12 horas por dia pra ganhar mixaria (ou prejuízo).</span></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">Você <strong>NÃO PRECISA</strong> de uma reunião de consultoria agora. Conversa não paga boleto. <span style=\"color: rgb(245, 158, 11);\">Você precisa de </span><strong style=\"color: rgb(245, 158, 11);\">VENDAS HOJE!</strong></h3><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">E pra vender, você precisa tirar a venda dos olhos e ver o que está travando sua loja...</h3>",
-       "id": "UzUA0h",
-       "name": "ZnwnvX"
+       "clear": "h-[1rem]",
+       "id": "WPaNxz",
+       "name": "o4vSqv"
       }
      },
      {
-      "id": "U1NxuG",
-      "title": "Botão",
-      "icon": "rectangleWide",
-      "type": "button",
+      "id": "X1uJy5",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "0UD1P4",
+       "text": "<h3 class=\"ql-align-center\">Você acha que a culpa é da concorrência. O iFood mostra quem tem <strong style=\"color: rgb(245, 158, 11);\">tempo curto, volume e promoção</strong>, e é aí que a loja do lado ganha de você.</h3>",
+       "name": "mkn365"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "concorrencia"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "0Nmhgh",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "cVZMd3",
+       "text": "<h3 class=\"ql-align-center\">Você acha que a culpa é do iFood. Ele mostra mais quem <strong style=\"color: rgb(245, 158, 11);\">segue as regras dele</strong>: tempo curto, entrega grátis, produto em promoção. A sua loja tá jogando contra elas.</h3>",
+       "name": "ZCmZcZ"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "ifood"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "8lFyaI",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "SZNh1K",
+       "text": "<h3 class=\"ql-align-center\">Você acha que falta dinheiro pra anúncio. Que bom que não gastou: anúncio pra um <strong style=\"color: rgb(245, 158, 11);\">cardápio que não vende</strong> é dinheiro jogado fora.</h3>",
+       "name": "ESjehL"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "anuncio"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "wM1lTc",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "q87Egy",
+       "text": "<h3 class=\"ql-align-center\">Você acha que o problema é o preço. Cliente paga preço cheio quando o cardápio <strong style=\"color: rgb(245, 158, 11);\">dá vontade</strong>. Baixar tudo só acostuma ele a comprar barato.</h3>",
+       "name": "OfLA9h"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "preco"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "FOsS9Q",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "eSNUr5",
+       "text": "<h3 class=\"ql-align-center\">Você não sabe mais o que fazer, e é normal depois de tentar de tudo. <strong style=\"color: rgb(245, 158, 11);\">As suas respostas mostram por onde começar.</strong></h3>",
+       "name": "H5U7YD"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@culpa",
+         "compare": "==",
+         "value": "naosei"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "64GOKX",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "Rk96uC",
+       "name": "KGJxEd"
+      }
+     },
+     {
+      "id": "BrDHTn",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "z1dn7p",
+       "text": "<h2 class=\"ql-align-center\">O que tá <span style=\"color: rgb(245, 158, 11);\">tirando pedido</span> da sua loja:</h2>",
+       "name": "xwRqxn"
+      }
+     },
+     {
+      "id": "JbKCEX",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "sjYkHu",
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span></p>",
+       "name": "ARsOFR"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tempo",
+         "compare": "!=",
+         "value": "igual"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "zZeLia",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "aPDqS3",
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo, e adicional rende R$ 5 a R$ 10 a mais por pedido.</span></p>",
+       "name": "9shnLo"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@adicional",
+         "compare": "!=",
+         "value": "maioria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Tznhir",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "rhFB7O",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span></p>",
+       "name": "XsV98L"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "barato"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VHbD14",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "TZbrZi",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span></p>",
+       "name": "qr2pf9"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "cupom"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "1FpZ4M",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "lNOcLY",
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span></p>",
+       "name": "Whuc3B"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@promo",
+         "compare": "==",
+         "value": "nao"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "Z7CfCf",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "BkJkMR",
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span></p>",
+       "name": "VhFlAD"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@entrega",
+         "compare": "==",
+         "value": "bolso"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "QuIeTn",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "qpPFUi",
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Cerca de 70% das listas que trazem pedido exigem entrega grátis.</span></p>",
+       "name": "5wppwh"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@entrega",
+         "compare": "==",
+         "value": "cliente"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "EZUHrL",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "e3iyRj",
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span></p>",
+       "name": "JrzwDk"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@opcoes_BAoGLH",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "9b6xA3",
+      "title": "Espaço",
+      "icon": "arrowsV",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "clear": "h-[1rem]",
+       "id": "9BoaXU",
+       "name": "FbtOA5"
+      }
+     },
+     {
+      "id": "phwq2h",
+      "title": "Texto",
+      "type": "text",
       "design": {
-       "style": "theme"
+       "basis": 100
       },
       "content": {
-       "name": "GQeYAk",
+       "id": "NMhk1U",
+       "name": "wDd3Yl",
+       "text": "<p><strong>A causa é uma só:</strong> o cliente novo não tem um bom motivo pra fazer o primeiro pedido na sua loja. <span style=\"color: rgb(245, 158, 11);\">Sem esse primeiro pedido, sua loja não sobe na lista.</span></p>"
+      }
+     },
+     {
+      "id": "LXwnHb",
+      "title": "Espaço",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "yLJNZj",
+       "name": "bOt2ar",
+       "clear": "h-[1rem]"
+      }
+     },
+     {
+      "id": "cHrnOt",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "DdlmhZ",
+       "text": "<h2 class=\"ql-align-center\">Quase tudo isso você fez <span style=\"color: rgb(245, 158, 11);\">porque alguém mandou</span>:</h2>",
+       "name": "Q5SQH3"
+      }
+     },
+     {
+      "id": "PxW7uv",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "8gnPYK",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Põe o tempo de entrega alto, pra não atrasar.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Liga um cupom, que vende.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Põe o mais barato em promoção.”</em></p><p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">“Investe em anúncio.”</em></p>",
+       "name": "tyireh"
+      }
+     },
+     {
+      "id": "xk2tO8",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "7cAYp6",
+       "text": "<h3 class=\"ql-align-center\">Parece conselho de quem entende, mas vem de grupo, de guru e de agência que vende anúncio <strong style=\"color: rgb(245, 158, 11);\">antes de olhar o seu cardápio</strong>.</h3>",
+       "name": "pOeAJ8"
+      }
+     },
+     {
+      "id": "boCVeJ",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "06PmvK",
+       "text": "<h1 class=\"ql-align-center\">Você fez o que mandaram. <span style=\"color: rgb(245, 158, 11);\">Quem mandou nunca abriu o seu cardápio.</span></h1>",
+       "name": "qKzKcn"
+      }
+     },
+     {
+      "id": "uyZFv1",
+      "title": "Texto",
+      "icon": "text-cursor",
+      "type": "text",
+      "design": {},
+      "content": {
+       "id": "1qjxGk",
+       "text": "<h3 class=\"ql-align-center\">A boa notícia: tudo isso se arruma pelo Portal, <strong style=\"color: rgb(245, 158, 11);\">sem anúncio e sem agência</strong>. Dá pra começar hoje.</h3>",
+       "name": "cYnoM5"
+      }
+     },
+     {
+      "id": "jfTGaS",
+      "title": "Botão",
+      "icon": "rectangle-horizontal",
+      "type": "button",
+      "design": {
+       "style": "theme",
+       "basis": 100
+      },
+      "content": {
+       "id": "QmlLNr",
+       "name": "fK7Dsj",
        "type": "next",
-       "label": "QUERO VER O QUE ESTÁ TRAVANDO MINHA LOJA!",
-       "destination": "6UihTn",
+       "label": "QUERO ARRUMAR A MINHA LOJA ➔",
+       "destination": "next",
        "pulse": false,
-       "target": false,
-       "id": "cPqrZq"
+       "target": false
+      }
+     }
+    ]
+   },
+   {
+    "id": "7KrhzJ",
+    "title": "Cena de futuro",
+    "position": {
+     "x": 3000,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "3G3CUv",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "JhMD84",
+       "name": "qiOt7o",
+       "text": "<h1 class=\"ql-align-center\">Agora <span style=\"color: rgb(245, 158, 11);\">imagine:</span></h1>"
+      }
+     },
+     {
+      "id": "W3o5Ku",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "6ew1mT",
+       "name": "4UFE2x",
+       "text": "<h3 class=\"ql-align-center\">Domingo à noite, você abre o portal e vê 3 pedidos de gente que nunca tinha comprado de você, todos pelo mesmo produto.</h3>"
+      }
+     },
+     {
+      "id": "yfIyu2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "psUPtV",
+       "name": "lTbWxN",
+       "text": "<p class=\"ql-align-center\"><strong>Isso mudaria sua semana?</strong></p>"
+      }
+     },
+     {
+      "id": "Ofodik",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "VgfGQb",
+       "name": "futuro",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "F3rksm",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "muito",
+         "label": "<p>🔥 <strong>Mudaria muito</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "pCKlcp",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "preciso",
+         "label": "<p>🎯 <strong>É exatamente o que eu preciso</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "rpBwCQ",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "nao",
+         "label": "<p>🤷 <strong>Acho que não faria diferença</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "2yy0P6",
+    "title": "Demonstração",
+    "position": {
+     "x": 3300,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "pRhxOD",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "2iXdkQ",
+       "name": "ZaOmE5",
+       "text": "<h1 class=\"ql-align-center\">E se você recebesse, no WhatsApp, <span style=\"color: rgb(245, 158, 11);\">o que está errado na sua loja</span> e o que fazer pra arrumar?</h1>"
+      }
+     },
+     {
+      "id": "mJCkMV",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "rSvQTP",
+       "name": "6Z1uUT",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do X-Bacon está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no X-Bacon.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "hamburgueria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "GQYncy",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "9uhfA8",
+       "name": "0Yr0il",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da pizza de calabresa está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na pizza de calabresa.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "pizzaria"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VV11i2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "TVpUXA",
+       "name": "jm6vdm",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do açaí de 500 ml está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no açaí de 500 ml.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "acai"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "eh7pFz",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "vGOF6X",
+       "name": "R7Zfhf",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da marmita de frango está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na marmita de frango.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "marmita"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "6ww1TZ",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "hh0D2K",
+       "name": "CbmnA5",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do combinado de 20 peças está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no combinado de 20 peças.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "japones"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "py3Owd",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "iD1wne",
+       "name": "oAPGLc",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do bolo de pote está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no bolo de pote.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "doces"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "1o6pZ1",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "i7UzSb",
+       "name": "lyBEfv",
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do prato mais vendido está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no prato mais vendido.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "==",
+         "value": "outro"
+        }
+       ],
+       [
+        {
+         "variable": "@tipo_loja",
+         "compare": "empty",
+         "value": ""
+        }
+       ]
+      ]
+     },
+     {
+      "id": "VvzQ3Y",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "SZkbOs",
+       "name": "4Qgzqa",
+       "text": "<p class=\"ql-align-center\"><strong>Você conseguiria arrumar isso sozinho?</strong></p>"
+      }
+     },
+     {
+      "id": "11CL2p",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "xjWpk8",
+       "name": "demo",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "gnJgQ5",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "consigo",
+         "label": "<p>💪 <strong>Consigo em poucos minutos</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "bXEkqQ",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "acho",
+         "label": "<p>🙂 <strong>Acho que sim</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "UqlFBA",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "ajuda",
+         "label": "<p>🙋 <strong>Precisaria de ajuda</strong></p>",
+         "destination": "next"
+        }
+       ]
+      }
+     }
+    ]
+   },
+   {
+    "id": "Zor9eB",
+    "title": "Quando quer começar",
+    "position": {
+     "x": 3600,
+     "y": 520
+    },
+    "layers": [
+     {
+      "id": "GbLOnt",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "oFJSXQ",
+       "name": "HFPqKR",
+       "text": "<h1 class=\"ql-align-center\">Quando você quer <span style=\"color: rgb(245, 158, 11);\">parar de esperar o iFood tocar?</span></h1>"
+      }
+     },
+     {
+      "id": "kNyzW2",
+      "title": "Opções",
+      "type": "options",
+      "design": {
+       "icon": "select",
+       "iconPosition": "end",
+       "grid": "grid-cols-1",
+       "orientation": "vertical",
+       "order": "default",
+       "transparentImage": true,
+       "aspectImage": "aspect-[1/1]",
+       "basis": 100,
+       "background": "contrast",
+       "border": "border-[2px]"
+      },
+      "content": {
+       "id": "bbKyCX",
+       "name": "quando",
+       "required": true,
+       "introType": "none",
+       "introduction": null,
+       "type": "options",
+       "options": [
+        {
+         "id": "O8updu",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "semana",
+         "label": "<p>🚀 <strong>Esta semana</strong></p>",
+         "destination": "next"
+        },
+        {
+         "id": "pSu8Xd",
+         "image": {
+          "type": "image",
+          "src": null
+         },
+         "score": 0,
+         "value": "depois",
+         "label": "<p>⏳ <strong>Ainda não é prioridade</strong></p>",
+         "destination": "next"
+        }
+       ]
       }
      }
     ]
    },
    {
     "id": "6UihTn",
-    "title": "Checkout",
+    "title": "Oferta · ZapFood",
     "position": {
-     "x": 2731.1487220447284,
-     "y": -539.032428115016
+     "x": 3900,
+     "y": 520
     },
     "layers": [
      {
-      "id": "Aoigk8",
-      "title": "Timer",
-      "icon": "clock",
-      "type": "timer",
+      "id": "QugDFX",
+      "title": "Texto",
+      "type": "text",
       "design": {
-       "style": "danger",
        "basis": 100
       },
       "content": {
-       "text": "<p class=\"ql-align-center\">Aproveite&nbsp;essa&nbsp;oportunidade:&nbsp;[time]</p>",
-       "time": "300",
-       "id": "NO5LGk",
-       "name": "jwvvnV"
+       "id": "bl6Eyd",
+       "name": "hjn7ab",
+       "text": "<h1 class=\"ql-align-center\">Seu Score está em <span style=\"color: rgb(245, 158, 11);\">calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000.</span></h1>"
       }
      },
      {
-      "id": "92VHud",
+      "id": "e9abud",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h1 class=\"ql-align-center\"><strong>PARE&nbsp;DE&nbsp;ADIVINHAR.&nbsp;USE&nbsp;O</strong><strong style=\"color: rgb(245, 158, 11);\">&nbsp;RAIO-X:</strong></h1><p class=\"ql-align-center\"></p><h3 class=\"ql-align-center\">Eu&nbsp;liberei&nbsp;o&nbsp;meu&nbsp;<strong style=\"color: rgb(245, 158, 11);\">SCANNER&nbsp;DE&nbsp;ALGORITMO</strong>&nbsp;pra&nbsp;você.&nbsp;Ele&nbsp;não&nbsp;&quot;acha&quot;&nbsp;nada.&nbsp;Ele&nbsp;<strong>PROVA</strong>&nbsp;onde&nbsp;você&nbsp;está&nbsp;errando.</h3><p class=\"ql-align-center\"></p><h2 class=\"ql-align-center\">👇&nbsp;<strong>Veja&nbsp;em&nbsp;1&nbsp;minuto&nbsp;como&nbsp;transformar&nbsp;&quot;erro&quot;&nbsp;em&nbsp;&quot;dinheiro&nbsp;no&nbsp;bolso&quot;:</strong></h2>",
-       "id": "RselgD",
-       "name": "xCTiAT"
+       "id": "3wBgjV",
+       "name": "nUJCRs",
+       "text": "<h3 class=\"ql-align-center\">O que sobe primeiro está aqui: o ZapFood é o Scanner de Algoritmo da Brase. Ele aponta o que está travando sua loja, em vermelho, e diz o que fazer pra ficar verde.</h3>"
+      }
+     },
+     {
+      "id": "hytM1Z",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "VXwJWj",
+       "name": "FmApkE",
+       "text": "<p class=\"ql-align-center\">👇 Veja em 1 minuto como funciona:</p>"
       }
      },
      {
@@ -3155,27 +7382,27 @@
       }
      },
      {
-      "id": "KPk4o6",
+      "id": "5ecHyZ",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<h3 class=\"ql-align-center\">🎧&nbsp;Ouça&nbsp;a&nbsp;Michele,&nbsp;dona&nbsp;do&nbsp;&quot;Lanche&nbsp;dos&nbsp;Guri&quot;&nbsp;que&nbsp;<span style=\"color: rgb(245, 158, 11);\">saiu&nbsp;de&nbsp;R$&nbsp;600&nbsp;pra&nbsp;R$&nbsp;4.000</span>&nbsp;usando&nbsp;o&nbsp;Scanner:</h3>",
-       "id": "mazk76",
-       "name": "8GKfEI"
+       "id": "8uGuBJ",
+       "name": "FTiQE9",
+       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês usando o Scanner:</p>"
       }
      },
      {
-      "id": "MlfoWD",
+      "id": "gwgqDF",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "9n3lDB",
-       "name": "wKg8JC"
+       "id": "U4C8gn",
+       "name": "5xkKMn",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -3203,28 +7430,72 @@
       }
      },
      {
-      "id": "5LoCOw",
-      "title": "Texto",
-      "icon": "text",
-      "type": "text",
+      "id": "9kWm9F",
+      "title": "Espaço",
+      "type": "clear",
       "design": {},
       "content": {
-       "text": "<h1 class=\"ql-align-center\">É simples: O Scanner aponta o erro ➔ Você corrige <span style=\"color: rgb(245, 158, 11);\">➔ </span><strong style=\"color: rgb(245, 158, 11);\">O pedido toca.</strong></h1><p class=\"ql-align-center\"><br></p><h3 class=\"ql-align-center\">Chega de ser ignorado pelo iFood.</h3><h3 class=\"ql-align-center\"><br></h3><h3 class=\"ql-align-center\">✅ Descubra a trava agora.</h3><h3 class=\"ql-align-center\">✅ Arrume sua loja hoje.</h3><h3 class=\"ql-align-center\">✅ Volte a vender amanhã.</h3><p class=\"ql-align-center\"><br></p>",
-       "id": "FGdNSC",
-       "name": "UeJIDB"
+       "id": "8aFopf",
+       "name": "UKl8Ow",
+       "clear": "h-[1rem]"
       }
      },
      {
-      "id": "3HWtel",
+      "id": "K2MKmZ",
       "title": "Texto",
-      "icon": "text",
       "type": "text",
-      "design": {},
+      "design": {
+       "basis": 100
+      },
       "content": {
-       "text": "<p class=\"ql-align-center\"><s style=\"color: rgb(220, 38, 38);\">DE:&nbsp;R$297</s></p><h3 class=\"ql-align-center\"></h3><h3 class=\"ql-align-center\"><strong style=\"color: rgb(255, 255, 255);\">POR:</strong><span style=\"color: rgb(245, 158, 11);\">&nbsp;Menos&nbsp;de&nbsp;0,33&nbsp;por&nbsp;dia</span>&nbsp;para&nbsp;destravar&nbsp;suas&nbsp;vendas,&nbsp;com<strong style=\"color: rgb(255, 255, 255);\">&nbsp;</strong><strong style=\"color: rgb(245, 158, 11);\">GARANTIA&nbsp;DE&nbsp;7&nbsp;DIAS!</strong></h3>",
-       "id": "ucllYW",
-       "name": "lqGnS3"
+       "id": "maix3b",
+       "name": "rSfrh8",
+       "text": "<p class=\"ql-align-center\">É simples: o Scanner aponta o erro ➔ você corrige ➔ o pedido toca.</p><p class=\"ql-align-center\">✅ Descubra a trava agora. ✅ Arrume sua loja hoje. ✅ Volte a vender.</p>"
       }
+     },
+     {
+      "id": "2EnjH2",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7pR5qW",
+       "name": "DmxeVl",
+       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o acesso é vitalício, você usa quando quiser.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@quando",
+         "compare": "==",
+         "value": "depois"
+        }
+       ]
+      ]
+     },
+     {
+      "id": "veP0Qc",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "omrmyT",
+       "name": "nwaTFH",
+       "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
+      },
+      "roles": [
+       [
+        {
+         "variable": "@demo",
+         "compare": "==",
+         "value": "ajuda"
+        }
+       ]
+      ]
      },
      {
       "id": "vBJaT5",
@@ -3239,23 +7510,22 @@
        "title": "<p><strong>ZapFood</strong></p>",
        "value": "R$ 9,94",
        "before": "12x de",
-       "after": "ou 97 à vista",
+       "after": "ou R$ 97 à vista",
        "redirect": true,
        "id": "u69pfQ",
        "name": "JheSV9",
-       "featured": "Tempo limitado!"
+       "featured": "Pagamento único · acesso vitalício"
       }
      },
      {
-      "id": "XkRNpd",
+      "id": "JyCSRW",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "FSw7VO",
-       "name": "Fo1Ujb"
+       "id": "qzDWeF",
+       "name": "b5FfnL",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -3270,7 +7540,7 @@
       "content": {
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "QUERO DESTRAVAR MINHAS VENDAS!!",
+       "label": "Quero destravar minhas vendas ➔",
        "destination": "https://pay.kirvano.com/75eef98a-0ae5-4761-8952-5912f0942c86",
        "pulse": false,
        "target": false,
@@ -3278,15 +7548,27 @@
       }
      },
      {
-      "id": "eLcKaO",
+      "id": "x7w3Xv",
+      "title": "Texto",
+      "type": "text",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "NZl6YE",
+       "name": "nHlDMA",
+       "text": "<p class=\"ql-align-center\">🛡️ Pagamento único de R$ 97, sem mensalidade. Não gostou? Pede o dinheiro de volta em até 7 dias.</p>"
+      }
+     },
+     {
+      "id": "dTJ8wG",
       "title": "Espaço",
-      "icon": "arrowsV",
       "type": "clear",
       "design": {},
       "content": {
-       "clear": "h-[1rem]",
-       "id": "bprF53",
-       "name": "8pHU5P"
+       "id": "LlyvXh",
+       "name": "UgCYiE",
+       "clear": "h-[1rem]"
       }
      },
      {
@@ -3358,7 +7640,16 @@
   "settings": {
    "pixel": {
     "facebook": "1696577860982247",
-    "icpEvent": true
+    "icpEvent": true,
+    "icpWhen": [
+     [
+      {
+       "variable": "@VT19S2",
+       "compare": "==",
+       "value": "clicked"
+      }
+     ]
+    ]
    },
    "scripts": {
     "head": "",
@@ -3369,6 +7660,13 @@
     "enabled": false
    },
    "checkoutMark": true,
+   "ab": [
+    {
+     "name": "capa",
+     "variants": "atual, v1",
+     "enabled": true
+    }
+   ],
    "leads": {
     "icp": [
      [
@@ -3491,7 +7789,117 @@
      "enabled": true,
      "minutes": 15
     },
-    "dedupeDays": 30
+    "dedupeDays": 30,
+    "tags": [
+     {
+      "label": "DI, prioridade alta",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "50000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "DI",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "30000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Plano IA",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "10000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Plano IA, prioridade baixa",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_Cu6gxU",
+         "compare": "==",
+         "value": "5000"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Já pagou agência",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_8HsUvT",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: pedidos caíram do nada",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "A"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: visita sem venda",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "B"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: lucro baixo",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "C"
+        }
+       ]
+      ]
+     },
+     {
+      "label": "Dor: está começando",
+      "when": [
+       [
+        {
+         "variable": "@opcoes_sz3HdB",
+         "compare": "==",
+         "value": "D"
+        }
+       ]
+      ]
+     }
+    ]
    }
   },
   "origin": {

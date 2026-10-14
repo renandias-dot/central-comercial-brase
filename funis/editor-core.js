@@ -514,7 +514,11 @@ function previewDialog(fromStep){
     if (ctl) ctl.destroy();
     sess = {id: 'teste-' + uid(4), created_at: new Date().toISOString(), tracking: {teste: 'editor', userAgent: navigator.userAgent}, answers: {}, clicks: {}, steps: [], interacted: false, completed: false, test: true};
     log.length = 0;
-    ctl = FR.mount($('#pv-screen'), clone(D), {mode: 'preview', step: fromStep || 0, scrollEl: $('#pv-screen'),
+    // Teste A/B: cada pré-visualização sorteia uma variante, como um visitante novo.
+    const ab = FR.abAssign(D, sess.id, {});
+    sess.params = ab;
+    if (Object.keys(ab).length) log.push('Teste A/B: ' + Object.entries(ab).map(([k, v]) => k.slice(6) + ' = ' + v).join(', ') + ' (▶ de novo para sortear outra)');
+    ctl = FR.mount($('#pv-screen'), clone(D), {mode: 'preview', step: fromStep || 0, scrollEl: $('#pv-screen'), params: ab,
       onEvent: ev => {
         if (ev.type === 'step') { sess.steps.push(ev.step) }
         if (ev.type === 'answer') { sess.answers[ev.layer] = ev.answer; sess.interacted = true }
