@@ -19,11 +19,14 @@ const open = url => chrome.tabs.create({url});
 
 const isIfood = url => { try { return /(^|\.)ifood\.com\.br$/.test(new URL(url).hostname) } catch { return false } };
 
-// ID da loja (merchant_id) a partir do endereço da aba: só vale em páginas de loja do iFood.
+// ID da loja (merchant_id) a partir do endereço da aba. Só vale no formato de página de loja,
+// /delivery/{cidade-uf}/{nome}/{id}; páginas de categoria e de lista também têm códigos no endereço.
+const STORE_PATH = /^\/delivery\/[^/]+\/[^/]+\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i;
 function merchantFromUrl(url){
   if (!isIfood(url)) return '';
   const u = new URL(url);
-  return ((u.pathname + u.search).match(UUID)?.[0] ?? '').toLowerCase();
+  const id = u.pathname.match(STORE_PATH)?.[1] ?? (u.pathname.startsWith('/delivery/') ? u.searchParams.get('identifier') : '') ?? '';
+  return UUID.test(id) ? id.toLowerCase() : '';
 }
 
 // Roda dentro da aba do iFood (chrome.scripting): junta os links de loja que já estão na página, sem rolar nem clicar.
@@ -39,6 +42,9 @@ function collectStores(){
   }
   return [...found].map(([id, name]) => ({id, name}));
 }
+
+// Nome de quem está incluindo (opcional), guardado no navegador; vai para a tela Cobertura do app.
+const whoAmI = async () => (await chrome.storage.local.get('who')).who || '';
 
 async function storesOnPage(tabId){
   const [res] = await chrome.scripting.executeScript({target: {tabId}, func: collectStores});
@@ -75,9 +81,14 @@ function showList(tabId, stores){
   view.innerHTML = `<div class="card"><p><b>${lojas(stores.length)} nesta página</b></p>
     <p class="hint">Só entram as lojas já carregadas na tela. Para trazer mais, role a lista do iFood até o fim (ou clique em “Ver mais”) e procure de novo.</p>
     <ul class="names">${stores.slice(0, 50).map(s => `<li>${esc(s.name || s.id)}</li>`).join('')}${stores.length > 50 ? `<li class="muted">e mais ${fmt(stores.length - 50)}</li>` : ''}</ul></div>
+    <input class="in" id="who" maxlength="40" placeholder="Seu nome (aparece na Cobertura do app)" aria-label="Seu nome">
     <div class="row"><button class="btn" id="rescan">Procurar de novo</button><button class="btn primary" id="include-all">Incluir ${fmt(stores.length)}</button></div>`;
+  chrome.storage.local.get('who').then(({who = ''}) => { document.getElementById('who').value = who });
   document.getElementById('rescan').addEventListener('click', () => scan(tabId));
-  document.getElementById('include-all').addEventListener('click', () => includeAll(tabId, stores));
+  document.getElementById('include-all').addEventListener('click', async () => {
+    await chrome.storage.local.set({who: document.getElementById('who').value.trim()});
+    includeAll(tabId, stores);
+  });
 }
 
 async function scan(tabId){
@@ -99,7 +110,7 @@ async function includeAll(tabId, stores){
   try {
     for (let i = 0; i < stores.length; i += BATCH){
       bar(i);
-      const {results} = await call({op: 'include', links: stores.slice(i, i + BATCH).map(s => s.id)});
+      const {results} = await call({op: 'include', links: stores.slice(i, i + BATCH).map(s => s.id), by: await whoAmI()});
       for (const r of results) r.existing ? totals.known++ : r.ok ? totals.added++ : totals.failed++;
     }
   } catch (e){
@@ -118,11 +129,14 @@ async function includeAll(tabId, stores){
   document.getElementById('app').addEventListener('click', () => open(APP));
 }
 
-function showReady(id){
+// Página de loja. O segundo botão cobre o caso de a página ser, na verdade, uma lista de lojas.
+function showReady(id, tabId){
   view.innerHTML = `<div class="card"><p><b>Loja do iFood detectada</b> nesta aba.</p><code>${esc(id)}</code>
     <p class="hint">A loja entra na base da Brase e passa a ser relida toda semana para o ranking.</p></div>
-    <button class="btn primary" id="include">Incluir na Brase</button>`;
+    <button class="btn primary" id="include">Incluir na Brase</button>
+    <button class="btn" id="scan-page">Incluir todas as lojas desta página</button>`;
   document.getElementById('include').addEventListener('click', () => include(id));
+  document.getElementById('scan-page').addEventListener('click', () => scan(tabId));
 }
 
 function showError(message, id){
@@ -178,7 +192,7 @@ function showDone(d){
 async function include(id){
   view.innerHTML = '<p class="hint">Incluindo e lendo a loja no iFood…</p>';
   try {
-    const {results} = await call({op: 'include', links: [id]});
+    const {results} = await call({op: 'include', links: [id], by: await whoAmI()});
     const r = results?.[0];
     if (!r?.ok) return showError(r?.error || 'Não consegui incluir essa loja.', id);
     view.innerHTML = `<p class="hint">${r.existing ? 'Já estava na base' : 'Incluída'}: ${esc(r.name)}. Calculando a posição no ranking…</p>`;
@@ -191,7 +205,7 @@ async function include(id){
 
 chrome.tabs.query({active: true, currentWindow: true}).then(([tab]) => {
   const id = merchantFromUrl(tab?.url || '');
-  if (id) showReady(id);
+  if (id) showReady(id, tab.id);
   else if (isIfood(tab?.url || '')) scan(tab.id);
   else showNotStore();
 });

@@ -221,6 +221,7 @@ table.tbl{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;
       <a class="nav-item" href="#/regiao" data-route="/regiao"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Região no Google</a>
       <a class="nav-item" href="#/favoritos" data-route="/favoritos"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z"/></svg>Favoritos</a>
       <a class="nav-item" href="#/incluir" data-route="/incluir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Incluir lojas</a>
+      <a class="nav-item" href="#/cobertura" data-route="/cobertura"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20V6.5Z"/><path d="M9 4v13.5M15 6.5V20"/></svg>Cobertura</a>
     </nav>
     <div class="nav-foot">
       <p class="hint" id="data-hint">Dados do iFood, do Power Data e da Receita Federal.</p>
@@ -403,6 +404,7 @@ function render(){
   if (path.startsWith('/r/')) return viewDetail(decodeURIComponent(path.slice(3)), Number(q.get('km')) || 5);
   if (path === '/favoritos') return viewFavorites();
   if (path === '/incluir') return viewInclude();
+  if (path === '/cobertura') return viewCoverage(q);
   if (path === '/regiao') return viewArea(q);
   viewSearch();
 }
@@ -876,6 +878,43 @@ async function viewFavorites(){
     b.disabled = true;
     try { await call({op: 'favorite', id: b.dataset.unfav, on: false}); if (D.id === b.dataset.unfav && D.data) D.data.favorite = false; viewFavorites() } catch (e){ fail(e); b.disabled = false }
   }));
+}
+
+/* ---------- cobertura ---------- */
+const UFS = 'AC AL AP AM BA CE DF ES GO MA MT MS MG PA PB PR PE PI RJ RN RS RO RR SC SP SE TO'.split(' ');
+async function viewCoverage(q){
+  const uf = (q.get('uf') || '').toUpperCase();
+  const title = uf ? `Cobertura · ${uf}` : 'Cobertura';
+  const sub = 'Lojas ativas na base por estado e cidade, e o que a equipe incluiu pelo app e pela extensão. Use para dividir as regiões e não repetir trabalho.';
+  view.innerHTML = head(title, sub) + '<div class="skel"></div>';
+  let d;
+  try { d = await call({op: 'coverage', state: uf}) } catch (e){ fail(e); view.querySelector('.skel').outerHTML = `<p class="empty">${esc(e.message)}</p>`; return }
+  if (route().path !== '/cobertura' || (route().q.get('uf') || '').toUpperCase() !== uf) return;
+  const t = d.totals;
+  const kpis = `<div class="kpis">
+    <div class="kpi"><span class="l">Lojas ativas na base</span><span class="v">${fmt(t.stores)}</span><span class="s">${fmt(t.with_reviews)} com avaliações</span></div>
+    <div class="kpi"><span class="l">Estados com lojas</span><span class="v">${fmt(t.states)}</span><span class="s">de 27</span></div>
+    <div class="kpi"><span class="l">Incluídas hoje</span><span class="v">${fmt(t.today)}</span><span class="s">pela equipe</span></div>
+    <div class="kpi"><span class="l">Últimos 7 dias</span><span class="v">${fmt(t.week)}</span><span class="s">pela equipe</span></div></div>`;
+  const people = `<section class="panel"><div class="panel-h"><h2>Quem incluiu</h2><span class="sub">últimos 7 dias</span></div>${d.people.length ? `<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>Pessoa</th><th class="r">Hoje</th><th class="r">7 dias</th><th class="r">Estados</th><th>Última inclusão</th></tr></thead><tbody>
+    ${d.people.map(p => `<tr><td class="nm">${esc(p.who)}</td><td class="r">${fmt(p.today)}</td><td class="r">${fmt(p.stores)}</td><td class="r">${fmt(p.states)}</td><td class="num">${when(p.last_added)}</td></tr>`).join('')}
+    </tbody></table></div>` : ''}<div class="panel-b"><p class="hint">${d.people.length ? '' : 'Ninguém incluiu lojas nos últimos 7 dias. '}Na extensão, preencha “Seu nome” para as inclusões aparecerem aqui.</p></div></section>`;
+  let main;
+  if (!uf){
+    const byUf = new Map(d.states.map(s => [s.state, s]));
+    const rows = [...d.states.filter(s => UFS.includes(s.state)), ...UFS.filter(u => !byUf.has(u)).map(u => ({state: u, stores: 0}))];
+    main = `<section class="panel"><div class="panel-h"><h2>Por estado</h2><span class="sub">clique no estado para ver as cidades</span></div><div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>UF</th><th class="r">Lojas</th><th class="r">Com avaliações</th><th class="r">Cidades</th><th class="r">Pela equipe</th><th class="r">7 dias</th><th>Última inclusão</th></tr></thead><tbody>
+      ${rows.map(s => `<tr><td class="nm"><a href="#/cobertura?uf=${s.state}">${s.state}</a></td><td class="r">${fmt(s.stores)}</td><td class="r">${s.stores ? fmt(s.with_reviews) : '—'}</td><td class="r">${s.stores ? fmt(s.cities) : '—'}</td><td class="r">${s.stores ? fmt(s.by_team) : '—'}</td><td class="r">${s.stores ? fmt(s.week) : '—'}</td><td class="num">${s.last_added ? when(s.last_added) : '—'}</td></tr>`).join('')}
+      </tbody></table></div><div class="panel-b"><p class="hint">“Pela equipe” conta as lojas que entraram pelo app ou pela extensão; as de SP vieram, em sua maioria, da base do Power Data.</p></div></section>`;
+  } else {
+    main = `<section class="panel"><div class="panel-h"><h2>Cidades de ${esc(uf)}</h2><a class="btn sm" href="#/cobertura">← Todos os estados</a></div>${d.cities.length ? `<div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>Cidade</th><th class="r">Lojas</th><th class="r">Com avaliações</th><th class="r">Pela equipe</th><th class="r">7 dias</th><th>Última inclusão</th></tr></thead><tbody>
+      ${d.cities.map(c => `<tr><td class="nm">${esc(c.city || 'Sem cidade')}</td><td class="r">${fmt(c.stores)}</td><td class="r">${fmt(c.with_reviews)}</td><td class="r">${fmt(c.by_team)}</td><td class="r">${fmt(c.week)}</td><td class="num">${c.last_added ? when(c.last_added) : '—'}</td></tr>`).join('')}
+      </tbody></table></div>` : `<div class="panel-b"><p class="empty">Nenhuma loja de ${esc(uf)} na base ainda. Abra uma lista de restaurantes de uma cidade de ${esc(uf)} no iFood e inclua pela extensão.</p></div>`}</section>`;
+  }
+  view.innerHTML = head(title, sub) + kpis + people + main;
 }
 
 /* ---------- incluir lojas ---------- */

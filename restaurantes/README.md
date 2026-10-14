@@ -17,6 +17,7 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 | **Região no Google** | Ranking dos restaurantes de um endereço pelas avaliações do Google Maps, inclusive os que não estão no iFood. |
 | **Favoritos** | Lista da equipe com evolução das avaliações e CSV. |
 | **Incluir lojas** | Cola links de lojas do iFood (até 30 por vez) para entrarem na base, ou baixa a extensão do Chrome. |
+| **Cobertura** | Lojas ativas na base por estado e por cidade, quantas a equipe incluiu hoje e nos últimos 7 dias e quem incluiu (nome preenchido na extensão). Os 27 estados aparecem, inclusive os que ainda não têm lojas. |
 
 ### As contas (as mesmas do Power Data)
 
@@ -42,7 +43,9 @@ A pasta `extensao/` tem a extensão **Brase · Restaurantes** (Manifest V3), o e
 
 - **Uma loja:** com a página de uma loja aberta no iFood, o usuário clica no ícone da Brase e em **Incluir na Brase**. A extensão manda o código da loja (merchant_id, tirado do endereço da página) para a mesma função `restaurantes-api` e mostra a posição da loja na categoria e no geral (raio de 5 km), as avaliações e os pedidos estimados, com um botão para a ficha completa no app.
 - **Uma lista inteira:** numa lista de restaurantes do iFood (início, busca ou categoria), o ícone junta os links de lojas que estão na tela e o botão **Incluir** manda todos, de 30 em 30. Lojas que já estão na base voltam na hora, sem nova leitura no iFood; as novas são lidas uma a uma. Só entram as lojas já carregadas na página, porque a extensão não rola nem clica sozinha. Para trazer mais, o usuário rola a lista até o fim e clica de novo.
-- **Permissões:** `activeTab` (lê o endereço da aba quando o ícone é clicado), `scripting` (lê os links de lojas da página do iFood, só no clique) e `storage` (guarda o código de acesso, se um dia o app exigir). Ela não altera as páginas e não roda em outros sites.
+- **Quem incluiu:** o campo opcional “Seu nome” fica guardado no navegador e vai com cada inclusão. A tela **Cobertura** do app mostra as lojas por estado e cidade, o que a equipe incluiu hoje e na semana e quem incluiu, para dividir as regiões sem repetir trabalho.
+- **Página de loja ou lista:** só o formato `/delivery/{cidade-uf}/{nome}/{código}` conta como página de uma loja (categorias e listas também têm códigos no endereço). Na página de uma loja, há também o botão “Incluir todas as lojas desta página”.
+- **Permissões:** `activeTab` (lê o endereço da aba quando o ícone é clicado), `scripting` (lê os links de lojas da página do iFood, só no clique) e `storage` (guarda o nome de quem usa e o código de acesso, se um dia o app exigir). Ela não altera as páginas e não roda em outros sites.
 - **Instalar:** baixe `extensao-brase.zip` na tela Incluir lojas do app, descompacte, abra `chrome://extensions`, ligue o Modo do desenvolvedor e use **Carregar sem compactação**.
 - **Publicar na Chrome Web Store como não listada:** passo a passo, textos, respostas de privacidade e imagens prontos em [`extensao-loja/PUBLICAR.md`](extensao-loja/PUBLICAR.md). A política de privacidade fica em `privacidade.html`.
 - **Depois de mudar a extensão:** suba o `version` do `manifest.json` e gere o zip de novo, dentro de `restaurantes/`:
