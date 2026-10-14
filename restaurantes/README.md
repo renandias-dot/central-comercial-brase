@@ -38,9 +38,11 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 
 ## Extensão do Chrome
 
-A pasta `extensao/` tem a extensão **Brase · Restaurantes** (Manifest V3), o equivalente da extensão Menu Guru que o Power Data usa para incluir lojas. Com a página de uma loja aberta no iFood, o usuário clica no ícone da Brase e em **Incluir na Brase**. A extensão manda o código da loja (merchant_id, tirado do endereço da página) para a mesma função `restaurantes-api` e mostra a posição da loja na categoria e no geral (raio de 5 km), as avaliações e os pedidos estimados, com um botão para a ficha completa no app.
+A pasta `extensao/` tem a extensão **Brase · Restaurantes** (Manifest V3), o equivalente da extensão Menu Guru que o Power Data usa para incluir lojas. É o caminho para trazer lojas de fora de SP, que a assinatura do Power Data não cobre.
 
-- **Permissões:** só `activeTab` (lê o endereço da aba quando o ícone é clicado) e `storage` (guarda o código de acesso, se um dia o app exigir). Ela não lê nem altera o conteúdo das páginas do iFood.
+- **Uma loja:** com a página de uma loja aberta no iFood, o usuário clica no ícone da Brase e em **Incluir na Brase**. A extensão manda o código da loja (merchant_id, tirado do endereço da página) para a mesma função `restaurantes-api` e mostra a posição da loja na categoria e no geral (raio de 5 km), as avaliações e os pedidos estimados, com um botão para a ficha completa no app.
+- **Uma lista inteira:** numa lista de restaurantes do iFood (início, busca ou categoria), o ícone junta os links de lojas que estão na tela e o botão **Incluir** manda todos, de 30 em 30. Lojas que já estão na base voltam na hora, sem nova leitura no iFood; as novas são lidas uma a uma. Só entram as lojas já carregadas na página, porque a extensão não rola nem clica sozinha. Para trazer mais, o usuário rola a lista até o fim e clica de novo.
+- **Permissões:** `activeTab` (lê o endereço da aba quando o ícone é clicado), `scripting` (lê os links de lojas da página do iFood, só no clique) e `storage` (guarda o código de acesso, se um dia o app exigir). Ela não altera as páginas e não roda em outros sites.
 - **Instalar:** baixe `extensao-brase.zip` na tela Incluir lojas do app, descompacte, abra `chrome://extensions`, ligue o Modo do desenvolvedor e use **Carregar sem compactação**.
 - **Publicar na Chrome Web Store como não listada:** passo a passo, textos, respostas de privacidade e imagens prontos em [`extensao-loja/PUBLICAR.md`](extensao-loja/PUBLICAR.md). A política de privacidade fica em `privacidade.html`.
 - **Depois de mudar a extensão:** suba o `version` do `manifest.json` e gere o zip de novo, dentro de `restaurantes/`:
