@@ -40,7 +40,7 @@ A pasta `extensao/` tem a extensão **Brase · Restaurantes** (Manifest V3), o e
 
 - **Permissões:** só `activeTab` (lê o endereço da aba quando o ícone é clicado) e `storage` (guarda o código de acesso, se um dia o app exigir). Ela não lê nem altera o conteúdo das páginas do iFood.
 - **Instalar:** baixe `extensao-brase.zip` na tela Incluir lojas do app, descompacte, abra `chrome://extensions`, ligue o Modo do desenvolvedor e use **Carregar sem compactação**.
-- **Publicar na Chrome Web Store (opcional):** com uma conta de desenvolvedor do Google (taxa única de US$ 5), envie o mesmo zip; dá para publicar como “não listada” para só quem tiver o link instalar.
+- **Publicar na Chrome Web Store como não listada:** passo a passo, textos, respostas de privacidade e imagens prontos em [`extensao-loja/PUBLICAR.md`](extensao-loja/PUBLICAR.md). A política de privacidade fica em `privacidade.html`.
 - **Depois de mudar a extensão:** suba o `version` do `manifest.json` e gere o zip de novo, dentro de `restaurantes/`:
 
 ```bash
