@@ -258,7 +258,7 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
   async coverage({state = ''}){
     const uf = String(state).trim().toUpperCase().slice(0, 2);
     const today = sql`(date_trunc('day', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo')`;
-    const [totals, states, people, cities] = await Promise.all([
+    const [totals, states, people, cities, bounds] = await Promise.all([
       sql`
         select count(*)::integer as stores,
                count(*) filter (where rating_count > 0)::integer as with_reviews,
@@ -285,8 +285,38 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
                count(*) filter (where source = 'ifood' and first_seen > now() - interval '7 days')::integer as week,
                max(first_seen) filter (where source = 'ifood') as last_added
           from rs_merchants where enabled and state = ${uf} group by city order by stores desc limit 500` : [],
+      // Enquadramento do mapa no estado; os percentis ignoram as poucas lojas com coordenada errada.
+      uf ? sql`
+        select percentile_cont(0.01) within group (order by lat) as s, percentile_cont(0.01) within group (order by lon) as w,
+               percentile_cont(0.99) within group (order by lat) as n, percentile_cont(0.99) within group (order by lon) as e
+          from rs_merchants where enabled and state = ${uf} and lat is not null` : [],
     ]);
-    return {totals: totals[0], states, people, state: uf, cities};
+    const b = bounds[0];
+    return {totals: totals[0], states, people, state: uf, cities, bounds: b?.s != null ? [b.s, b.w, b.n, b.e] : null};
+  },
+
+  // Mapa da Cobertura. bbox = [sul, oeste, norte, leste] da área visível. Até o zoom 13 as lojas vêm agrupadas numa
+  // grade de uns 40 px na tela (uma bolinha por célula, no centro das lojas dela); do zoom 14 em diante, uma a uma.
+  async coverage_map({bbox, zoom = 4, only = 'all'}){
+    const [s, w, n, e] = (Array.isArray(bbox) ? bbox : []).map(Number);
+    if (![s, w, n, e].every(Number.isFinite)) throw bad('Área do mapa inválida.');
+    const z = clamp(Math.round(Number(zoom) || 4), 2, 19);
+    const filter = only === 'reviews' ? sql`and rating_count > 0` : only === 'team' ? sql`and source = 'ifood'` : sql``;
+    if (z >= 14){
+      const stores = await sql`
+        select id, name, category, rating_count, lat, lon from rs_merchants
+         where enabled and lat between ${s} and ${n} and lon between ${w} and ${e} ${filter}
+         order by rating_count desc nulls last limit 3000`;
+      return {mode: 'stores', stores};
+    }
+    const cell = 360 / 2 ** z / 6;
+    const cells = await sql`
+      select avg(lat)::float8 as lat, avg(lon)::float8 as lon, count(*)::integer as n,
+             count(*) filter (where rating_count > 0)::integer as reviews
+        from rs_merchants
+       where enabled and lat between ${s} and ${n} and lon between ${w} and ${e} ${filter}
+       group by floor(lat / ${cell}::float8), floor(lon / ${cell}::float8)`;
+    return {mode: 'grid', cells};
   },
 
   // Ranking pelas avaliações do Google num raio. update=true busca de novo no Google (consultas pagas).

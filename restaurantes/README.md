@@ -17,7 +17,7 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 | **Região no Google** | Ranking dos restaurantes de um endereço pelas avaliações do Google Maps, inclusive os que não estão no iFood. |
 | **Favoritos** | Lista da equipe com evolução das avaliações e CSV. |
 | **Incluir lojas** | Cola links de lojas do iFood (até 30 por vez) para entrarem na base, ou baixa a extensão do Chrome. |
-| **Cobertura** | Lojas ativas na base por estado e por cidade, quantas a equipe incluiu hoje e nos últimos 7 dias e quem incluiu (nome preenchido na extensão). Os 27 estados aparecem, inclusive os que ainda não têm lojas. |
+| **Cobertura** | Mapa do Brasil com as lojas da base: bolinhas que agrupam as lojas próximas (o tamanho mostra quantas) e se dividem com o zoom; a partir do zoom 14, uma bolinha por loja, que abre a ficha. Filtro por todas, com avaliações ou incluídas pela equipe. Abaixo, lojas ativas por estado e por cidade, quantas a equipe incluiu hoje e nos últimos 7 dias e quem incluiu (nome preenchido na extensão). Os 27 estados aparecem, inclusive os que ainda não têm lojas. |
 
 ### As contas (as mesmas do Power Data)
 
