@@ -40,7 +40,7 @@ Object.assign(ACT, {
 });
 
 /* ================= Leads ================= */
-const LEADS = {cache: null, loading: false, extra: []};
+const LEADS = {cache: null, loading: false, extra: [], seq: 0};
 const TRACK = ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'fbclid', 'utm_id', 'screen', 'viewport', 'platform', 'ip', 'userAgent', 'language', 'referrer'];
 const PERIODS = [['day', '24 horas'], ['week', '7 dias'], ['month', '30 dias'], ['all', 'Tudo']];
 function leadColumns(){
@@ -57,11 +57,13 @@ async function loadLeads(more){
   if (!more && LEADS.cache && LEADS.cache.key === key && Date.now() - LEADS.cache.at < 60e3) return LEADS.cache;
   const off = more && LEADS.cache ? LEADS.cache.leads.length : 0;
   const [st, ls] = await Promise.all([more ? Promise.resolve(LEADS.cache.stats) : DB.stats(id, q), DB.leads(id, Object.assign({limit: 100, offset: off}, q))]);
-  LEADS.cache = {key, at: Date.now(), stats: st, leads: more ? LEADS.cache.leads.concat(ls.leads) : ls.leads, total: ls.total, sales: (more ? LEADS.cache.sales || [] : []).concat(ls.sales || [])};
-  return LEADS.cache;
+  const data = {key, at: Date.now(), stats: st, leads: more ? LEADS.cache.leads.concat(ls.leads) : ls.leads, total: ls.total, sales: (more ? LEADS.cache.sales || [] : []).concat(ls.sales || [])};
+  // Se trocaram de período/ordem/funil enquanto carregava, esta resposta é velha: não vira cache.
+  if (key === REC.id + '|' + UI.leads.period + '|' + UI.leads.order) LEADS.cache = data;
+  return data;
 }
 async function renderLeads(main){
-  const L = UI.leads;
+  const L = UI.leads, my = ++LEADS.seq;
   main.innerHTML = `<div class="leads" id="leads-root"><div class="leads-top">
     <div class="seg">${[['respostas', 'Respostas'], ['resultados', 'Resultados'], ['performance', 'Performance'], ['anuncios', 'Anúncios'], ['caminhos', 'Caminhos']].map(([k, l]) => `<button data-a="lsub" data-v="${k}" aria-pressed="${L.sub === k}">${l}</button>`).join('')}</div>
     <div class="seg">${PERIODS.map(([k, l]) => `<button data-a="lperiod" data-v="${k}" aria-pressed="${L.period === k}">${l}</button>`).join('')}</div>
@@ -69,8 +71,8 @@ async function renderLeads(main){
     ${DB.server ? '' : '<div class="banner" style="margin-bottom:14px">Modo local: aqui aparecem só os testes feitos no botão ▶ deste navegador. Os leads reais aparecem quando o servidor estiver configurado.</div>'}
     <div id="leads-body"><div class="empty">Carregando…</div></div></div>`;
   let data;
-  try { data = await loadLeads() } catch (e) { $('#leads-body').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return }
-  if (UI.tab !== 'leads') return;
+  try { data = await loadLeads() } catch (e) { if (my === LEADS.seq && $('#leads-body')) $('#leads-body').innerHTML = `<div class="empty">${esc(e.message)}</div>`; return }
+  if (UI.tab !== 'leads' || my !== LEADS.seq) return;
   paintLeads(data);
 }
 function kpis(st){
@@ -155,7 +157,7 @@ function leadDrawer(lead){
   const d = document.createElement('aside'); d.className = 'drawer'; d.id = 'drawer';
   d.innerHTML = `<div class="row" style="justify-content:space-between"><h2 style="font:800 18px/1.2 var(--f-display)">Lead <span class="tag" style="font:13px var(--f-mono)">${esc(lead.id)}</span></h2><button class="btn icon ghost" data-a="close-drawer" aria-label="Fechar">${IC.x}</button></div>
     <div class="row" style="flex-wrap:wrap">${lead.completed ? '<span class="chip ok">completou</span>' : ''}${lead.interacted ? '<span class="chip acc">interagiu</span>' : '<span class="chip">só acessou</span>'}<span class="hint">entrou ${esc(fmtDateTime(lead.created_at))} · última atividade ${esc(fmtDateTime(lead.updated_at))}</span></div>
-    ${lead.webhook ? `<div class="banner${lead.webhook.ok ? '' : ' warn'}">Webhook: ${lead.webhook.ok ? 'enviado' : 'falhou'} em ${esc(fmtDateTime(lead.webhook.at))}${lead.webhook.status ? ' · HTTP ' + esc(String(lead.webhook.status)) : ''}${lead.webhook.error ? ' · ' + esc(lead.webhook.error) : ''}</div>` : ''}
+    ${lead.webhook && lead.webhook.kind === 'importado' ? `<div class="banner">Importado do InLead em ${esc(fmtDateTime(lead.webhook.at))}. Não foi enviado para o webhook daqui.</div>` : lead.webhook ? `<div class="banner${lead.webhook.ok ? '' : ' warn'}">Webhook: ${lead.webhook.ok ? 'enviado' : 'falhou'} em ${esc(fmtDateTime(lead.webhook.at))}${lead.webhook.status ? ' · HTTP ' + esc(String(lead.webhook.status)) : ''}${lead.webhook.error ? ' · ' + esc(lead.webhook.error) : ''}</div>` : ''}
     ${insightDrawer(lead, LEADS.cache || {})}
     <div style="display:grid;gap:14px">${ans || '<p class="muted">Sem respostas.</p>'}</div>
     <div><div class="eyebrow" style="margin-bottom:6px">Etapas vistas</div><p class="hint">${(lead.steps || []).map(id => { const k = D.steps.findIndex(s => s.id === id); return k >= 0 ? (k + 1) + ' · ' + esc(D.steps[k].title) : esc(id) }).join(' → ') || '—'}</p></div>

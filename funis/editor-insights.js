@@ -238,7 +238,7 @@ function parseCsv(text){
   if (cell || row.length) { row.push(cell); rows.push(row) }
   return rows.filter(r => r.some(c => String(c).trim()));
 }
-const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 const colIdx = (head, re) => head.findIndex(h => re.test(norm(h)));
 function toDay(v){
   const t = String(v || '').trim(); let m = /^(\d{4})-(\d{2})-(\d{2})/.exec(t); if (m) return `${m[1]}-${m[2]}-${m[3]}`;
