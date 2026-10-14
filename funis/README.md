@@ -133,6 +133,15 @@ O editor e todas as funções da equipe (leads, webhook, integrações, apagar) 
 
 Apagar os leads de um funil ou excluir um funil exige, no servidor, o endereço do funil como confirmação. Código errado espera um pouco antes de responder, para atrasar quem tenta adivinhar.
 
+### Domínio próprio (Cloudflare Pages)
+
+O domínio `brasemarketing.com.br` já está na Cloudflare (o e-mail continua no Google Workspace). O repositório tem o que a Cloudflare Pages precisa:
+
+- `functions/_middleware.js`: em `diagnostico.brasemarketing.com.br` só o funil público existe, com endereço limpo (`/brase-2-otimizado?utm_source=…`); qualquer outro caminho dá “não encontrado”. Em `app.brasemarketing.com.br` ficam a Central e os editores.
+- `_headers`: HTTPS obrigatório, bloqueio de quem tentar abrir as páginas dentro de outro site, `noindex` e as demais proteções de navegador.
+
+Passos na Cloudflare: Workers & Pages › Create › Pages › Connect to Git › repositório `central-comercial-brase`, branch `main`, sem comando de build, pasta de saída `/`. Desligue as “preview deployments”. Em Custom domains, adicione `diagnostico.brasemarketing.com.br` e `app.brasemarketing.com.br`. Em Zero Trust › Access, crie uma aplicação para `app.brasemarketing.com.br` (e para o endereço `….pages.dev` do projeto) liberando só os e-mails da equipe. Depois, em `funis/index.html`, `FN_HOST.public` = `https://diagnostico.brasemarketing.com.br/{slug}` faz o editor mostrar os links novos. Com os anúncios já no domínio novo, dá para desligar o GitHub Pages e deixar o repositório privado.
+
 ### Token do CRM
 
 Abra o BRASE 2 no editor › Configurações › Webhooks, cole a chave do webhook da Central no campo **TOKEN** e clique em **Salvar webhook**. **Testar envio** manda um lead de exemplo para conferir. Enquanto o token não estiver lá, o CRM recusa o envio (nenhum lead de teste entra) e o lead fica marcado com o erro na aba Leads, de onde dá para reenviar.

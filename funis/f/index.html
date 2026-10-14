@@ -35,6 +35,8 @@ const params = {}; qs.forEach((v, k) => { params[k] = v });
 let slug = qs.get('f') || qs.get('funil') || '';
 if (!slug) { for (const [k, v] of qs) { if (v === '' && /^[a-z0-9][a-z0-9-]*$/i.test(k)) { slug = k; break } } }
 if (!slug && location.hash.length > 1) slug = decodeURIComponent(location.hash.slice(1));
+// Endereço limpo do domínio próprio: diagnostico.<domínio>/brase-2 (functions/_middleware.js)
+if (!slug) { const m = /^\/([a-z0-9][a-z0-9-]{0,59})\/?$/i.exec(location.pathname); if (m) slug = m[1] }
 slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
 // Parâmetros que seguem para os links externos e o webhook (como no InLead): todos, menos o endereço do funil neste app.
 const urlParams = Object.assign({}, params); delete urlParams.f; delete urlParams.funil; if (urlParams[slug] === '') delete urlParams[slug];
