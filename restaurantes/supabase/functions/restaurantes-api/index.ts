@@ -212,7 +212,8 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
     return ops.detail({id, km});
   },
 
-  // Solicitar inclusão: links ou IDs de lojas do iFood, um por linha.
+  // Solicitar inclusão: links ou IDs de lojas do iFood, um por linha. Loja que já está na base não é relida aqui
+  // (a coleta cuida dela) e volta com existing: true; assim a extensão inclui páginas inteiras sem pesar no iFood.
   async include({links}){
     const ids = [...new Set((Array.isArray(links) ? links : String(links ?? '').split(/[\s,;]+/)).map(merchantIdFrom).filter(Boolean))];
     if (!ids.length) throw bad('Cole pelo menos um link de loja do iFood.');
@@ -220,6 +221,8 @@ const ops: Record<string, (b: any) => Promise<unknown>> = {
     const results = [];
     for (const id of ids){
       try {
+        const known = await loadMerchant(id);
+        if (known){ results.push({id, ok: true, existing: true, name: known.name, city: known.city, state: known.state, category: known.category}); continue }
         const ok = await refreshIfood(id);
         const m = ok && await loadMerchant(id);
         results.push(m ? {id, ok: true, name: m.name, city: m.city, state: m.state, category: m.category} : {id, ok: false, error: 'Loja não encontrada no iFood'});

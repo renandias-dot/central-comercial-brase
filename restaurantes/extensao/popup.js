@@ -1,10 +1,12 @@
 'use strict';
 // Popup da extensão: inclui na base da Brase a loja do iFood aberta na aba atual e mostra a posição dela no ranking.
+// Numa lista de restaurantes do iFood (início, busca, categoria), inclui de uma vez as lojas que estão na tela.
 // Usa a mesma função restaurantes-api do app (restaurantes/index.html).
 const API = 'https://kxabfippeekyxpcgjytx.supabase.co/functions/v1/restaurantes-api';
 const APP = 'https://renandias-dot.github.io/central-comercial-brase/restaurantes/';
 const KM = 5;
 const ORDERS_PER_REVIEW = 2; // mesma proporção do app (pedidos estimados = avaliações × 2)
+const BATCH = 30; // lojas por chamada de inclusão (limite da função)
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 const view = document.getElementById('view');
@@ -15,13 +17,32 @@ const pct = x => (x > 0 ? '+' : '') + (x * 100).toLocaleString('pt-BR', {maximum
 const lojas = n => `${fmt(n)} ${n === 1 ? 'loja' : 'lojas'}`;
 const open = url => chrome.tabs.create({url});
 
+const isIfood = url => { try { return /(^|\.)ifood\.com\.br$/.test(new URL(url).hostname) } catch { return false } };
+
 // ID da loja (merchant_id) a partir do endereço da aba: só vale em páginas de loja do iFood.
 function merchantFromUrl(url){
-  try {
-    const u = new URL(url);
-    if (!/(^|\.)ifood\.com\.br$/.test(u.hostname)) return '';
-    return ((u.pathname + u.search).match(UUID)?.[0] ?? '').toLowerCase();
-  } catch { return '' }
+  if (!isIfood(url)) return '';
+  const u = new URL(url);
+  return ((u.pathname + u.search).match(UUID)?.[0] ?? '').toLowerCase();
+}
+
+// Roda dentro da aba do iFood (chrome.scripting): junta os links de loja que já estão na página, sem rolar nem clicar.
+// Precisa ser autocontida, porque o Chrome copia só o corpo da função para a aba.
+function collectStores(){
+  const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+  const found = new Map();
+  for (const a of document.querySelectorAll('a[href*="/delivery/"]')){
+    const id = (a.href.match(uuid)?.[0] ?? '').toLowerCase();
+    if (!id || found.has(id)) continue;
+    const name = (a.getAttribute('aria-label') || a.innerText || '').split('\n').map(s => s.trim()).find(Boolean) || '';
+    found.set(id, name.slice(0, 80));
+  }
+  return [...found].map(([id, name]) => ({id, name}));
+}
+
+async function storesOnPage(tabId){
+  const [res] = await chrome.scripting.executeScript({target: {tabId}, func: collectStores});
+  return res?.result ?? [];
 }
 
 async function call(body){
@@ -37,9 +58,63 @@ async function call(body){
 
 /* ---------- telas ---------- */
 function showNotStore(){
-  view.innerHTML = `<div class="card"><p><b>Abra a página de uma loja no iFood</b> e clique de novo no ícone da Brase.</p>
-    <p class="hint">Funciona nos endereços www.ifood.com.br/delivery/…, que terminam com o código da loja.</p></div>
+  view.innerHTML = `<div class="card"><p><b>Abra o iFood</b> e clique de novo no ícone da Brase.</p>
+    <p class="hint">Na página de uma loja, a extensão inclui a loja e mostra a posição dela no ranking. Numa lista de restaurantes (início, busca ou categoria), inclui de uma vez todas as lojas que estão na tela.</p></div>
     <button class="btn" id="app">Abrir o app de Restaurantes</button>`;
+  document.getElementById('app').addEventListener('click', () => open(APP));
+}
+
+function showNoStores(tabId){
+  view.innerHTML = `<div class="card"><p><b>Não achei lojas nesta página.</b></p>
+    <p class="hint">Abra uma lista de restaurantes do iFood (início, busca ou categoria), espere as lojas aparecerem e clique de novo. Role a lista até o fim para carregar mais lojas.</p></div>
+    <button class="btn" id="rescan">Procurar de novo</button>`;
+  document.getElementById('rescan').addEventListener('click', () => scan(tabId));
+}
+
+function showList(tabId, stores){
+  view.innerHTML = `<div class="card"><p><b>${lojas(stores.length)} nesta página</b></p>
+    <p class="hint">Só entram as lojas já carregadas na tela. Para trazer mais, role a lista do iFood até o fim (ou clique em “Ver mais”) e procure de novo.</p>
+    <ul class="names">${stores.slice(0, 50).map(s => `<li>${esc(s.name || s.id)}</li>`).join('')}${stores.length > 50 ? `<li class="muted">e mais ${fmt(stores.length - 50)}</li>` : ''}</ul></div>
+    <div class="row"><button class="btn" id="rescan">Procurar de novo</button><button class="btn primary" id="include-all">Incluir ${fmt(stores.length)}</button></div>`;
+  document.getElementById('rescan').addEventListener('click', () => scan(tabId));
+  document.getElementById('include-all').addEventListener('click', () => includeAll(tabId, stores));
+}
+
+async function scan(tabId){
+  view.innerHTML = '<p class="hint">Procurando lojas nesta página…</p>';
+  try {
+    const stores = await storesOnPage(tabId);
+    stores.length ? showList(tabId, stores) : showNoStores(tabId);
+  } catch (e){ showError('Não consegui ler esta página do iFood. Recarregue a página e tente de novo.') }
+}
+
+// Inclui as lojas em lotes; as que já estão na base voltam na hora (a função não relê no iFood).
+async function includeAll(tabId, stores){
+  const totals = {added: 0, known: 0, failed: 0};
+  const bar = done => {
+    view.innerHTML = `<div class="card"><p><b>Incluindo ${fmt(done)} de ${fmt(stores.length)}…</b></p>
+      <div class="bar"><b style="width:${(done / stores.length * 100).toFixed(1)}%"></b></div>
+      <p class="hint">Lojas novas são lidas no iFood uma a uma, por isso leva alguns segundos a cada ${BATCH}.</p></div>`;
+  };
+  try {
+    for (let i = 0; i < stores.length; i += BATCH){
+      bar(i);
+      const {results} = await call({op: 'include', links: stores.slice(i, i + BATCH).map(s => s.id)});
+      for (const r of results) r.existing ? totals.known++ : r.ok ? totals.added++ : totals.failed++;
+    }
+  } catch (e){
+    if (e.code === 'unauthorized') return showCode(() => includeAll(tabId, stores), (await chrome.storage.local.get('code')).code ? 'Código inválido. Confira com o gestor.' : '');
+    return showError(`${e.message} Até aqui: ${fmt(totals.added)} novas, ${fmt(totals.known)} já estavam na base.`);
+  }
+  view.innerHTML = `<div class="card"><p class="hint">✓ Pronto</p>
+      <div class="stats">
+        <div class="stat"><span class="l">Novas na base</span><span class="v">${fmt(totals.added)}</span></div>
+        <div class="stat"><span class="l">Já estavam</span><span class="v">${fmt(totals.known)}</span></div>
+      </div>
+      ${totals.failed ? `<p class="hint">${lojas(totals.failed)} não ${totals.failed === 1 ? 'foi encontrada' : 'foram encontradas'} no iFood.</p>` : ''}
+      <p class="hint">As lojas novas entram nos rankings e passam a ser relidas toda semana.</p></div>
+    <div class="row"><button class="btn" id="rescan">Procurar de novo</button><button class="btn primary" id="app">Abrir o app</button></div>`;
+  document.getElementById('rescan').addEventListener('click', () => scan(tabId));
   document.getElementById('app').addEventListener('click', () => open(APP));
 }
 
@@ -55,7 +130,8 @@ function showError(message, id){
   if (id) document.getElementById('retry').addEventListener('click', () => include(id));
 }
 
-function showCode(id, message){
+// retry: o que rodar de novo depois de salvar o código.
+function showCode(retry, message){
   view.innerHTML = `<div class="card"><p><b>O app pede o código de acesso da equipe.</b></p>
     ${message ? `<div class="err">${esc(message)}</div>` : ''}
     <form id="code-form" class="row"><input class="in" id="code" type="password" placeholder="Código de acesso" aria-label="Código de acesso" required>
@@ -64,7 +140,7 @@ function showCode(id, message){
   document.getElementById('code-form').addEventListener('submit', async e => {
     e.preventDefault();
     await chrome.storage.local.set({code: document.getElementById('code').value.trim()});
-    include(id);
+    retry();
   });
 }
 
@@ -105,15 +181,17 @@ async function include(id){
     const {results} = await call({op: 'include', links: [id]});
     const r = results?.[0];
     if (!r?.ok) return showError(r?.error || 'Não consegui incluir essa loja.', id);
-    view.innerHTML = `<p class="hint">Incluída: ${esc(r.name)}. Calculando a posição no ranking…</p>`;
+    view.innerHTML = `<p class="hint">${r.existing ? 'Já estava na base' : 'Incluída'}: ${esc(r.name)}. Calculando a posição no ranking…</p>`;
     showDone(await call({op: 'detail', id, km: KM}));
   } catch (e){
-    if (e.code === 'unauthorized') return showCode(id, (await chrome.storage.local.get('code')).code ? 'Código inválido. Confira com o gestor.' : '');
+    if (e.code === 'unauthorized') return showCode(() => include(id), (await chrome.storage.local.get('code')).code ? 'Código inválido. Confira com o gestor.' : '');
     showError(e.message, id);
   }
 }
 
 chrome.tabs.query({active: true, currentWindow: true}).then(([tab]) => {
   const id = merchantFromUrl(tab?.url || '');
-  id ? showReady(id) : showNotStore();
+  if (id) showReady(id);
+  else if (isIfood(tab?.url || '')) scan(tab.id);
+  else showNotStore();
 });

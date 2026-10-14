@@ -890,7 +890,7 @@ function viewInclude(){
     </div></section>
     <section class="panel"><div class="panel-h"><h2>Extensão do Chrome</h2><a class="btn sm primary" href="extensao-brase.zip" download>Baixar extensão</a></div>
       <div class="panel-b" style="display:grid;gap:8px">
-        <p>Com a extensão, você inclui a loja direto da página dela no iFood: clique no ícone da Brase e em “Incluir na Brase”. Ela também mostra a posição da loja no ranking da região.</p>
+        <p>Com a extensão, você inclui lojas direto do iFood. Na página de uma loja, clique no ícone da Brase e em “Incluir na Brase”: ela também mostra a posição da loja no ranking da região. Numa lista de restaurantes (início, busca ou categoria), o ícone inclui de uma vez todas as lojas que estão na tela. Role a lista até o fim antes de clicar para carregar mais lojas.</p>
         <ol class="hint" style="margin:0;padding-left:18px;display:grid;gap:3px">
           <li>Baixe e descompacte o arquivo.</li>
           <li>No Chrome, abra <b>chrome://extensions</b> e ligue o <b>Modo do desenvolvedor</b> (canto superior direito).</li>
@@ -904,9 +904,9 @@ function viewInclude(){
     btn.disabled = true; btn.textContent = 'Incluindo…'; out.innerHTML = '';
     try {
       const {results} = await call({op: 'include', links});
-      const ok = results.filter(r => r.ok).length;
-      out.innerHTML = `<p><b>${fmt(ok)} de ${fmt(results.length)}</b> ${results.length === 1 ? 'loja incluída' : 'lojas incluídas'}.</p>` + results.map(r => r.ok
-        ? `<div>✓ <a href="${detailHref(r.id)}">${esc(r.name)}</a> <span class="hint">${esc([r.category, [r.city, r.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}</span></div>`
+      const ok = results.filter(r => r.ok).length, known = results.filter(r => r.existing).length;
+      out.innerHTML = `<p><b>${fmt(ok - known)} de ${fmt(results.length)}</b> ${results.length === 1 ? 'loja incluída' : 'lojas incluídas'}${known ? ` · ${fmt(known)} já ${known === 1 ? 'estava' : 'estavam'} na base` : ''}.</p>` + results.map(r => r.ok
+        ? `<div>✓ <a href="${detailHref(r.id)}">${esc(r.name)}</a> <span class="hint">${esc([r.category, [r.city, r.state].filter(Boolean).join('/')].filter(Boolean).join(' · '))}${r.existing ? ' · já estava na base' : ''}</span></div>`
         : `<div>✕ <span class="num">${esc(r.id)}</span> <span class="hint">${esc(r.error)}</span></div>`).join('');
       if (ok) $('#links').value = '';
     } catch (e){ fail(e) }
