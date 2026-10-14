@@ -290,6 +290,10 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .tr-open{margin-top:8px;display:inline-flex;border:1px solid var(--line-2)}.tr-open:hover{background:var(--sunken)}
 .idl-tbl .lnk-btn{border:0;background:none;padding:0;margin-top:3px;color:var(--accent-strong);font:700 11px/1.2 var(--f-body);cursor:pointer;text-align:left}.idl-tbl .lnk-btn:hover{text-decoration:underline}
 .modal-wrap.low{z-index:39}
+.pt-ban{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
+.pt-ban small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}.pt-ban.late{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}
+.pt-act{display:flex;gap:6px;flex-wrap:wrap}
+.pt-panel{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
 .ag-tools{display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .ag-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
 @media (max-width:1060px){.ag-main{grid-template-columns:minmax(0,1fr)}}
@@ -486,6 +490,7 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 /* ---------- constants ---------- */
 const STAGES = [
   {id:'novo', name:'Lead Novo', color:'#7c8594', funnel:0},
+  {id:'link', name:'Link recebido', color:'#b5679d', funnel:0},
   {id:'print', name:'Print Enviado', color:'#8a63d2', funnel:1},
   {id:'qualificando', name:'Qualificando', color:'#3a7fe0', funnel:2},
   {id:'agendando', name:'Agendando', color:'#169bb3', funnel:3},
@@ -503,6 +508,7 @@ const ACTIVE = s => !CLOSED.has(s);
 const DEFAULT_CONFIG = {
   commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
   handoffOnDone: true,
+  printTimer: {on: true, minutes: 60, start: '09:00', end: '19:00', skipWeekends: true},
   agenda: {days: [1, 2, 3, 4, 5], start: '09:00', end: '18:00', lunchFrom: '12:00', lunchTo: '13:30', duration: 30, step: 30, minNoticeH: 2, holdWarnH: 24, showTitles: false},
   ideal: {ctr: 2, cpl: 40, desq: 35, booking: 15, show: 75, close: 30, onTime: 90, firstTouch: 15, sla5: 80},
   cadence: [
@@ -517,7 +523,7 @@ const DEFAULT_CONFIG = {
 };
 const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats','holds'];
 const BUCKETS = [
-  {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','print','qualificando','agendando']},
+  {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','link','print','qualificando','agendando']},
   {id: 'marcada', name: 'Reunião marcada', color: '#d49b0b', st: ['marcada']},
   {id: 'feita', name: 'Reunião feita', color: '#e8702a', st: ['feita']},
   {id: 'venda', name: 'Venda', color: '#1f9d55', st: ['fechado']},
@@ -604,7 +610,7 @@ let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
 let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null;
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -697,12 +703,16 @@ function moveLead(id, stage){
   l.stage = stage; l.stageAt = now; l.updatedAt = now;
   l.history = [...(l.history || []), {s: stage, at: now}].slice(-80);
   applyMilestones(l, stage, now);
+  if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
+  else if (l.printDue) delete l.printDue;
+  if (stage === 'print' && !l.printSentAt) l.printSentAt = now;
   let handed = false;
   if (stage === 'feita' && cfg().handoffOnDone !== false) handed = applyHandoff(l, id);
   else if (l.handoff && !STAGE[stage].side && STAGE[stage].funnel < 5) delete l.handoff;
   put('leads', id, l);
   const c = cfg().commission, counts = l.ownerId && !l.example;
   let msg = 'Movido para ' + STAGE[stage].name;
+  if (stage === 'link' && l.printDue) msg += ' · print programado para ' + (localDay(l.printDue) === today() ? '' : wdOf(localDay(l.printDue)) + ' ') + clockOf(l.printDue);
   if (handed) msg += ` · processo passado para ${(manager().name || '').split(' ')[0]}`;
   let gain = 0;
   if (counts && l.meetingDoneAt && !cur.meetingDoneAt) gain += c.perMeeting;
@@ -758,7 +768,7 @@ function toggleRoutine(rid, sid){
 }
 function todayCount(own){
   const t0 = today(); let n = 0;
-  leadsArr().forEach(l => { if (own && l.ownerId !== own) return; if (!TOUCHABLE(l)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
+  leadsArr().forEach(l => { if (own && l.ownerId !== own) return; if (isPrintWait(l) && printMs(l) <= 0) n++; if (!TOUCHABLE(l)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
   return n;
 }
 
@@ -820,6 +830,7 @@ function viewHoje(){
       <div class="row-t">${esc(l.name)}${kind === 'late' ? ` <span class="chip late">atrasado ${daysBetween(t.due, t0)}d</span>` : ''}${i === 0 && !t.done ? speedChip(l.createdAt) : ''}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div>
       <div class="row-s">T${i+1} · ${esc(t.title)}${l.contact ? ' · ' + esc(l.contact) : ''}${l.company ? ' · ' + esc(l.company) : ''}</div>
     </div>
+    ${l.stage === 'novo' && ptCfg().on ? `<button class="btn sm ghost hide-sm" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button>` : ''}
     <span class="hide-sm">${stagePill(l.stage)}</span>
     ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
     ${own ? '' : avatar(l.ownerId)}
@@ -849,6 +860,7 @@ function viewHoje(){
   </div>
   <div class="panel" style="padding:16px 18px;margin-bottom:14px;display:grid;gap:14px">
     <div class="day-stats">
+      ${ptCfg().on ? `<div class="day-stat ${leads.some(l => isPrintWait(l) && printMs(l) <= 0) ? 'crit' : ''}"><div class="v">${leads.filter(isPrintWait).length}</div><div class="l">prints a enviar</div></div>` : ''}
       <div class="day-stat ${late.length ? 'crit' : ''}"><div class="v">${late.length}</div><div class="l">toques atrasados</div></div>
       <div class="day-stat"><div class="v">${due.length}</div><div class="l">toques para hoje</div></div>
       <div class="day-stat"><div class="v">${meetings.length}</div><div class="l">reuniões hoje</div></div>
@@ -860,6 +872,7 @@ function viewHoje(){
   ${exampleBanner()}
   <div class="g-hoje">
     <div class="stack">
+      ${ptCfg().on ? printPanelHTML(leads) : ''}
       ${waiting.length ? `<section class="panel"><div class="panel-h"><h2>Aguardando resposta no WhatsApp</h2><span class="sub">Ideal: responder em até 5 minutos</span></div><div class="panel-b"><div class="rows">${waiting.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)} <span class="chip ${Date.now() - new Date(l.wa.waitingSince) > 3e5 ? 'late' : 'today'}">há ${minsAgo(l.wa.waitingSince)}</span></div><div class="row-s">${esc(l.wa.lastSnippet || '')}</div></div>${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Responder</a>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('')}</div></div></section>` : ''}
       <section class="panel"><div class="panel-h"><h2>Cadência de toques</h2><span class="sub">Marque na hora em que fizer o contato</span></div><div class="panel-b">
         ${late.length ? `<div class="sec-t crit">Atrasados <span class="n">${late.length}</span></div><div class="rows">${late.map(x => touchRow(x, 'late')).join('')}</div>` : ''}
@@ -898,7 +911,7 @@ function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card" draggable="true" data-drag="${l.id}" data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -952,7 +965,7 @@ function drawerHTML(l, id){
     <button class="btn ghost sm" style="margin-left:auto" data-a="close-drawer">Fechar ✕</button>
   </div>
   <div class="drawer-b">
-    <div>
+    ${printBanner(l, id)}<div>
       <input class="in big" data-c="lead-field" data-id="${id}" data-k="name" id="lf-name" value="${attr(l.name)}" aria-label="Nome do lead" placeholder="Nome do lead">
       <input class="in sub" data-c="lead-field" data-id="${id}" data-k="company" id="lf-company" value="${attr(l.company)}" aria-label="Empresa" placeholder="Empresa">
     </div>
@@ -1740,6 +1753,92 @@ function agConfigHTML(){
   </div></section>`;
 }
 
+/* ---------- print depois do link ---------- */
+// Fluxo do SDR: pede o link, o lead manda (etapa "Link recebido") e o SDR pergunta o momento atual. Se o lead não responde,
+// o print com os concorrentes sai depois do prazo (1 h por padrão). O timer aparece no Hoje, no card e no lead, e avisa quando vence.
+const ptCfg = () => cfg().printTimer;
+// Prazo = agora + minutos; se cair fora do expediente do SDR (ou no fim de semana), vai para o início do próximo expediente.
+function printDueFrom(ms){
+  const c = ptCfg(), st = tmin(c.start), en = tmin(c.end); let t = ms + c.minutes * 60e3;
+  for (let i = 0; i < 10; i++){
+    const d = new Date(t), day = ymd(d), m = d.getHours() * 60 + d.getMinutes();
+    if (c.skipWeekends && (d.getDay() === 0 || d.getDay() === 6)){ t = slotMs(addDays(day, 1), st); continue }
+    if (m < st) return slotMs(day, st);
+    if (m >= en){ t = slotMs(addDays(day, 1), st); continue }
+    return t;
+  }
+  return t;
+}
+const durTxt = ms => { const m = Math.max(1, Math.ceil(ms / 6e4)); return m < 60 ? m + ' min' : Math.floor(m / 60) + 'h' + (m % 60 ? pad(m % 60) : '') };
+const clockOf = v => { const d = new Date(v); return pad(d.getHours()) + ':' + pad(d.getMinutes()) };
+const printMs = l => +new Date(l.printDue) - Date.now();
+const isPrintWait = l => l.stage === 'link' && !!l.printDue && !isNaN(+new Date(l.printDue));
+function printChip(l){
+  if (!isPrintWait(l)) return '';
+  const ms = printMs(l);
+  return ms <= 0 ? `<span class="chip late" title="O prazo do print venceu às ${clockOf(l.printDue)}">enviar print agora</span>` : `<span class="chip today" title="Print programado para ${clockOf(l.printDue)}">print em ${durTxt(ms)}</span>`;
+}
+// Faixa no topo do card do lead: aviso para quem acabou de mandar o link e o timer para quem já está em "Link recebido".
+function printBanner(l, id){
+  const c = ptCfg(); if (!c.on) return '';
+  if (l.stage === 'novo') return `<div class="pt-ban"><div><b>O lead mandou o link?</b><small>Marque agora: se ele não responder sobre o momento atual, o print fica programado para ${c.minutes >= 60 && c.minutes % 60 === 0 ? c.minutes / 60 + ' h' : c.minutes + ' min'} depois.</small></div><button class="btn primary sm" data-a="link-received" data-id="${attr(id)}">Link recebido</button></div>`;
+  if (!isPrintWait(l)) return '';
+  const ms = printMs(l);
+  return `<div class="pt-ban ${ms <= 0 ? 'late' : ''}"><div><b>${ms <= 0 ? 'Hora de enviar o print' : 'Print programado para ' + clockOf(l.printDue)}</b><small>${ms <= 0 ? 'O prazo venceu às ' + clockOf(l.printDue) + '. Envie o print com os concorrentes.' : 'Faltam ' + durTxt(ms) + '. Se o lead responder antes, clique em “Lead respondeu”.'}</small></div>
+    <div class="pt-act"><button class="btn primary sm" data-a="print-sent" data-id="${attr(id)}">Print enviado</button><button class="btn sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm ghost" data-a="print-snooze" data-id="${attr(id)}" title="Adia o aviso em 30 minutos">+30 min</button></div></div>`;
+}
+function printPanelHTML(leads){
+  const list = leads.filter(isPrintWait).sort((a, b) => a.printDue.localeCompare(b.printDue));
+  if (!list.length) return '';
+  const late = list.filter(l => printMs(l) <= 0).length, canNotify = typeof Notification !== 'undefined' && Notification.permission === 'default';
+  return `<section class="panel pt-panel"><div class="panel-h"><h2>Print para enviar</h2><span class="sub">${late ? late + ' na hora de enviar · ' : ''}${list.length} lead${list.length > 1 ? 's' : ''} em “Link recebido”</span>${canNotify ? '<button class="btn sm ghost" data-a="notif-on" title="O navegador avisa quando o prazo de um print vencer, com a aba aberta">Ativar avisos</button>' : ''}</div><div class="panel-b"><div class="rows">
+    ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${printChip(l)}</div><div class="row-s">${l.linkAt ? 'link recebido há ' + minsAgo(l.linkAt) : 'link recebido'}${l.contact ? ' · ' + esc(l.contact) : ''}</div></div>
+      ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
+      <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button></div>`).join('')}
+    </div><p class="hint" style="margin-top:8px">O lead mandou o link e não respondeu sobre o momento atual? No prazo, envie o print com os concorrentes. Se ele responder, clique em “Lead respondeu”.</p></div></section>`;
+}
+async function linkReceived(id){ if (S.leads[id] && S.leads[id].stage === 'novo') moveLead(id, 'link') }
+function printSent(id){ if (S.leads[id]) moveLead(id, 'print') }
+async function leadReplied(id){
+  const cur = S.leads[id]; if (!cur) return;
+  const l = clone(cur); l.repliedAt = iso(); delete l.printDue; l.updatedAt = iso();
+  await put('leads', id, l);
+  moveLead(id, 'qualificando');
+}
+function printSnooze(id){
+  const cur = S.leads[id]; if (!cur || !isPrintWait(cur)) return;
+  const l = clone(cur), at = Math.max(Date.now(), +new Date(l.printDue)) + 30 * 60e3; l.printDue = new Date(at).toISOString(); l.updatedAt = iso(); put('leads', id, l);
+  toast('Print adiado para ' + clockOf(l.printDue));
+}
+// Vigia o prazo com o site aberto: avisa na tela e (se o usuário ativou) pelo navegador, e mostra no título da aba.
+const PT_ALERTED = new Set(); let PT_TITLE = '';
+function printWatch(){
+  if (!loaded()) return;
+  const me = validMe(), due = leadsArr().filter(l => isPrintWait(l) && printMs(l) <= 0 && (!me || !l.ownerId || l.ownerId === me));
+  const fresh = due.filter(l => !PT_ALERTED.has(l.id + '|' + l.printDue));
+  fresh.forEach(l => PT_ALERTED.add(l.id + '|' + l.printDue));
+  if (fresh.length){
+    toast('Hora de enviar o print: ' + fresh.slice(0, 2).map(l => l.name).join(', ') + (fresh.length > 2 ? ' e mais ' + (fresh.length - 2) : ''), 'err');
+    try { if (typeof Notification !== 'undefined' && Notification.permission === 'granted') fresh.forEach(l => new Notification('Hora de enviar o print', {body: l.name, tag: 'print-' + l.id})) } catch {}
+  }
+  try { if (!PT_TITLE) PT_TITLE = document.title || 'Central Comercial Brase'; document.title = (due.length ? `(${due.length}) Enviar print · ` : '') + PT_TITLE } catch {}
+  if (leadsArr().some(isPrintWait)) scheduleRender();
+}
+function ptConfigHTML(c){
+  const P = c.printTimer;
+  return `<div style="border-top:1px solid var(--line);padding-top:14px;display:grid;gap:12px">
+    <h3 style="margin:0">Print depois do link</h3>
+    <label class="switch"><input type="checkbox" class="ck" data-c="cfg-pt" data-k="on" ${P.on ? 'checked' : ''}> Programar o envio do print quando o lead mandar o link e não responder</label>
+    <div class="fgrid three">
+      <label class="f">Enviar o print depois de (minutos)<input class="in" type="number" min="5" max="720" step="5" data-c="cfg-pt" data-k="minutes" id="pt-minutes" value="${P.minutes}"></label>
+      <label class="f">Expediente do SDR, início<input class="in" type="time" data-c="cfg-pt" data-k="start" id="pt-start" value="${attr(P.start)}"></label>
+      <label class="f">Expediente do SDR, fim<input class="in" type="time" data-c="cfg-pt" data-k="end" id="pt-end" value="${attr(P.end)}"></label>
+    </div>
+    <label class="switch"><input type="checkbox" class="ck" data-c="cfg-pt" data-k="skipWeekends" ${P.skipWeekends ? 'checked' : ''}> Se o prazo cair no fim de semana, passar para segunda</label>
+    <p class="hint">Se o prazo cair fora do expediente, ele vai para o início do próximo expediente. O aviso aparece no Hoje, no card e no título da aba, só com o site aberto.</p>
+  </div>`;
+}
+
 /* ---------- views: TRÁFEGO ---------- */
 function trPeriod(){
   if (UI.trMode === 'all') return {all: true, label: 'Todo o período', name: 'no total'};
@@ -1942,7 +2041,7 @@ function viewWhats(){
     </div>
     <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Automações</h2><span class="sub">Valem assim que o WhatsApp estiver conectado</span></div><div class="panel-b" style="display:grid;gap:10px">
       <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="markTouch" ${cfg().waRules.markTouch ? 'checked' : ''}> Mensagem enviada ao lead marca o toque do dia como feito</label>
-      <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="moveOnReply" ${cfg().waRules.moveOnReply ? 'checked' : ''}> Lead respondeu: mover de Lead Novo ou Print Enviado para Qualificando</label>
+      <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="moveOnReply" ${cfg().waRules.moveOnReply ? 'checked' : ''}> Lead respondeu: mover de Lead Novo, Link recebido ou Print Enviado para Qualificando (e cancelar o prazo do print)</label>
     </div></section>
     <div class="g2">
       <section class="panel"><div class="panel-h"><h2>Números por vendedor</h2><span class="sub">Qual número cada SDR usa para atender</span></div><div class="panel-b"><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Vendedor</th><th>Número do WhatsApp</th><th>Status</th></tr></thead><tbody>
@@ -2182,6 +2281,7 @@ function viewConfig(){
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="handoffOnDone" ${c.handoffOnDone !== false ? 'checked' : ''}> Ao marcar Reunião Feita, passar o processo para o gestor (sai do Hoje e dos atrasados do SDR, e o gestor recebe uma tarefa)</label>
       <div class="formula" style="font-size:13.5px">Lead que entra hoje: ${prev.map(t => wdOf(t.due) + ' ' + fmtDM(t.due)).join(' → ')}</div>
       <p class="hint">O modelo vale para leads novos. Leads que já estão no quadro mantêm as datas (use “Reiniciar cadência” no card se quiser recriar).</p>
+      ${ptConfigHTML(c)}
     </div></section>`;
   } else if (UI.cfgTab === 'rotinas'){
     const rs = arr('routines').sort((a, b) => (a.time || '').localeCompare(b.time || ''));
@@ -2281,6 +2381,11 @@ const ACT = {
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
+  'link-received': t => linkReceived(t.dataset.id),
+  'print-sent': t => { printSent(t.dataset.id); toast('Print registrado') },
+  'lead-replied': t => leadReplied(t.dataset.id),
+  'print-snooze': t => printSnooze(t.dataset.id),
+  'notif-on': () => { try { Notification.requestPermission().then(p => { toast(p === 'granted' ? 'Avisos ativados neste navegador' : 'O navegador não liberou os avisos', p === 'granted' ? '' : 'err'); render() }) } catch { toast('Este navegador não permite avisos', 'err') } },
   'ag-refresh': () => refreshCalendar(true),
   'ag-pick': t => { const s = +t.dataset.s, set = new Set(UI.agSel || []); if (set.has(s)) set.delete(s); else { if (set.size >= 5){ toast('Selecione até 5 horários por lead.', 'err'); return } set.add(s) } UI.agSel = [...set]; render() },
   'ag-clear': () => { UI.agSel = []; render() },
@@ -2393,6 +2498,12 @@ const CHG = {
     if (['duration', 'step', 'minNoticeH', 'holdWarnH'].includes(k)){ v = Number(v); if (!isFinite(v) || v < 0 || (k !== 'minNoticeH' && v < 1)) return }
     if (['start', 'end', 'lunchFrom', 'lunchTo'].includes(k)){ if (!/^\d\d:\d\d$/.test(v)) return; const n = {...A, [k]: v}; if (tmin(n.end) <= tmin(n.start)){ toast('O fim do expediente precisa ser depois do início.', 'err'); render(); return } }
     const p = saveCfg({agenda: {...A, [k]: v}}); if (k === 'showTitles') p.then(() => refreshCalendar(true));
+  },
+  'cfg-pt': t => {
+    const k = t.dataset.k, P = cfg().printTimer; let v = t.type === 'checkbox' ? t.checked : t.value;
+    if (k === 'minutes'){ v = Math.round(Number(v)); if (!isFinite(v) || v < 5 || v > 720) return }
+    if (k === 'start' || k === 'end'){ if (!/^\d\d:\d\d$/.test(v)) return; const n = {...P, [k]: v}; if (tmin(n.end) <= tmin(n.start)){ toast('O fim do expediente precisa ser depois do início.', 'err'); render(); return } }
+    saveCfg({printTimer: {...P, [k]: v}});
   },
   'cfg-com': t => { const v = Number(t.value); if (!isFinite(v) || v < 0) return; saveCfg({commission: {...cfg().commission, [t.dataset.k]: v}}) },
   'an-from': t => { UI.anFrom = t.value; render() },
@@ -2559,7 +2670,9 @@ async function boot(){
   });
   render();
   if (UI.view === 'agenda') refreshCalendar(false, true);
+  setTimeout(printWatch, 1500);
 }
+setInterval(printWatch, 20000);
 setInterval(() => { if (UI.view === 'agenda' && !document.hidden && UI.calCode !== 'not_configured') refreshCalendar(false, true) }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.view === 'agenda' && UI.calCode !== 'not_configured') refreshCalendar(false, true) });
 boot();
