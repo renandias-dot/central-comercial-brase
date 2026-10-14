@@ -311,13 +311,17 @@ function loginScreen(msg){
     setTimeout(() => $('#login-form input').focus(), 30);
   });
 }
+// Sem o segredo FUNIS_ACCESS_CODE no servidor, o editor abre direto; com ele, pede o código.
 async function start(){
   if (DB.server) {
-    let msg = '';
+    let msg = '', asked = false;
     for (;;) {
-      if (!ACCESS) ACCESS = await loginScreen(msg);
-      try { await api('ping'); store.set(CODE_KEY, ACCESS); break }
-      catch (e) { if (e.code === 'network') { DB.mode = 'local'; toast('Servidor indisponível: abrindo no modo local.', 'err'); break } msg = e.code === 'unauthorized' ? 'Código inválido. Confira com o gestor.' : e.message; ACCESS = '' }
+      try { await api('ping'); if (ACCESS) store.set(CODE_KEY, ACCESS); break }
+      catch (e) {
+        if (e.code === 'network') { DB.mode = 'local'; toast('Servidor indisponível: abrindo no modo local.', 'err'); break }
+        msg = e.code === 'unauthorized' ? (asked ? 'Código inválido. Confira com o gestor.' : '') : e.message;
+        ACCESS = await loginScreen(msg); asked = true;
+      }
     }
   }
   addEventListener('hashchange', route);
@@ -359,7 +363,7 @@ async function renderHome(){
   const root = $('#root');
   root.innerHTML = `<div class="home"><div class="home-top"><div class="brand"><div class="brand-mark">B</div><div><div class="brand-name">Funis</div><div class="brand-sub">Brase</div></div></div>
     <span style="flex:1"></span>${DB.server ? '<span class="chip ok">Conectado ao servidor</span>' : '<span class="chip warn">Modo local</span>'}
-    ${DB.server ? `<button class="btn ghost sm" data-a="logout">Sair</button>` : ''}</div>
+    ${DB.server && ACCESS ? `<button class="btn ghost sm" data-a="logout">Sair</button>` : ''}</div>
     <div class="head"><div><h1>Funis</h1><p>Quiz e funis interativos: monte as etapas, publique o link e acompanhe os leads.</p></div>
     <div class="row"><button class="btn" data-a="import">${IC.upload}Importar</button><button class="btn primary" data-a="new-funnel">${IC.plus}Novo funil</button></div></div>
     ${DB.server ? '' : `<div class="banner warn" style="margin-bottom:14px"><span><b>Modo local.</b> O editor guarda tudo neste navegador e a página do funil abre pelo arquivo <code>funis/data/&lt;endereço&gt;.json</code>, sem gravar leads. Para gravar leads e enviar ao CRM, configure o servidor (veja <code>funis/README.md</code>).</span></div>`}

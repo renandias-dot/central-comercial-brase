@@ -1,7 +1,7 @@
 // funis-api — back-end do app Funis (funis/index.html e funis/f/index.html).
-// Recebe POST {op, ...}. As operações "public.*" são da página do funil (sem código); as demais exigem
-// o código da equipe no cabeçalho x-fn-key.
-// Segredos: FUNIS_ACCESS_CODE (obrigatório). SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
+// Recebe POST {op, ...}. As operações "public.*" são da página do funil; as demais são do editor e, se o segredo
+// FUNIS_ACCESS_CODE existir, exigem esse código no cabeçalho x-fn-key (sem o segredo, o editor fica aberto).
+// SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {SESSION_RE, SLUG_RE, buildPayload, encodeBody, mergeSession, mergeWebhook, periodStart, sameKey, sampleSession, sanitizeParams, sanitizeTracking, slugify, webhookDue, webhookForEditor, type Event, type Session, type Webhook} from './logic.ts';
 
@@ -215,8 +215,7 @@ Deno.serve(async req => {
   const op = String(body.op || '');
   try {
     if (PUBLIC[op]) return reply(200, await PUBLIC[op](body, req));
-    if (!ACCESS_CODE) return reply(500, {error: 'Falta configurar o segredo FUNIS_ACCESS_CODE.'});
-    if (!sameKey(req.headers.get('x-fn-key') ?? '', ACCESS_CODE)) return reply(401, {error: 'Código de acesso inválido.'});
+    if (ACCESS_CODE && !sameKey(req.headers.get('x-fn-key') ?? '', ACCESS_CODE)) return reply(401, {error: 'Código de acesso inválido.'});
     const fn = ops[op];
     if (!fn) return reply(400, {error: 'Operação desconhecida.'});
     return reply(200, await fn(body));

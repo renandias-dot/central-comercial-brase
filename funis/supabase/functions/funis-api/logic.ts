@@ -17,7 +17,7 @@ export const UTM_KEYS = ['utm_source', 'utm_campaign', 'utm_medium', 'utm_conten
 
 const str = (v: unknown, max: number) => v == null ? '' : String(v).slice(0, max);
 export function slugify(s: string){
-  return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'funil';
+  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'funil';
 }
 export function sameKey(a: string, b: string){
   if (!a || !b || a.length !== b.length) return false;
@@ -159,7 +159,7 @@ export function sampleSession(f: Funnel): Session {
 }
 export function plainLabel(h: string){
   return String(h || '').replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/[\s ]+/g, ' ').trim().replace(/^[^\p{L}\p{N}"“(]+/u, '').trim();
+    .replace(/[\s\u00a0]+/g, ' ').trim().replace(/^[^\p{L}\p{N}"“(]+/u, '').trim();
 }
 // O que o editor vê do webhook: tudo, menos o token (só avisa se existe).
 export function webhookForEditor(w: Webhook | null | undefined){

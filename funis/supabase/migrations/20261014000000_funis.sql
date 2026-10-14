@@ -48,7 +48,7 @@ on conflict (id) do nothing;
 -- Números da aba Leads num período: acessos, leads (interagiram), qualificados (como no InLead: respostas e cliques
 -- passam de 70% do número de etapas, ou completou), completos, alcance de cada etapa, contagem das respostas de cada pergunta e o resumo por dia.
 create or replace function fn_stats(p_funnel uuid, p_since timestamptz, p_total integer)
-returns jsonb language sql stable as $$
+returns jsonb language sql stable set search_path = public as $$
   with s as (
     select *, (select count(*) from jsonb_object_keys(answers)) + (select count(*) from jsonb_object_keys(clicks)) as n_answers
       from fn_sessions where funnel_id = p_funnel and created_at >= p_since
@@ -96,3 +96,5 @@ returns jsonb language sql stable as $$
                             'steps', st.j, 'answers', an.j, 'fields', fl.j, 'daily', dl.j)
     from k, st, an, fl, dl
 $$;
+-- Só a função funis-api (conexão direta ao banco) usa fn_stats; a API pública do Supabase não chama.
+revoke execute on function fn_stats(uuid, timestamptz, integer) from public, anon, authenticated;

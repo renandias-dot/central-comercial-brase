@@ -5,7 +5,7 @@ App separado da Central Comercial para criar quiz e funis interativos, no lugar 
 - **Editor:** `funis/index.html` (publicado pelo GitHub Pages junto com a Central Comercial, no endereço dela + `/funis/`).
 - **Página do funil:** `funis/f/index.html?f=<endereço>` — o BRASE 2 fica em `…/funis/f/?f=brase-2`.
 - **Motor dos funis:** `funis/runtime.js`, usado pelas duas páginas.
-- **Servidor:** função `funis-api` do Supabase (`supabase/functions/funis-api`).
+- **Servidor:** função `funis-api` no projeto Supabase `brase-funis`, separado da Central (`supabase/functions/funis-api`).
 - **Banco:** tabelas `fn_*` (`supabase/migrations`).
 
 ## O que o app faz
@@ -74,49 +74,40 @@ Os leads e números antigos (acessos, respostas) continuam no InLead; use “Exp
 
 > Publicar o rascunho coloca no ar também as etapas PP 01–PP 10 (elas ficam fora do caminho, porque nenhum botão leva até elas, mas entram na conta da barra de progresso). Se quiser manter o funil no ar com 11 etapas, mova as PP para um funil próprio antes de publicar (Duplicar o funil e excluir as etapas que não são dele).
 
-## Como colocar no ar
+## Servidor (já está no ar)
 
-Sem o servidor, o app já funciona em **modo local**: o editor guarda tudo no navegador e a página do funil abre pelo arquivo `funis/data/<endereço>.json` (o BRASE 2 já abre assim), mas não grava leads nem manda para o CRM. Para isso, configure o servidor:
+O servidor fica num projeto Supabase só dele, **`brase-funis`** (`covwdaygoorabowiuyfr`), separado da Central Comercial e do `brase-restaurantes`: nada aqui mexe nos dados ou nas funções da Central.
 
-Use o projeto Supabase da Central Comercial (`wndgqvkeguampmtmkmhq`) ou outro.
+- **Banco:** tabelas `fn_funnels` e `fn_sessions`, função `fn_stats` e bucket público `funis` (imagens e áudios enviados pelo editor), criados por `supabase/migrations/20261014000000_funis.sql`. Pode rodar de novo sem problema.
+- **Função:** `funis-api`, em `https://covwdaygoorabowiuyfr.supabase.co/functions/v1/funis-api`, com “Enforce JWT verification” desligado (a página do funil é aberta por qualquer visitante).
+- **Páginas:** a linha `window.FN_HOST` de `funis/index.html` e `funis/f/index.html` já aponta para esse endereço.
+- **BRASE 2:** já está no banco, publicado, com o webhook do CRM configurado (falta só o token, veja abaixo).
 
-### 1. Banco
+### Editor sem código de acesso
 
-No Supabase › **SQL Editor**, cole e rode o conteúdo de `supabase/migrations/20261014000000_funis.sql`. Pode rodar de novo sem problema. Ele cria as tabelas `fn_funnels` e `fn_sessions`, a função `fn_stats` e o bucket público `funis` (imagens e áudios enviados pelo editor). Se você já tinha rodado uma versão anterior, rode de novo: ela acrescenta a coluna `params` (parâmetros da URL de cada visita) e atualiza a conta de qualificados.
+O editor abre direto, sem pedir código. Atenção: quem souber o endereço do servidor (ele aparece no código da página do funil) consegue usar as funções do editor, inclusive ler os leads e trocar o webhook. Para passar a exigir um código, crie no Supabase (projeto `brase-funis` › Edge Functions › Secrets) o segredo `FUNIS_ACCESS_CODE` com o código da equipe; o editor passa a pedir esse código na hora, sem precisar mudar nada no app.
 
-### 2. Segredo
+### Token do CRM
 
-Escolha um código de acesso para a equipe (pode ser o mesmo da Central Comercial):
+Abra o BRASE 2 no editor › Configurações › Webhooks, cole a chave do webhook da Central no campo **TOKEN** e clique em **Salvar webhook**. **Testar envio** manda um lead de exemplo para conferir. Enquanto o token não estiver lá, o CRM recusa o envio (nenhum lead de teste entra) e o lead fica marcado com o erro na aba Leads, de onde dá para reenviar.
 
-```bash
-supabase secrets set --project-ref wndgqvkeguampmtmkmhq FUNIS_ACCESS_CODE="código-da-equipe"
-```
-
-### 3. Função
-
-Dentro da pasta `funis/`:
-
-```bash
-supabase functions deploy funis-api --project-ref wndgqvkeguampmtmkmhq --no-verify-jwt
-```
-
-O `--no-verify-jwt` é necessário porque a página do funil é aberta por qualquer visitante e o editor entra com o código da equipe. Pelo painel também funciona: Edge Functions › Deploy a new function › editor, com os arquivos `index.ts` e `logic.ts`, e “Enforce JWT verification” desligado.
-
-### 4. Endereço do servidor nas páginas
-
-Em `funis/index.html` e `funis/f/index.html`, preencha a linha `window.FN_HOST` com o endereço da função:
-
-```html
-<script>window.FN_HOST = {"api": "https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/funis-api"};</script>
-```
-
-### 5. Trazer o BRASE 2 e o token do CRM
-
-Abra o editor, entre com o código e clique em **Trazer o BRASE 2**. Ele abre em Configurações › Webhooks: cole o token do CRM no campo **TOKEN** (ou cole em API URL o endereço completo com `?token=…`, como estava no InLead) e clique em **Salvar webhook**. **Testar envio** manda um lead de exemplo para conferir.
-
-### 6. Trocar os links dos anúncios
+### Trocar os links dos anúncios
 
 Troque `https://inlead.digital/brase-2` por `https://renandias-dot.github.io/central-comercial-brase/funis/f/?f=brase-2` nos anúncios, mantendo os parâmetros (`&utm_source=…&utm_campaign=…`). Para domínio próprio, veja Configurações › Domínio.
+
+### Modo local
+
+Com `window.FN_HOST` vazio, o app funciona sem servidor: o editor guarda tudo no navegador e a página do funil abre pelo arquivo `funis/data/<endereço>.json`, mas não grava leads nem manda para o CRM.
+
+### Atualizar o servidor
+
+Depois de mudar `supabase/functions/funis-api`, publique de novo de dentro da pasta `funis/`:
+
+```bash
+supabase functions deploy funis-api --project-ref covwdaygoorabowiuyfr --no-verify-jwt
+```
+
+O projeto está no plano grátis do Supabase, que pausa projetos sem uso por uma semana; com o funil recebendo visitas ele continua ativo.
 
 ## Testes
 
