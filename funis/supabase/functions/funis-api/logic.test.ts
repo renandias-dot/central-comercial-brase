@@ -256,4 +256,9 @@ Deno.test('importa leads do InLead sem reenviar ao CRM', () => {
     answers: {L5: {name: 'L5Lzbe', type: 'field', title: 'Qual seu Whatsapp?', value: '(11) 98888-7777'}}, clicks: {B: {name: 'VT19S2'}}}, pub)!;
   assertEquals([r.id, r.phone, r.steps.length, r.interacted, (r.webhook as {kind: string}).kind, r.params], ['Ln0w4s', '5511988887777', 1, true, 'importado', {utm_source: 'FB'}]);
   assertEquals(importRow({code: 'x'}, pub), null);
+  // no relatório, importado só conta como envio se clicou no botão do webhook
+  const sem = importRow({code: 'Zz9yX8', created_at: '2026-10-01T10:00:00Z', params: {utm_content: 'IFood Escondeu|120244276786450151'}, answers: {}, clicks: {}}, pub)!;
+  r.params = {utm_content: 'IFood Escondeu|120244276786450151'};
+  const row = aggregateAds([r, sem], {level: 'ad', submitNames: ['VT19S2']}).rows[0];
+  assertEquals([row.visits, row.submitted], [2, 1]);
 });

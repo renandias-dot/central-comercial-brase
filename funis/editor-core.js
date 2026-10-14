@@ -18,7 +18,7 @@ const fmtInt = n => (+n || 0).toLocaleString('pt-BR');
 const fmtPct = (a, b) => b ? (Math.round((a / b) * 1000) / 10).toLocaleString('pt-BR') + '%' : '0%';
 const fmtDate = d => { if (!d) return ''; const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('pt-BR') };
 const fmtDateTime = d => { if (!d) return ''; const x = new Date(d); return isNaN(x) ? '' : x.toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit'}) };
-const slugify = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'funil';
+const slugify = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'funil';
 const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms) } };
 
 function toast(msg, kind){

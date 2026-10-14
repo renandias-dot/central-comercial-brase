@@ -369,7 +369,8 @@ export function aggregateAds(sessions: Session[], o: {level?: string; settings?:
     const day = String(s.created_at || '').slice(0, 10);
     r.visits++; if (s.interacted) r.started++;
     const d = r.daily[day] = r.daily[day] || {visits: 0, started: 0}; d.visits++; if (s.interacted) d.started++;
-    const sent = Object.values(s.clicks || {}).some(c => c && submit.has(String(c.name))) || !!(s.webhook && (s.webhook as {kind?: string}).kind !== 'abandono' && (s.webhook as {ok?: boolean}).ok);
+    const wk = s.webhook as {ok?: boolean; kind?: string} | null;
+    const sent = Object.values(s.clicks || {}).some(c => c && submit.has(String(c.name))) || !!(wk && wk.ok && wk.kind !== 'abandono' && wk.kind !== 'importado');
     if (s.phone) r.contacts++;
     if (sent) r.submitted++; else if (s.phone) r.abandoned++;
     if (m.icp) r.icp++;
