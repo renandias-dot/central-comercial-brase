@@ -127,9 +127,11 @@ O servidor fica num projeto Supabase só dele, **`brase-funis`** (`covwdaygoorab
 - **Páginas:** a linha `window.FN_HOST` de `funis/index.html` e `funis/f/index.html` já aponta para esse endereço.
 - **BRASE 2:** já está no banco, publicado, com o webhook do CRM configurado (falta só o token, veja abaixo).
 
-### Editor sem código de acesso
+### Código de acesso do editor
 
-O editor abre direto, sem pedir código. Atenção: quem souber o endereço do servidor (ele aparece no código da página do funil) consegue usar as funções do editor, inclusive ler os leads e trocar o webhook. Para passar a exigir um código, crie no Supabase (projeto `brase-funis` › Edge Functions › Secrets) o segredo `FUNIS_ACCESS_CODE` com o código da equipe; o editor passa a pedir esse código na hora, sem precisar mudar nada no app.
+O editor e todas as funções da equipe (leads, webhook, integrações, apagar) pedem o código de acesso; a página pública do funil continua aberta. O servidor guarda só um hash do código (tabela `fn_config`), nunca o código. Para trocar: Configurações › Geral › Código de acesso do editor (vale para toda a equipe; quem estiver com o antigo precisa entrar de novo). Se preferir guardar no Supabase, crie o segredo `FUNIS_ACCESS_CODE` (projeto `brase-funis` › Edge Functions › Secrets): ele passa a valer no lugar do código do editor.
+
+Apagar os leads de um funil ou excluir um funil exige, no servidor, o endereço do funil como confirmação. Código errado espera um pouco antes de responder, para atrasar quem tenta adivinhar.
 
 ### Token do CRM
 

@@ -144,8 +144,9 @@ const DB = {
     if (this.server) return await api('funnels.unpublish', {id});
     const db = await Local.ensure(); const f = db.funnels[id]; f.published = null; f.published_at = null; Local.write(db); return {};
   },
-  async remove(id){
-    if (this.server) return await api('funnels.delete', {id});
+  // Apagar exige o endereço do funil (o servidor confere).
+  async remove(id, slug){
+    if (this.server) return await api('funnels.delete', {id, confirm: slug});
     const db = await Local.ensure(); delete db.funnels[id]; delete db.leads[id]; Local.write(db); return {};
   },
   async saveWebhook(id, webhook){
@@ -169,8 +170,8 @@ const DB = {
     if (this.server) return await api('leads.stats', Object.assign({id}, q));
     const db = await Local.ensure(); return computeStats(filterPeriod(db.leads[id] || [], q.period), db.funnels[id]);
   },
-  async reset(id){
-    if (this.server) return await api('leads.reset', {id});
+  async reset(id, slug){
+    if (this.server) return await api('leads.reset', {id, confirm: slug});
     const db = await Local.ensure(); db.leads[id] = []; Local.write(db); return {};
   },
   async upload(file){
@@ -541,6 +542,14 @@ function previewDialog(fromStep){
 /* ================= ações globais ================= */
 const ACT = {
   logout: () => { store.del(CODE_KEY); ACCESS = ''; location.hash = '#/'; start() },
+  // Troca o código de acesso do editor (vale para toda a equipe; quem estiver com o antigo precisa entrar de novo).
+  'access-change': async () => {
+    const a = ($('#acc-new') || {}).value || '', b = ($('#acc-new2') || {}).value || '';
+    if (a.length < 12) return toast('Use pelo menos 12 caracteres.', 'err');
+    if (a !== b) return toast('Os dois campos estão diferentes.', 'err');
+    try { await api('access.change', {code: a}); ACCESS = a; store.set(CODE_KEY, a); $('#acc-new').value = ''; $('#acc-new2').value = ''; toast('Código trocado. Passe o novo para a equipe por um canal seguro.') }
+    catch (e) { toast(e.message, 'err') }
+  },
   'new-funnel': newFunnelDialog,
   // Primeira vez no servidor: cria o BRASE 2 com o rascunho, a versão publicada e o webhook do arquivo funis/data/brase-2.json.
   'seed-brase': async () => { UI.cfg = 'webhook'; const r = await fetch('data/brase-2.json', {cache: 'no-cache'}); const x = await r.json(); const f = await DB.create({title: x.title, slug: x.slug, draft: x.draft, published: x.published, webhook: x.webhook}); toast('BRASE 2 criado. Falta colar o token do CRM em Configurações › Webhooks.'); location.hash = `#/f/${f.id}/config` },
@@ -552,7 +561,7 @@ const ACT = {
       {label: 'Duplicar', icon: IC.copy, run: async () => { const rec = await DB.get(f.id); await DB.create({title: rec.title + ' (cópia)', slug: rec.slug + '-copia', draft: rec.draft, webhook: rec.webhook}); toast('Funil duplicado'); renderHome() }},
       {label: 'Exportar (JSON)', icon: IC.download, run: async () => { const rec = await DB.get(f.id); download(rec.slug + '.json', JSON.stringify(exportRecord(rec), null, 1) + '\n') }},
       {label: 'Copiar link', icon: IC.share, run: () => copy(publicUrl(f.slug))}, '-',
-      {label: 'Excluir', icon: IC.trash, danger: true, run: async () => { if (await confirmBox('Excluir “' + f.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true)) { await DB.remove(f.id); toast('Funil excluído'); renderHome() } }},
+      {label: 'Excluir', icon: IC.trash, danger: true, run: async () => { if (await confirmBox('Excluir “' + f.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true)) { await DB.remove(f.id, f.slug); toast('Funil excluído'); renderHome() } }},
     ]);
   },
   tab: t => go(t.dataset.tab),

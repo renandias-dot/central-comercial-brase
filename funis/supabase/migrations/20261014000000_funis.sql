@@ -144,3 +144,11 @@ returns jsonb language sql stable set search_path = public as $$
 $$;
 -- Só a função funis-api (conexão direta ao banco) usa fn_stats; a API pública do Supabase não chama.
 revoke execute on function fn_stats(uuid, timestamptz, integer) from public, anon, authenticated;
+
+-- Configurações do servidor. "access" guarda o código de acesso do editor como sal + hash (SHA-256), nunca o código.
+create table if not exists fn_config (
+  k text primary key,
+  v jsonb not null default '{}'::jsonb,
+  updated_at timestamptz not null default now()
+);
+alter table fn_config enable row level security;
