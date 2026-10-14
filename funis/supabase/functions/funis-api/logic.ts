@@ -325,7 +325,7 @@ const STAGES: [string, RegExp][] = [['novo', /^(novo|lead novo)$/], ['print', /^
   ['marcada', /^(marcada|reuniao marcada)$/], ['feita', /^(feita|reuniao feita|reuniao realizada)$/], ['fechado', /^(fechado|ganho|venda|vendido)$/],
   ['perdido', /^perdido$/], ['desqualificado', /^desqualificado$/], ['frio', /^frio$/], ['morno', /^morno$/]];
 export function stageId(v: unknown){
-  const t = String(v ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const t = String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   return (STAGES.find(([, re]) => re.test(t)) || [''])[0];
 }
 export const MEETING_STAGES = new Set(['marcada', 'feita', 'fechado']);

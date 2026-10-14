@@ -94,6 +94,8 @@ Os tokens (API de Conversões, gasto da Meta) e a chave dos endereços de vendas
 - Regra de perfil (faturamento ≥ R$ 10 mil), nota do lead com o modelo Brase, abandono depois de 15 min e repetidos por 30 dias.
 - O webhook continua no clique do `VT19S2` (agora no passo da loja), com os mesmos campos do CRM.
 
+Já está criado e publicado no servidor: `f/?f=brase-2-otimizado`. O BRASE 2 original (`f/?f=brase-2`) continua igual; dá para dividir o tráfego entre os dois e comparar na aba Leads.
+
 ## O BRASE 2 copiado
 
 `data/brase-2.json` tem o funil exatamente como estava no InLead em 13/10/2026:
