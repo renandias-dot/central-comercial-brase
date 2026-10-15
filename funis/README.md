@@ -124,8 +124,16 @@ O servidor fica num projeto Supabase só dele, **`brase-funis`** (`covwdaygoorab
 
 - **Banco:** tabelas `fn_funnels` e `fn_sessions`, função `fn_stats` e bucket público `funis` (imagens e áudios enviados pelo editor), criados por `supabase/migrations/20261014000000_funis.sql`. Pode rodar de novo sem problema.
 - **Função:** `funis-api`, em `https://covwdaygoorabowiuyfr.supabase.co/functions/v1/funis-api`, com “Enforce JWT verification” desligado (a página do funil é aberta por qualquer visitante).
+- **Cópia no CDN:** função `funis-cdn` (também sem JWT) grava cada funil publicado em `funis/publicados/<endereço>.json` no Storage público. Veja “Velocidade” abaixo.
 - **Páginas:** a linha `window.FN_HOST` de `funis/index.html` e `funis/f/index.html` já aponta para esse endereço.
 - **BRASE 2:** já está no banco, publicado, com o webhook do CRM configurado (falta só o token, veja abaixo).
+
+### Velocidade
+
+- **Primeira tela sem servidor:** a página do funil busca a cópia publicada no CDN do Storage (`…/storage/v1/object/public/funis/publicados/<endereço>.json`, comprimida, ~13 KB) já no `<head>`, ao mesmo tempo que baixa o `runtime.js` (com `defer`, então o carregando aparece na hora). Não passa pela `funis-api` nem pelo banco, então não sofre com o servidor “frio” (que chegava a 9 s na primeira visita depois de um tempo parado). Sem a cópia, cai na `funis-api` como antes e pede para gravar a cópia.
+- **Cópia sempre atual:** o editor atualiza a cópia ao publicar, tirar do ar, excluir e trocar o endereço. A página também confere em segundo plano (2,5 s depois de abrir) se a cópia ainda é a versão publicada, e a `funis-cdn` regrava se não for. O CDN guarda a cópia por até 30 s, então uma publicação aparece em até meio minuto. Depois de mudar um funil direto no banco, chame `POST …/functions/v1/funis-cdn` com `{"slugs": ["endereço"]}`.
+- **Troca de etapa:** o cabeçalho (logo, voltar e barra) fica na tela; só o conteúdo troca, entrando em 0,28 s (de baixo ao avançar, de cima ao voltar). A espera depois de tocar numa opção caiu de 280 para 200 ms. As imagens das etapas seguintes são baixadas enquanto a pessoa lê a atual. Quem pede menos movimento no celular não vê as animações.
+- **Barra de progresso:** desliza até o novo ponto e conta pelo caminho: etapas feitas ÷ (feitas + as que faltam no caminho mais curto até o fim). No caminho principal do otimizado ela vai de 14% na capa a 100% no formulário (antes ia até 35%, porque contava as 23 etapas, inclusive as do outro ramo). No editor continua pela posição na lista.
 
 ### Código de acesso do editor
 
@@ -146,9 +154,9 @@ Passos na Cloudflare: Workers & Pages › Create › Pages › Connect to Git �
 
 Abra o BRASE 2 no editor › Configurações › Webhooks, cole a chave do webhook da Central no campo **TOKEN** e clique em **Salvar webhook**. **Testar envio** manda um lead de exemplo para conferir. Enquanto o token não estiver lá, o CRM recusa o envio (nenhum lead de teste entra) e o lead fica marcado com o erro na aba Leads, de onde dá para reenviar.
 
-### Trocar os links dos anúncios
+### Links dos anúncios
 
-Troque `https://inlead.digital/brase-2` por `https://renandias-dot.github.io/central-comercial-brase/funis/f/?f=brase-2` nos anúncios, mantendo os parâmetros (`&utm_source=…&utm_campaign=…`). Para domínio próprio, veja Configurações › Domínio.
+Desde 15/10/2026 os anúncios levam para `https://app.brasemarketing.com.br/funis/f/?f=brase-2-otimizado`, com os parâmetros de URL da Meta (`utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}`).
 
 ### Modo local
 
@@ -156,10 +164,11 @@ Com `window.FN_HOST` vazio, o app funciona sem servidor: o editor guarda tudo no
 
 ### Atualizar o servidor
 
-Depois de mudar `supabase/functions/funis-api`, publique de novo de dentro da pasta `funis/`:
+Depois de mudar `supabase/functions/funis-api` ou `supabase/functions/funis-cdn`, publique de novo de dentro da pasta `funis/`:
 
 ```bash
 supabase functions deploy funis-api --project-ref covwdaygoorabowiuyfr --no-verify-jwt
+supabase functions deploy funis-cdn --project-ref covwdaygoorabowiuyfr --no-verify-jwt
 ```
 
 A função tem três arquivos: `index.ts` (rotas), `logic.ts` (regras de negócio) e `rules.ts` (o mesmo motor de variáveis e regras do `runtime.js`). O Raio-X usa o app de Restaurantes (`brase-restaurantes`); para apontar para outro, use o segredo `RESTAURANTES_API` (e `RESTAURANTES_ACCESS_CODE` se ele pedir código).

@@ -97,6 +97,13 @@ async function api(op, body){
   if (!r.ok) throw Object.assign(new Error(j.error || 'Erro ' + r.status), {code: r.status, data: j});
   return j;
 }
+// Cópia do funil publicado no CDN (supabase/functions/funis-cdn): a página do funil abre por ela, sem esperar o servidor.
+// Publicar, tirar do ar, excluir e trocar o endereço atualizam a cópia na hora; a própria página também confere sozinha.
+async function cdnSync(slugs){
+  if (!API) return;
+  try { const r = await fetch(API.replace(/funis-api$/, 'funis-cdn'), {method: 'POST', headers: {'content-type': 'text/plain;charset=UTF-8'}, body: JSON.stringify({slugs})}); if (!r.ok) throw new Error('HTTP ' + r.status) }
+  catch (e) { console.warn('cópia do funil no CDN', e); toast('A cópia rápida da página não atualizou agora; ela se corrige sozinha na próxima visita.', 'err') }
+}
 const Local = {
   read(){ return store.json(LOCAL_KEY, null) },
   write(db){ if (!store.set(LOCAL_KEY, JSON.stringify(db))) toast('O navegador não tem espaço para salvar. Exporte o funil (JSON) para não perder.', 'err') },
@@ -252,8 +259,12 @@ async function save(){
   const sent = snapshot();
   try {
     D.title = REC.title; D.slug = REC.slug;
+    const before = REC.savedSlug;
     const r = await DB.save(REC.id, {title: REC.title, slug: REC.slug, draft: D}, REC.updated_at);
     REC.updated_at = r.updated_at; if (r.slug) REC.slug = r.slug;
+    // Endereço novo num funil publicado: a cópia sai do endereço antigo e vai para o novo.
+    if (DB.server && REC.published_at && before && REC.slug !== before) cdnSync([before, REC.slug]);
+    REC.savedSlug = REC.slug;
     SAVE.at = new Date(); SAVE.dirty = snapshot() !== sent;
   } catch (e) {
     SAVE.err = e.code === 409 ? 'Outra pessoa salvou este funil' : e.message;
@@ -339,7 +350,7 @@ async function route(){
     const tab = ['construtor', 'fluxo', 'design', 'leads', 'config'].includes(h[2]) ? h[2] : 'construtor';
     if (!REC || REC.id !== h[1]) {
       if (REC && SAVE.dirty) await save();
-      try { REC = await DB.get(h[1]) } catch (e) { toast(e.message, 'err'); location.hash = '#/'; return }
+      try { REC = await DB.get(h[1]); REC.savedSlug = REC.slug } catch (e) { toast(e.message, 'err'); location.hash = '#/'; return }
       D = REC.draft = REC.draft || FR.newFunnel(REC.title);
       if (!Array.isArray(D.steps)) D.steps = [];
       // nomes antigos de componentes (deste app) viram os do InLead
@@ -473,9 +484,10 @@ async function publishDialog(){
     const b = e.target.closest('[data-x]'); if (!b) return;
     if (b.dataset.x === 'no') return closeModal();
     try {
-      if (b.dataset.x === 'unpub') { await DB.unpublish(REC.id); REC.published = null; REC.published_at = null; closeModal(); toast('Funil fora do ar'); renderEditor(); return }
+      if (b.dataset.x === 'unpub') { await DB.unpublish(REC.id); REC.published = null; REC.published_at = null; closeModal(); toast('Funil fora do ar'); renderEditor(); if (DB.server) cdnSync([REC.slug]); return }
       b.disabled = true;
       const r = await DB.publish(REC.id); REC.published = clone(D); REC.published_at = r.published_at;
+      if (DB.server) cdnSync([REC.slug]);
       if (!DB.server) download(REC.slug + '.json', JSON.stringify(exportRecord(REC), null, 1) + '\n');
       closeModal(); toast('Publicado!'); renderEditor();
     } catch (er) { b.disabled = false; toast(er.message, 'err') }
@@ -563,7 +575,7 @@ const ACT = {
       {label: 'Duplicar', icon: IC.copy, run: async () => { const rec = await DB.get(f.id); await DB.create({title: rec.title + ' (cópia)', slug: rec.slug + '-copia', draft: rec.draft, webhook: rec.webhook}); toast('Funil duplicado'); renderHome() }},
       {label: 'Exportar (JSON)', icon: IC.download, run: async () => { const rec = await DB.get(f.id); download(rec.slug + '.json', JSON.stringify(exportRecord(rec), null, 1) + '\n') }},
       {label: 'Copiar link', icon: IC.share, run: () => copy(publicUrl(f.slug))}, '-',
-      {label: 'Excluir', icon: IC.trash, danger: true, run: async () => { if (await confirmBox('Excluir “' + f.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true)) { await DB.remove(f.id, f.slug); toast('Funil excluído'); renderHome() } }},
+      {label: 'Excluir', icon: IC.trash, danger: true, run: async () => { if (await confirmBox('Excluir “' + f.title + '”?', 'O funil e todos os leads dele serão apagados. Não dá para desfazer.', 'Excluir', true)) { await DB.remove(f.id, f.slug); if (DB.server) cdnSync([f.slug]); toast('Funil excluído'); renderHome() } }},
     ]);
   },
   tab: t => go(t.dataset.tab),

@@ -556,8 +556,31 @@ function outlets(funnel, step){
   return out;
 }
 
+/* ================= Progresso pelo caminho ================= */
+// Quantas etapas ainda faltam, pelo caminho mais curto, até o funil terminar (link externo ou fim). null = sem saída.
+// A barra usa isso em vez da posição na lista: num funil com ramos, quem segue o caminho principal vê a barra andar
+// de verdade e chegar ao fim na última etapa.
+function stepsLeft(funnel, from){
+  const steps = (funnel && funnel.steps) || [], seen = new Set([from]);
+  let level = [from];
+  for (let d = 0; level.length && d <= steps.length; d++) {
+    const next = [];
+    for (const i of level) {
+      const st = steps[i]; if (!st) continue;
+      const outs = outlets(funnel, st), dests = outs.length ? outs.map(o => o.dest) : ['next'];
+      for (const dest of dests) {
+        const to = resolveDestination(funnel, i, dest);
+        if (to.url || to.end) return d;
+        if (to.step != null && !seen.has(to.step)) { seen.add(to.step); next.push(to.step) }
+      }
+    }
+    level = next;
+  }
+  return null;
+}
+
 /* ================= DOM (navegador) ================= */
-if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 
 const CSS = `
 .fnr{--fn-theme:#6366f1;font-family:var(--fn-font-text);font-size:var(--fn-size);color:var(--fn-content);background:var(--fn-bg);position:relative;min-height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;line-height:1.4;overflow-wrap:break-word}
@@ -571,7 +594,10 @@ const CSS = `
 .fnr-logo{grid-column:2;justify-self:center;display:flex;align-items:center}.fnr-logo img{display:block;height:60px;width:auto;max-width:200px;object-fit:contain}
 .fnr-logo.s-small img{height:42px}.fnr-logo.s-large img{height:84px}.fnr-logo.p-left{justify-self:start}
 .fnr-progress{grid-column:1/-1;height:7px;border-radius:99px;background:color-mix(in srgb,var(--fn-theme) 18%,transparent);overflow:hidden;margin:10px 0 4px}
-.fnr-progress i{display:block;height:100%;background:var(--fn-theme);border-radius:inherit;transition:width .4s ease}
+.fnr-progress i{display:block;height:100%;background:var(--fn-theme);border-radius:inherit;transition:width .5s cubic-bezier(.22,.8,.3,1)}
+/* troca de etapa: só o corpo entra, o cabeçalho (logo, voltar e barra) fica */
+.fnr-in{animation:fnr-in .28s cubic-bezier(.22,.8,.3,1) both}.fnr-in-back{animation:fnr-in-back .28s cubic-bezier(.22,.8,.3,1) both}
+@keyframes fnr-in{from{opacity:0;transform:translate3d(0,12px,0)}to{opacity:1;transform:none}}@keyframes fnr-in-back{from{opacity:0;transform:translate3d(0,-12px,0)}to{opacity:1;transform:none}}
 .fnr-body{flex:1;display:flex;flex-direction:column;padding-top:20px}
 .fnr-body.al-center{justify-content:center}
 .fnr-layers{display:flex;flex-wrap:wrap;gap:var(--fn-gap) 0;align-content:flex-start;margin:0 -4px}
@@ -1121,39 +1147,70 @@ function mount(el, funnel, opts){
     clearTimers();
     const f = R.funnel, step = stepAt(R.index), d = Object.assign({}, DEFAULT_DESIGN, f.design || {});
     const vars = cssVars(d);
-    el.innerHTML = '';
-    const root = doc.createElement('div');
-    root.className = 'fnr' + (edit ? ' fnr-edit' : '') + ' fnr-' + mode;
-    for (const k in vars) root.style.setProperty(k, vars[k]);
-    if (!step) { root.innerHTML = '<div class="fnr-page"><div class="fnr-end"><b>Funil sem etapas</b></div></div>'; el.appendChild(root); return }
+    if (!step) { el.innerHTML = ''; const root = doc.createElement('div'); root.className = 'fnr fnr-' + mode; for (const k in vars) root.style.setProperty(k, vars[k]); root.innerHTML = '<div class="fnr-page"><div class="fnr-end"><b>Funil sem etapas</b></div></div>'; el.appendChild(root); R.root = null; return }
     // Cabeçalho da etapa: step.options do InLead (show_logo, show_progress, show_back) e step.settings deste app.
     const so = step.options || {};
     const ss = Object.assign({showLogo: so.show_logo !== false, showProgress: so.show_progress !== false, showBack: so.show_back !== false, backLabel: so.back_label || ''}, step.settings || {});
-    const total = f.steps.length, pct = total ? Math.round(((R.index + 1) / total) * 100) : 0;
+    const total = f.steps.length;
+    // Barra: no editor, a posição na lista; na página, etapas feitas ÷ (feitas + as que faltam no caminho mais curto).
+    let pct = total ? Math.round(((R.index + 1) / total) * 100) : 0;
+    if (!edit) {
+      const left = stepsLeft(f, R.index), done = R.history.length + 1;
+      if (left != null) pct = Math.round(done / (done + left) * 100);
+      if (R.dir > 0 && R.pct != null) pct = Math.max(pct, R.pct);
+    }
+    // Mesma página e mesmo funil: mantém o cabeçalho e troca só o corpo, com a barra deslizando até o novo ponto.
+    const reuse = !edit && R.root && R.shellOf === f && el.contains(R.root);
+    const fromPct = reuse && R.pct != null ? R.pct : pct;
+    const animate = !edit && (R.lastIdx === undefined ? live : R.lastIdx !== R.index);
     const bg = d.background || {};
-    let bgx = '';
+    let bgx = '', rootBg = '';
     if (bg.type === 'image' && bg.src) bgx = `<div class="fnr-bgx" style="opacity:${num(bg.opacity, 1)}"><img src="${esc(bg.src)}" alt=""></div>`;
     else if (bg.type === 'video' && bg.src) bgx = `<div class="fnr-bgx" style="opacity:${num(bg.opacity, 1)}"><video src="${esc(bg.src)}" autoplay muted loop playsinline></video></div>`;
-    else if (bg.type === 'gradient') root.style.background = `linear-gradient(${num(bg.angle, 180)}deg, ${bg.from || d.backgroundColor}, ${bg.to || d.themeColor})`;
-    else if (bg.type === 'effect') root.style.background = `radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, ${d.themeColor} 45%, transparent), transparent 70%), ${d.backgroundColor}`;
+    else if (bg.type === 'gradient') rootBg = `linear-gradient(${num(bg.angle, 180)}deg, ${bg.from || d.backgroundColor}, ${bg.to || d.themeColor})`;
+    else if (bg.type === 'effect') rootBg = `radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, ${d.themeColor} 45%, transparent), transparent 70%), ${d.backgroundColor}`;
     const logo = d.logo && d.logo.src && ss.showLogo ? `<div class="fnr-logo s-${esc(d.logo.size || 'normal')} p-${esc(d.logo.position || 'center')}"><img src="${esc(d.logo.src)}" alt=""></div>` : '<div></div>';
     const canBack = edit ? true : R.history.length > 0;
     const back = ss.showBack ? `<button type="button" class="fnr-back" data-act="back" aria-label="Voltar"${canBack ? '' : ' hidden'}>${ICON.back}${ss.backLabel ? `<span>${esc(ss.backLabel)}</span>` : ''}</button>` : '<div></div>';
-    const prog = ss.showProgress && d.progress !== 'none' ? `<div class="fnr-progress"><i style="width:${pct}%"></i></div>` : '';
+    const prog = ss.showProgress && d.progress !== 'none' ? `<div class="fnr-progress"><i style="width:${fromPct}%"></i></div>` : '';
     const layers = visibleLayers(step);
-    root.innerHTML = `${bgx}<div class="fnr-page"><header class="fnr-head">${back}${logo}<div></div>${prog}</header><main class="fnr-body al-${esc(d.align || 'center')}"><div class="fnr-layers">${layers.map((l, i) => {
+    const head = `<header class="fnr-head">${back}${logo}<div></div>${prog}</header>`;
+    const headSig = head.replace(/ style="width:[\d.]+%"/, '').replace(' hidden', '');
+    const body = `<main class="fnr-body al-${esc(d.align || 'center')}"><div class="fnr-layers">${layers.map((l, i) => {
       const cond = hasRoles(l), hidden = edit && cond && !evalRoles(l.roles, ctx());
       const basis = clamp(num(l.design && l.design.basis, 100), 10, 100);
       const html = renderLayer(l, step);
       if (!html && !edit) return '';
       return `<div class="fnr-l${edit && cond ? ' is-cond-edit' : ''}${hidden ? ' is-hidden-edit' : ''}${edit && opts.selected === l.id ? ' is-sel' : ''}" data-lid="${esc(l.id)}" data-li="${i}" style="flex:0 0 ${basis}%;max-width:${basis}%"${edit ? ' draggable="true"' : ''}>${edit ? `<span class="fnr-tag">${esc(l.title || TYPE_TITLE[l.type] || l.type)}${cond ? ' · condicional' : ''}</span>` : ''}${html}</div>`;
-    }).join('')}</div></main></div>`;
-    el.appendChild(root);
-    R.root = root;
+    }).join('')}</div></main>`;
+    let root;
+    if (reuse) {
+      root = R.root;
+      root.querySelectorAll('.fnr-stepjs').forEach(x => x.remove());
+      if (R.headSig !== headSig) { const t = doc.createElement('div'); t.innerHTML = head; root.querySelector('.fnr-head').replaceWith(t.firstElementChild) }
+      else { const bb = root.querySelector('.fnr-back'); if (bb) bb.hidden = !canBack }
+      const t = doc.createElement('div'); t.innerHTML = body; const nb = t.firstElementChild;
+      if (animate) nb.classList.add(R.dir < 0 ? 'fnr-in-back' : 'fnr-in');
+      root.querySelector('.fnr-body').replaceWith(nb);
+    } else {
+      el.innerHTML = '';
+      root = doc.createElement('div');
+      root.className = 'fnr' + (edit ? ' fnr-edit' : '') + ' fnr-' + mode;
+      for (const k in vars) root.style.setProperty(k, vars[k]);
+      if (rootBg) root.style.background = rootBg;
+      root.innerHTML = `${bgx}<div class="fnr-page">${head}${body}</div>`;
+      if (animate) { const b = root.querySelector('.fnr-body'); if (b) b.classList.add('fnr-in') }
+      el.appendChild(root);
+      R.root = root;
+    }
+    const bar = root.querySelector('.fnr-progress i');
+    if (bar && fromPct !== pct) { void bar.offsetWidth; bar.style.width = pct + '%' }
+    R.pct = pct; R.headSig = headSig; R.shellOf = edit ? null : f; R.lastIdx = R.index;
     afterRender(step, layers);
+    if (!edit) R.timers.push(setTimeout(() => preloadNext(step), 350));
     if (ss.scrollTop !== false && !edit) try { (opts.scrollEl || window).scrollTo({top: 0}) } catch (e) {}
     // Script da etapa (InLead: step.script), só na página publicada.
-    if (live && step.script) { const box = doc.createElement('div'); box.hidden = true; box.innerHTML = String(step.script); root.appendChild(box); box.querySelectorAll('script').forEach(old => { const sc = doc.createElement('script'); for (const a of old.attributes) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; old.replaceWith(sc) }) }
+    if (live && step.script) { const box = doc.createElement('div'); box.hidden = true; box.className = 'fnr-stepjs'; box.innerHTML = String(step.script); root.appendChild(box); box.querySelectorAll('script').forEach(old => { const sc = doc.createElement('script'); for (const a of old.attributes) sc.setAttribute(a.name, a.value); sc.textContent = old.textContent; old.replaceWith(sc) }) }
   }
 
   /* ----- comportamentos depois de desenhar ----- */
@@ -1318,7 +1375,7 @@ function mount(el, funnel, opts){
     if (others.length) { validateStep(step); return }
     R.lastInteract = c.name || layer.id;
     R.busy = true;
-    R.timers.push(setTimeout(() => { R.busy = false; navigate(step, destinationOf(R.funnel, o), {layer, item: o}) }, 280));
+    R.timers.push(setTimeout(() => { R.busy = false; navigate(step, destinationOf(R.funnel, o), {layer, item: o}) }, 200));
   }
   function needsAnswer(l){
     const a = R.answers[l.id];
@@ -1381,6 +1438,15 @@ function mount(el, funnel, opts){
     navigate(step, dest, {layer, item: c, button: btnEl});
   }
   const stepIndexOf = id => (R.funnel.steps || []).findIndex(s => s.id === id);
+  // Imagens das etapas para onde esta leva: baixadas enquanto a pessoa lê, para a próxima abrir já pronta.
+  const IMG_RE = /\.(png|jpe?g|webp|gif|avif|svg)(\?|#|$)/i;
+  function preloadNext(step){
+    if (R.destroyed || typeof Image === 'undefined') return;
+    const seen = R.pre = R.pre || new Set(), i = stepIndexOf(step.id);
+    const outs = outlets(R.funnel, step), dests = outs.length ? outs.map(o => o.dest) : ['next'];
+    const walk = v => { if (typeof v === 'string') { if (IMG_RE.test(v) && !seen.has(v) && seen.size < 60) { seen.add(v); const im = new Image(); im.decoding = 'async'; im.src = v } } else if (v && typeof v === 'object') for (const k in v) walk(v[k]) };
+    for (const dest of dests) { const to = resolveDestination(R.funnel, i, dest); if (to.step != null) walk((R.funnel.steps[to.step] || {}).layers) }
+  }
   function navigate(step, dest, info){
     const to = resolveDestination(R.funnel, R.index, dest);
     if (to.back) return back();
@@ -1404,12 +1470,12 @@ function mount(el, funnel, opts){
     const k = typeof target === 'number' ? target : stepIndexOf(target);
     if (k < 0 || k >= R.funnel.steps.length) return;
     if (push && k !== R.index) R.history.push(R.index);
-    R.index = k;
+    R.dir = 1; R.index = k;
     (R.cleanup || []).forEach(fn => { try { fn() } catch (e) {} }); R.cleanup = [];
     render();
     if (!edit) emit('step', {step: R.funnel.steps[k].id, stepIndex: k, title: R.funnel.steps[k].title, total: R.funnel.steps.length});
   }
-  function back(){ if (!R.history.length) return; const k = R.history.pop(); R.index = k; (R.cleanup || []).forEach(fn => { try { fn() } catch (e) {} }); R.cleanup = []; render(); emit('back', {step: R.funnel.steps[k].id, stepIndex: k}) }
+  function back(){ if (!R.history.length) return; const k = R.history.pop(); R.dir = -1; R.index = k; (R.cleanup || []).forEach(fn => { try { fn() } catch (e) {} }); R.cleanup = []; render(); emit('back', {step: R.funnel.steps[k].id, stepIndex: k}) }
 
   R.index = startIndex();
   render();
@@ -1423,5 +1489,5 @@ function mount(el, funnel, opts){
   };
 }
 
-return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 });
