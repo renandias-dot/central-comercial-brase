@@ -1,6 +1,8 @@
 // Gera funis/data/brase-2-otimizado.json: o BRASE 2 com as decisões de 13/10/2026 (documento "Funil Inlead Brase —
 // Análise e Testes de Conversão"). O BRASE 2 original não muda.  Uso: node funis/tools/brase-2-otimizado.js
-//  · Capa: teste A/B da capa atual (só "menos de 2 minutos" no lugar de "45 segundos") contra a V1.
+// Atenção: o data/brase-2-otimizado.json hoje é a cópia do publicado (com edições feitas no editor). Rodar este gerador
+// volta à versão de 13/10 e apaga essas edições.
+//  · Capa: só a V1 ("Sua loja vende menos no iFood do que deveria?"). A capa antiga já tem dados de sobra, sem teste A/B.
 //  · Etapa 6 corrigida: 5 a 10 mil + iFood/99 vai para o formulário; balcão e cardápio próprio, para o ramo de baixo.
 //  · Formulário V7 (diagnóstico com ❌ por resposta, 3 campos, WhatsApp do Lipe com texto pronto) e a cópia V5 para
 //    quem já pagou agência.
@@ -37,20 +39,14 @@ const optOf = s => s.layers.find(l => l.type === 'options');
 const dor = optOf(dorS).content.name, fotos = optOf(fotosS).content.name, card = optOf(cardS).content.name;
 const fat = optOf(fatS).content.name, canal = optOf(canalS).content.name, mkt = optOf(mktS).content.name;
 
-/* ---------- 1. Capa: teste A/B (atual × V1) ---------- */
-// Sem variante (página antiga ou link sem teste), aparece a capa atual.
-const ATUAL = [[C('@teste.capa', '!=', 'v1')]], V1 = is('teste.capa', 'v1');
-for (const l of capa.layers) {
-  l.roles = ATUAL;
-  if (l.type === 'text') l.content.text = l.content.text.replace(/Tempo&nbsp;estimado:&nbsp;45&nbsp;segundos\./, 'Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.');
-}
-if (!capa.layers.some(l => /menos&nbsp;de&nbsp;2&nbsp;minutos/.test(l.content.text || ''))) throw new Error('Não achei "45 segundos" na capa.');
-capa.layers.push(
-  T(`<h1 class="ql-align-center">Sua loja vende menos no iFood <span style="color: ${AMBER};">do que deveria?</span></h1>`, V1),
-  T('<h3 class="ql-align-center">Leva menos de 2 minutos. Depois, a gente te mostra onde o ranking está segurando a sua loja.</h3>', V1),
-  Object.assign(amber(btn('Ver onde minha loja trava ➔', 'next', 'iniciar_v1')), {roles: V1}),
-  T('<p class="ql-align-center"><em>Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>', V1),
-);
+/* ---------- 1. Capa: só a V1 ---------- */
+// A capa antiga saiu (em 15/10/2026): já tem dados de sobra, então todo visitante vê a V1, sem teste A/B.
+capa.layers = [
+  T(`<h1 class="ql-align-center">Sua loja vende menos no iFood <span style="color: ${AMBER};">do que deveria?</span></h1>`),
+  T('<h3 class="ql-align-center">Responda umas perguntas rápidas e veja onde o ranking está segurando os seus pedidos.</h3><p class="ql-align-center">⏱️ Leva menos de 2 minutos.</p>'),
+  amber(btn('Ver onde minha loja trava ➔', 'next', 'iniciar_v1')),
+  T('<p class="ql-align-center"><em>Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>'),
+];
 
 /* ---------- 2. Ramo de baixo (arco do Hunt Cash) — montado antes para ter os ids ---------- */
 const pp = t => R.clone(byTitle(draft, t));
@@ -198,10 +194,10 @@ const f = Object.assign(pub, {steps: main.concat(low)});
 main.forEach((s, i) => { s.position = {x: i * 300, y: 0} });
 low.forEach((s, i) => { s.position = {x: i * 300, y: 520} });
 
-/* ---------- 6. Leitura dos leads, etiquetas, teste A/B e Pixel ---------- */
+/* ---------- 6. Leitura dos leads, etiquetas e Pixel ---------- */
 f.settings = Object.assign({}, f.settings, {
   checkoutMark: true,
-  ab: [{name: 'capa', variants: 'atual, v1', enabled: true}],
+  ab: [],
   // LeadQualificado só quando o lead no perfil (R$ 10 mil+) envia o formulário: é o evento para a Meta otimizar.
   pixel: Object.assign({}, f.settings && f.settings.pixel, {icpEvent: true, icpWhen: [[C('@' + send.content.name, '==', 'clicked')]]}),
   leads: {
@@ -235,7 +231,7 @@ f.settings = Object.assign({}, f.settings, {
 f.title = 'BRASE 2 · otimizado';
 const out = {
   format: src.format, exportedAt: new Date().toISOString(), slug: 'brase-2-otimizado', title: f.title,
-  source: {basedOn: 'brase-2', note: 'BRASE 2 com as decisões de 13/10/2026: capa atual × V1 em teste A/B, etapa 6 corrigida, formulário V7 com a cópia V5 (já pagou agência), WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio.'},
+  source: {basedOn: 'brase-2', note: 'BRASE 2 com as decisões de 13/10/2026: capa V1 (sem teste A/B desde 15/10), etapa 6 corrigida, formulário V7 com a cópia V5 (já pagou agência), WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio.'},
   draft: f, published: f, webhook: src.webhook,
 };
 fs.writeFileSync(path.join(__dirname, '../data/brase-2-otimizado.json'), JSON.stringify(out, null, 1) + '\n');

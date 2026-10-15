@@ -90,17 +90,17 @@ Os tokens (API de Conversões, gasto da Meta) e a chave dos endereços de vendas
 
 ### BRASE 2 · otimizado
 
-`data/brase-2-otimizado.json` (gerado por `tools/brase-2-otimizado.js`) é o BRASE 2 com as decisões de 13/10/2026 do documento “Funil Inlead Brase — Análise e Testes de Conversão”. O BRASE 2 original não muda.
+`data/brase-2-otimizado.json` é a cópia do que está publicado (15/10/2026, já com as edições feitas no editor). `tools/brase-2-otimizado.js` gera a versão de 13/10/2026 a partir do documento “Funil Inlead Brase — Análise e Testes de Conversão”; rodar o gerador sobrescreve essas edições. O BRASE 2 original não muda.
 
-- **Capa em teste A/B:** a capa atual (só com “menos de 2 minutos” no lugar de “45 segundos”) contra a V1, “Sua loja vende menos no iFood do que deveria?”, com botão âmbar “Ver onde minha loja trava” e a linha “a partir de R$ 10 mil”. Metade dos visitantes vê cada uma.
+- **Capa V1 para todos:** “Sua loja vende menos no iFood do que deveria?”, com botão âmbar “Ver onde minha loja trava” e a linha “a partir de R$ 10 mil”. O teste A/B contra a capa antiga saiu em 15/10/2026, porque a antiga já tem dados de sobra.
 - **Faturamento:** a pergunta fica como está. A etapa 6 foi corrigida: de R$ 5 a 10 mil, quem vende pelo iFood/99 vai para o formulário (passando pela pergunta de marketing) e quem vende no balcão ou no cardápio próprio vai para o ramo de baixo.
 - **Formulário V7:** “Pelas suas respostas, já dá pra ver onde sua loja perde pedido” com uma linha ❌ por resposta (dor, fotos, cardápio e marketing; ✅ quando fotos e cardápio estão bons), o próximo passo explicado, 3 campos (primeiro nome, loja no iFood, WhatsApp com DDD) e o botão “Quero ver o resto da minha loja”, que abre o WhatsApp do Lipe com o texto “Oi, Lipe! Sou {nome}, da {loja}. Acabei de fazer o teste da Brase.”
-- **Formulário V5:** quem marca “Já paguei agência” vê “Você já pagou por isso e não viu resultado”, as linhas ❌ e o botão “Quero ver o número da minha loja”. Os campos e o botão têm os mesmos nomes do V7, então o webhook e o CRM recebem igual.
+- **Formulário V5** (só no gerador; saiu do publicado em 14/10): quem marca “Já paguei agência” vê “Você já pagou por isso e não viu resultado”, as linhas ❌ e o botão “Quero ver o número da minha loja”. No publicado, todo mundo vai para o V7.
 - **Ramo abaixo de R$ 5 mil, no arco do Hunt Cash:** ponte honesta → tipo de loja → frase que já pensou → de quem é a culpa → tempo de entrega, adicional, promoção e entrega grátis (com a pior opção na voz do dono) → carregando → diagnóstico com o Score calculado, o que tira pedido e a causa única → cena de futuro → demonstração do Scanner com exemplo do tipo de loja → quando quer começar → oferta.
 - **Checkout honesto do ZapFood:** sem cronômetro, sem “Tempo limitado!”, sem “DE R$ 297” e sem a barra fixa de 14%. Mostra o Score da pessoa, o vídeo, o depoimento da Michele, R$ 97 à vista ou 12x de R$ 9,94, pagamento único e garantia de 7 dias.
 - **Leitura:** regra de perfil (faturamento ≥ R$ 10 mil), nota do lead, abandono depois de 15 min, repetidos por 30 dias, etiquetas (DI/Plano IA pela faixa, “Já pagou agência” e a dor) e `LeadQualificado` só quando o lead no perfil clica no botão do formulário.
 
-Está publicado no servidor: `f/?f=brase-2-otimizado`. Para conferir uma capa: `f/?f=brase-2-otimizado&teste_capa=v1` ou `&teste_capa=atual`.
+Está publicado no servidor: `https://app.brasemarketing.com.br/funis/f/?f=brase-2-otimizado`, para onde vão os anúncios.
 
 Ficou de fora do funil (fora da página): a planilha diária do Lipe e o modelo M4 no NicoChat ligado ao webhook. A foto do Lipe, os casos com autorização e o número real de horários (V7 da capa, V6 do formulário) dependem de material seu.
 
