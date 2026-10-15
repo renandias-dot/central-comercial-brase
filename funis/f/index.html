@@ -8,6 +8,21 @@
 <base href="../">
 <!-- Endereço da função funis-api do Supabase. Vazio = modo estático: o funil abre a partir de funis/data/<slug>.json, sem gravar leads. -->
 <script>window.FN_HOST = {"api": "https://covwdaygoorabowiuyfr.supabase.co/functions/v1/funis-api"};</script>
+<!-- Começa a buscar o funil já aqui, junto com o runtime: a cópia publicada no CDN do Storage, sem esperar o servidor. -->
+<script>
+(function(){
+  try {
+    var q = new URLSearchParams(location.search), s = q.get('f') || q.get('funil') || '';
+    if (!s) q.forEach(function(v, k){ if (!s && v === '' && /^[a-z0-9][a-z0-9-]*$/i.test(k)) s = k });
+    if (!s && location.hash.length > 1) s = decodeURIComponent(location.hash.slice(1));
+    if (!s) { var m = /^\/([a-z0-9][a-z0-9-]{0,59})\/?$/i.exec(location.pathname); if (m) s = m[1] }
+    s = s.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    var api = window.FN_HOST && window.FN_HOST.api;
+    if (s && api) window.FN_BOOT = {slug: s, data: fetch(api.replace(/\/functions\/v1\/.*$/, '') + '/storage/v1/object/public/funis/publicados/' + s + '.json')
+      .then(function(r){ return r.ok ? r.json() : null }).catch(function(){ return null })};
+  } catch (e) {}
+})();
+</script>
 <title>Carregando…</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -22,12 +37,12 @@ html,body{margin:0;min-height:100%;background:var(--page-bg,#ffffff)}
 .msg{flex:1;display:grid;place-items:center;text-align:center;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;color:#475569;padding:24px}
 .msg b{display:block;font-size:18px;color:#0f172a;margin-bottom:4px}
 </style>
-<script src="runtime.js"></script>
+<script src="runtime.js" defer></script>
 </head>
 <body>
 <div id="app"><div class="boot"><i></i></div></div>
 <script>
-(function(){
+document.addEventListener('DOMContentLoaded', function(){
 'use strict';
 const FR = window.FunnelRuntime;
 const API = (window.FN_HOST && window.FN_HOST.api) || '';
@@ -51,9 +66,14 @@ async function api(op, body, opt){
   if (!r.ok) { const e = new Error(j.error || ('Erro ' + r.status)); e.status = r.status; throw e }
   return j;
 }
+// funis-cdn: grava/confere a cópia do funil no CDN (ver supabase/functions/funis-cdn).
+const CDN_SYNC = API ? API.replace(/funis-api$/, 'funis-cdn') : '';
+const cdnSync = body => { if (CDN_SYNC) fetch(CDN_SYNC, {method: 'POST', headers: {'content-type': 'text/plain;charset=UTF-8'}, body: JSON.stringify(Object.assign({slug}, body)), keepalive: true}).catch(() => {}) };
 async function loadFunnel(){
   if (API) {
-    try { const j = await api('public.funnel', {slug}); return {funnel: j.funnel, live: true} }
+    const boot = window.FN_BOOT && window.FN_BOOT.slug === slug ? await window.FN_BOOT.data : null;
+    if (boot && Array.isArray(boot.steps) && boot.steps.length) return {funnel: boot, live: true, v: boot.published_at || ''};
+    try { const j = await api('public.funnel', {slug}); cdnSync({}); return {funnel: j.funnel, live: true} }
     catch (e) { if (e.status === 404) throw e; console.warn('API indisponível, usando o arquivo estático.', e) }
   }
   const r = await fetch(`data/${slug}.json`, {cache: 'no-cache'});
@@ -209,10 +229,11 @@ function tracker(live){
     onEvent: ev => { T.push(Object.assign({}, ev, {vars: undefined})); if (ev.type === 'step') layerPush(ev); else if (ev.type === 'complete' && ev.url) layerPush(ev, ev.url); if (ev.type === 'answer' || ev.type === 'click') checkIcp(ev) },
     beforeRedirect: () => Promise.race([T.flush(true), new Promise(r => setTimeout(r, 1500))]),
   });
+  if (got.v !== undefined) setTimeout(() => cdnSync({v: got.v}), 2500);
   addEventListener('pagehide', () => T.beacon());
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') T.beacon() });
 })();
-})();
+});
 </script>
 </body>
 </html>
