@@ -296,6 +296,16 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .pt-ban small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}.pt-ban.late{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}
 .pt-act{display:flex;gap:6px;flex-wrap:wrap}
 .pt-panel{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
+.al-bar{position:sticky;top:0;z-index:35;display:flex;gap:12px;align-items:flex-start;padding:11px 14px;margin:0 0 14px;border-radius:12px;background:var(--accent);color:#fff;box-shadow:var(--shadow);animation:alPulse 1.6s ease-in-out infinite}
+.al-bar.hot{background:#c92a2a;animation-name:alPulseHot}
+.al-ic{padding-top:1px;flex:none}.al-rows{display:grid;gap:6px;flex:1;min-width:0}.al-row{display:flex;gap:6px 10px;align-items:center;flex-wrap:wrap}
+.al-name{font-weight:800;overflow-wrap:anywhere}.al-age{opacity:.92;font-size:12.5px}.al-act{margin-left:auto;display:flex;gap:6px}.al-more{font-size:12px;opacity:.9}.al-tools{flex:none}
+.al-bar .btn{background:#fff;color:#14161b;border-color:transparent}.al-bar .btn.ghost{background:rgba(255,255,255,.2);color:#fff}
+@keyframes alPulse{0%,100%{box-shadow:0 0 0 0 rgba(217,72,15,.6)}50%{box-shadow:0 0 0 9px rgba(217,72,15,0)}}
+@keyframes alPulseHot{0%,100%{box-shadow:0 0 0 0 rgba(201,42,42,.65)}50%{box-shadow:0 0 0 9px rgba(201,42,42,0)}}
+.card.fresh{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 38%,transparent);animation:alCard 1.8s ease-in-out infinite}
+@keyframes alCard{50%{box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 10%,transparent)}}
+.al-panel{border-color:var(--accent)}
 .ag-tools{display:flex;gap:12px 18px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .ag-main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:14px;align-items:start}
 @media (max-width:1060px){.ag-main{grid-template-columns:minmax(0,1fr)}}
@@ -511,6 +521,7 @@ const DEFAULT_CONFIG = {
   commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
   handoffOnDone: true,
   printTimer: {on: true, minutes: 60, start: '09:00', end: '19:00', skipWeekends: true},
+  alerts: {newLead: true, sound: true, newLeadHours: 6, slaMin: 5, repeatMin: 2},
   agenda: {days: [1, 2, 3, 4, 5], start: '09:00', end: '18:00', lunchFrom: '12:00', lunchTo: '13:30', duration: 30, step: 30, minNoticeH: 2, holdWarnH: 24, showTitles: false},
   ideal: {ctr: 2, cpl: 40, desq: 35, booking: 15, show: 75, close: 30, onTime: 90, firstTouch: 15, sla5: 80},
   cadence: [
@@ -612,7 +623,7 @@ let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
 let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null;
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -685,7 +696,7 @@ function createLead(d){
   const lead = {
     name: d.name || 'Lead sem nome', company: d.company || '', phone: d.phone || '', email: d.email || '', instagram: d.instagram || '',
     source: d.source || '', notes: d.notes || '', value: d.value ? Number(d.value) || null : null, revenue: d.revenue ? Number(String(d.revenue).replace(/\D/g, '')) || null : null,
-    ownerId: d.ownerId || '', stage, createdAt: d.createdAt || now, updatedAt: now, stageAt: now, history: [{s: stage, at: now}],
+    ownerId: d.ownerId || '', stage, createdAt: d.createdAt || now, updatedAt: now, stageAt: now, ackAt: now, history: [{s: stage, at: now}],
     touches: buildCadence(today()), bookedAt: null, meetingAt: null, meetingDoneAt: null, closedAt: null, lostReason: '',
     contact: d.contact || '', pain: d.pain || '', team: d.team || '',
   };
@@ -874,6 +885,7 @@ function viewHoje(){
   ${exampleBanner()}
   <div class="g-hoje">
     <div class="stack">
+      ${freshPanelHTML(leads)}
       ${ptCfg().on ? printPanelHTML(leads) : ''}
       ${waiting.length ? `<section class="panel"><div class="panel-h"><h2>Aguardando resposta no WhatsApp</h2><span class="sub">Ideal: responder em até 5 minutos</span></div><div class="panel-b"><div class="rows">${waiting.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)} <span class="chip ${Date.now() - new Date(l.wa.waitingSince) > 3e5 ? 'late' : 'today'}">há ${minsAgo(l.wa.waitingSince)}</span></div><div class="row-s">${esc(l.wa.lastSnippet || '')}</div></div>${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Responder</a>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('')}</div></div></section>` : ''}
       <section class="panel"><div class="panel-h"><h2>Cadência de toques</h2><span class="sub">Marque na hora em que fizer o contato</span></div><div class="panel-b">
@@ -913,8 +925,8 @@ function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
-  return `<article class="card" draggable="true" data-drag="${l.id}" data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
+  const chips = freshChip(l) + printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  return `<article class="card ${freshOf(l) ? 'fresh' : ''}" draggable="true" data-drag="${l.id}" data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
     <div class="card-foot">${avatar(l.ownerId)}${tt.length ? `<span class="dots" title="${dn} de ${tt.length} toques feitos">${tt.map(t => `<i class="${t.done ? 'on' : ''}"></i>`).join('')}</span>` : ''}${l.example ? '<span class="chip ex">Exemplo</span>' : ''}<span class="age ${ds >= 3 && act ? 'stale' : ''}" title="Dias nesta etapa">${ds}d na etapa</span></div>
@@ -1792,8 +1804,8 @@ function printBanner(l, id){
 function printPanelHTML(leads){
   const list = leads.filter(isPrintWait).sort((a, b) => a.printDue.localeCompare(b.printDue));
   if (!list.length) return '';
-  const late = list.filter(l => printMs(l) <= 0).length, canNotify = typeof Notification !== 'undefined' && Notification.permission === 'default';
-  return `<section class="panel pt-panel"><div class="panel-h"><h2>Print para enviar</h2><span class="sub">${late ? late + ' na hora de enviar · ' : ''}${list.length} lead${list.length > 1 ? 's' : ''} em “Link recebido”</span>${canNotify ? '<button class="btn sm ghost" data-a="notif-on" title="O navegador avisa quando o prazo de um print vencer, com a aba aberta">Ativar avisos</button>' : ''}</div><div class="panel-b"><div class="rows">
+  const late = list.filter(l => printMs(l) <= 0).length, canNotify = (typeof Notification !== 'undefined' && Notification.permission === 'default') || (alSoundOn() && !alAudioReady());
+  return `<section class="panel pt-panel"><div class="panel-h"><h2>Print para enviar</h2><span class="sub">${late ? late + ' na hora de enviar · ' : ''}${list.length} lead${list.length > 1 ? 's' : ''} em “Link recebido”</span>${canNotify ? '<button class="btn sm ghost" data-a="al-unlock" title="Libera o som e as notificações do navegador">Ativar som e avisos</button>' : ''}</div><div class="panel-b"><div class="rows">
     ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${printChip(l)}</div><div class="row-s">${l.linkAt ? 'link recebido há ' + minsAgo(l.linkAt) : 'link recebido'}${l.contact ? ' · ' + esc(l.contact) : ''}</div></div>
       ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
       <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button></div>`).join('')}
@@ -1812,20 +1824,127 @@ function printSnooze(id){
   const l = clone(cur), at = Math.max(Date.now(), +new Date(l.printDue)) + 30 * 60e3; l.printDue = new Date(at).toISOString(); l.updatedAt = iso(); put('leads', id, l);
   toast('Print adiado para ' + clockOf(l.printDue));
 }
-// Vigia o prazo com o site aberto: avisa na tela e (se o usuário ativou) pelo navegador, e mostra no título da aba.
-const PT_ALERTED = new Set(); let PT_TITLE = '';
-function printWatch(){
-  if (!loaded()) return;
-  const me = validMe(), due = leadsArr().filter(l => isPrintWait(l) && printMs(l) <= 0 && (!me || !l.ownerId || l.ownerId === me));
-  const fresh = due.filter(l => !PT_ALERTED.has(l.id + '|' + l.printDue));
-  fresh.forEach(l => PT_ALERTED.add(l.id + '|' + l.printDue));
-  if (fresh.length){
-    toast('Hora de enviar o print: ' + fresh.slice(0, 2).map(l => l.name).join(', ') + (fresh.length > 2 ? ' e mais ' + (fresh.length - 2) : ''), 'err');
-    try { if (typeof Notification !== 'undefined' && Notification.permission === 'granted') fresh.forEach(l => new Notification('Hora de enviar o print', {body: l.name, tag: 'print-' + l.id})) } catch {}
-  }
-  try { if (!PT_TITLE) PT_TITLE = document.title || 'Central Comercial Brase'; document.title = (due.length ? `(${due.length}) Enviar print · ` : '') + PT_TITLE } catch {}
-  if (leadsArr().some(isPrintWait)) scheduleRender();
+/* ---------- avisos: lead novo e prazo do print ---------- */
+// Com o site aberto: faixa colorida e pulsando no topo de qualquer tela, card destacado no quadro, som, título da aba piscando e
+// notificação do navegador. Lead novo = etapa Lead Novo, sem o 1º toque feito, entrou nas últimas N horas. Some quando o SDR atende
+// (marca o 1º toque ou muda a etapa). O som é por dispositivo (Auto: só liga para quem está como SDR).
+const AL_KEY = 'brase.alerts';
+const alMode = () => { const v = ls.get(AL_KEY); return v === 'on' || v === 'off' ? v : 'auto' };
+function alSoundOn(){
+  const m = alMode(); if (m === 'off' || !cfg().alerts.sound) return false;
+  if (m === 'on') return true;
+  const me = validMe(); return !!me && !!S.sellers[me] && S.sellers[me].role === 'SDR';
 }
+let AL_AUDIO = null, AL_FRESH = new Map(), AL_ITEMS = [], AL_MUTE_UNTIL = 0, AL_LAST_BEEP = 0, AL_LAST_RENDER = 0, AL_BLINK = false, AL_TITLE = '';
+const AL_SEEN = new Set();
+const alAudioReady = () => !!AL_AUDIO && AL_AUDIO.state === 'running';
+function alUnlock(){
+  try {
+    if (!AL_AUDIO){ const C = window.AudioContext || window.webkitAudioContext; if (C) AL_AUDIO = new C() }
+    if (AL_AUDIO && AL_AUDIO.state === 'suspended') AL_AUDIO.resume().catch(() => {});
+  } catch {}
+}
+// Três notas subindo para lead novo; três toques iguais e mais graves para o print.
+function alBeep(kind){
+  if (!alAudioReady()) return false;
+  const seq = kind === 'print' ? [[740, 0], [740, .24], [740, .48]] : [[660, 0], [880, .17], [1175, .34]], t0 = AL_AUDIO.currentTime + 0.02;
+  try {
+    seq.forEach(([f, dt]) => {
+      const o = AL_AUDIO.createOscillator(), g = AL_AUDIO.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t0 + dt); g.gain.exponentialRampToValueAtTime(0.3, t0 + dt + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.2);
+      o.connect(g); g.connect(AL_AUDIO.destination); o.start(t0 + dt); o.stop(t0 + dt + 0.22);
+    });
+    return true;
+  } catch { return false }
+}
+function freshLeads(){
+  const A = cfg().alerts; if (!A.newLead) return [];
+  const me = validMe(), lim = Date.now() - A.newLeadHours * 36e5;
+  return leadsArr().filter(l => l.stage === 'novo' && !l.example && !l.ackAt && !l.handoff && l.createdAt && +new Date(l.createdAt) >= lim && !(l.touches && l.touches[0] && l.touches[0].done) && (!me || !l.ownerId || l.ownerId === me))
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+function alertItems(){
+  const out = [], now = Date.now(), A = cfg().alerts, me = validMe();
+  if (ptCfg().on) leadsArr().filter(l => isPrintWait(l) && printMs(l) <= 0 && (!me || !l.ownerId || l.ownerId === me)).sort((a, b) => a.printDue.localeCompare(b.printDue))
+    .forEach(l => out.push({k: 'print', id: l.id, key: 'print|' + l.id + '|' + l.printDue, name: l.name, phone: l.phone, age: now - +new Date(l.printDue), late: true}));
+  freshLeads().forEach(l => { const age = now - +new Date(l.createdAt); out.push({k: 'new', id: l.id, key: 'new|' + l.id, name: l.name, phone: l.phone, age, late: age > A.slaMin * 60e3}) });
+  return out;
+}
+function alRefresh(){
+  AL_ITEMS = alertItems(); AL_FRESH = new Map(AL_ITEMS.filter(i => i.k === 'new').map(i => [i.id, i]));
+  return AL_ITEMS;
+}
+const freshOf = l => AL_FRESH.has(l.id);
+function freshChip(l){ const i = AL_FRESH.get(l.id); return i ? `<span class="chip ${i.late ? 'late' : 'today'}" title="Lead novo esperando o 1º contato">novo · há ${durTxt(i.age)}</span>` : '' }
+const AL_BELL = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0"/></svg>';
+// Faixa fixa no topo de qualquer tela enquanto houver lead novo esperando ou print vencido.
+function alertBarHTML(){
+  const items = AL_ITEMS; if (!items.length) return '';
+  const hot = items.some(i => i.late), need = alSoundOn() && !alAudioReady(), muted = Date.now() < AL_MUTE_UNTIL;
+  const rows = items.slice(0, 3).map(i => `<div class="al-row"><b>${i.k === 'print' ? 'Hora de enviar o print' : 'Lead novo'}:</b> <span class="al-name">${esc(i.name)}</span> <span class="al-age">${i.k === 'print' ? 'venceu há ' + durTxt(i.age) : 'entrou há ' + durTxt(i.age) + (i.late ? ' · passou de ' + cfg().alerts.slaMin + ' min' : '')}</span>
+    <span class="al-act">${i.phone ? `<a class="btn sm" href="${attr(waLink(i.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}<button class="btn sm" data-a="open-lead" data-id="${attr(i.id)}">Abrir</button></span></div>`).join('');
+  return `<div class="al-bar ${hot ? 'hot' : ''}" role="alert"><span class="al-ic">${AL_BELL}</span><div class="al-rows">${rows}${items.length > 3 ? `<div class="al-more">e mais ${items.length - 3} aguardando</div>` : ''}</div>
+    <span class="al-tools">${need ? '<button class="btn sm" data-a="al-unlock">Liberar o som</button>' : alSoundOn() ? `<button class="btn sm ghost" data-a="al-mute" title="Para de apitar por 15 minutos (a faixa continua)">${muted ? 'Silenciado' : 'Silenciar 15 min'}</button>` : ''}</span></div>`;
+}
+// Painel no Hoje com os leads novos esperando o 1º contato.
+function freshPanelHTML(leads){
+  alRefresh();
+  const list = leads.filter(l => AL_FRESH.has(l.id)); if (!list.length) return '';
+  const late = list.filter(l => AL_FRESH.get(l.id).late).length;
+  return `<section class="panel al-panel"><div class="panel-h"><h2>Atender agora</h2><span class="sub">${list.length} lead${list.length > 1 ? 's' : ''} novo${list.length > 1 ? 's' : ''} sem 1º contato${late ? ' · ' + late + ' passou de ' + cfg().alerts.slaMin + ' min' : ''}</span></div><div class="panel-b"><div class="rows">
+    ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${freshChip(l)}</div><div class="row-s">${[l.contact, l.company].filter(Boolean).map(esc).join(' · ') || 'Entrou ' + minsAgo(l.createdAt) + ' atrás'}</div></div>
+      ${l.phone ? `<a class="btn sm primary" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
+      ${ptCfg().on ? `<button class="btn sm hide-sm" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button>` : ''}</div>`).join('')}
+    </div><p class="hint" style="margin-top:8px">O aviso some quando você marca o 1º toque ou muda a etapa do lead. Ideal: primeiro contato em até ${cfg().alerts.slaMin} minutos.</p></div></section>`;
+}
+// Vigia a cada 10 s: apita quando surge um aviso novo e repete enquanto houver pendência; pisca o título da aba.
+function alertWatch(){
+  if (!loaded()) return;
+  const items = alRefresh(), now = Date.now(), A = cfg().alerts, sound = alSoundOn() && now >= AL_MUTE_UNTIL;
+  const fresh = items.filter(i => !AL_SEEN.has(i.key)); fresh.forEach(i => AL_SEEN.add(i.key));
+  if (fresh.length){
+    if (sound) { alBeep(fresh.some(i => i.k === 'print') ? 'print' : 'new'); AL_LAST_BEEP = now }
+    toast((fresh[0].k === 'print' ? 'Hora de enviar o print: ' : 'Lead novo: ') + fresh.slice(0, 2).map(i => i.name).join(', ') + (fresh.length > 2 ? ' e mais ' + (fresh.length - 2) : ''), 'err');
+    try {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && alMode() !== 'off') fresh.slice(0, 3).forEach(i => {
+        const n = new Notification(i.k === 'print' ? 'Hora de enviar o print' : 'Lead novo', {body: i.name, tag: i.key, requireInteraction: true});
+        n.onclick = () => { try { window.focus(); n.close() } catch {} openLead(i.id) };
+      });
+    } catch {}
+  } else if (items.length && sound && A.repeatMin > 0 && now - AL_LAST_BEEP >= A.repeatMin * 6e4){ alBeep(items[0].k); AL_LAST_BEEP = now }
+  if (items.length || leadsArr().some(isPrintWait)){ if (now - AL_LAST_RENDER >= 25e3){ AL_LAST_RENDER = now; scheduleRender() } else if (fresh.length) scheduleRender() }
+  if (!items.length) alTitle(false);
+}
+const printWatch = alertWatch;
+function alTitle(on){
+  try {
+    if (!AL_TITLE) AL_TITLE = document.title || 'Central Comercial Brase';
+    document.title = on ? (AL_BLINK ? `🔔 (${AL_ITEMS.length}) ${AL_ITEMS[0].k === 'print' ? 'Enviar print' : 'Lead novo'}!` : `(${AL_ITEMS.length}) ${AL_TITLE}`) : AL_TITLE;
+  } catch {}
+}
+function alBlink(){ if (!AL_ITEMS.length) return; AL_BLINK = !AL_BLINK; alTitle(true) }
+// Tela Configurações › Avisos
+function alConfigHTML(){
+  const A = cfg().alerts, mode = alMode(), perm = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+  const permTxt = perm === 'granted' ? 'liberadas' : perm === 'denied' ? 'bloqueadas no navegador (libere no cadeado da barra de endereço)' : perm === 'unsupported' ? 'indisponíveis neste navegador' : 'ainda não liberadas';
+  return `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:16px;max-width:760px">
+    <p class="hint">Quando entra um lead novo ou vence o prazo do print, o site mostra uma faixa colorida no topo, destaca o card no quadro, apita e pisca o título da aba. Funciona com o site aberto no navegador (pode estar em segundo plano).</p>
+    <div><h3 style="margin-bottom:8px">Neste dispositivo</h3><div class="fgrid three">
+      <label class="f">Som e notificações<select class="in" data-c="al-device" id="al-device"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>Automático (liga para quem está como SDR)</option><option value="on" ${mode === 'on' ? 'selected' : ''}>Sempre ligado</option><option value="off" ${mode === 'off' ? 'selected' : ''}>Desligado</option></select></label>
+    </div><div class="actions" style="margin-top:10px"><button class="btn sm" data-a="al-unlock">Liberar som e avisos do navegador</button><button class="btn sm ghost" data-a="al-test">Testar o som</button></div>
+    <p class="hint" style="margin-top:8px">Notificações do navegador: ${permTxt}. O navegador só toca som depois que você clica uma vez na página; use o botão acima ao abrir o site.</p></div>
+    <div><h3 style="margin-bottom:8px">Para toda a equipe</h3>
+      <label class="switch"><input type="checkbox" class="ck" data-c="cfg-al" data-k="newLead" ${A.newLead ? 'checked' : ''}> Avisar quando entrar um lead novo e ninguém tiver feito o 1º contato</label>
+      <label class="switch" style="margin-top:8px"><input type="checkbox" class="ck" data-c="cfg-al" data-k="sound" ${A.sound ? 'checked' : ''}> Tocar som nos avisos</label>
+      <div class="fgrid three" style="margin-top:12px">
+        <label class="f">Lead novo conta nas últimas (horas)<input class="in" type="number" min="1" max="72" step="1" data-c="cfg-al" data-k="newLeadHours" id="al-hours" value="${A.newLeadHours}"></label>
+        <label class="f">Ficar vermelho depois de (minutos)<input class="in" type="number" min="1" max="120" step="1" data-c="cfg-al" data-k="slaMin" id="al-sla" value="${A.slaMin}"></label>
+        <label class="f">Repetir o som a cada (minutos, 0 = não)<input class="in" type="number" min="0" max="60" step="1" data-c="cfg-al" data-k="repeatMin" id="al-repeat" value="${A.repeatMin}"></label>
+      </div></div>
+  </div></section>`;
+}
+
 function ptConfigHTML(c){
   const P = c.printTimer;
   return `<div style="border-top:1px solid var(--line);padding-top:14px;display:grid;gap:12px">
@@ -2215,7 +2334,7 @@ async function runDistribution(btn){
 }
 function viewConfig(){
   if (!loaded()) return loading();
-  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
+  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['avisos', 'Avisos'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
   const c = cfg(); let body = '';
   if (UI.cfgTab === 'distribuir'){
     const d = UI.dist, cands = distCandidates(), qty = Math.min(Math.max(1, +d.qty || 1), 100, cands.length);
@@ -2262,6 +2381,8 @@ function viewConfig(){
       </div>
       <p class="hint">Reunião realizada = card chega em Reunião Feita (ou direto em Fechado). Venda = card em Fechado. Vale o ciclo da data registrada no card: do dia de fechamento até o dia anterior ao fechamento do mês seguinte (com 10, o ciclo de 10/09 vai até 09/10). Mudar valores ou o dia recalcula todos os ciclos.</p>
     </div></section>`;
+  } else if (UI.cfgTab === 'avisos'){
+    body = alConfigHTML();
   } else if (UI.cfgTab === 'agenda'){
     body = agConfigHTML();
   } else if (UI.cfgTab === 'ideal'){
@@ -2359,7 +2480,8 @@ function navHTML(){
 function render(){
   const b = $('#board'), sl = b ? b.scrollLeft : 0;
   $('#nav').innerHTML = navHTML();
-  $('#view').innerHTML = VIEWS[UI.view]();
+  alRefresh();
+  $('#view').innerHTML = alertBarHTML() + VIEWS[UI.view]();
   const nb = $('#board'); if (nb) nb.scrollLeft = sl;
   renderDrawer(); renderModal();
 }
@@ -2384,6 +2506,9 @@ const ACT = {
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
   'link-received': t => linkReceived(t.dataset.id),
+  'al-unlock': () => { alUnlock(); try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(() => render()) } catch {} setTimeout(() => { if (alAudioReady()){ alBeep('new'); toast('Som e avisos liberados neste navegador') } else toast('Clique de novo se não ouvir o som', 'err'); render() }, 200) },
+  'al-mute': () => { AL_MUTE_UNTIL = Date.now() + 15 * 60e3; toast('Som silenciado por 15 minutos'); render() },
+  'al-test': () => { alUnlock(); setTimeout(() => { if (!alBeep('new')) toast('O navegador ainda não liberou o som: clique de novo', 'err') }, 200) },
   'print-sent': t => { printSent(t.dataset.id); toast('Print registrado') },
   'lead-replied': t => leadReplied(t.dataset.id),
   'print-snooze': t => printSnooze(t.dataset.id),
@@ -2500,6 +2625,12 @@ const CHG = {
     if (['duration', 'step', 'minNoticeH', 'holdWarnH'].includes(k)){ v = Number(v); if (!isFinite(v) || v < 0 || (k !== 'minNoticeH' && v < 1)) return }
     if (['start', 'end', 'lunchFrom', 'lunchTo'].includes(k)){ if (!/^\d\d:\d\d$/.test(v)) return; const n = {...A, [k]: v}; if (tmin(n.end) <= tmin(n.start)){ toast('O fim do expediente precisa ser depois do início.', 'err'); render(); return } }
     const p = saveCfg({agenda: {...A, [k]: v}}); if (k === 'showTitles') p.then(() => refreshCalendar(true));
+  },
+  'al-device': t => { ls.set(AL_KEY, t.value); toast('Salvo para este dispositivo'); render() },
+  'cfg-al': t => {
+    const k = t.dataset.k, A = cfg().alerts; let v = t.type === 'checkbox' ? t.checked : Number(t.value);
+    if (t.type !== 'checkbox'){ if (!isFinite(v) || v < (k === 'repeatMin' ? 0 : 1)) return; v = Math.round(v) }
+    saveCfg({alerts: {...A, [k]: v}});
   },
   'cfg-pt': t => {
     const k = t.dataset.k, P = cfg().printTimer; let v = t.type === 'checkbox' ? t.checked : t.value;
@@ -2672,9 +2803,12 @@ async function boot(){
   });
   render();
   if (UI.view === 'agenda') refreshCalendar(false, true);
-  setTimeout(printWatch, 1500);
+  setTimeout(alertWatch, 1500);
 }
-setInterval(printWatch, 20000);
+setInterval(alertWatch, 10000);
+setInterval(alBlink, 1000);
+document.addEventListener('pointerdown', alUnlock, {passive: true});
+document.addEventListener('keydown', alUnlock);
 setInterval(() => { if (UI.view === 'agenda' && !document.hidden && UI.calCode !== 'not_configured') refreshCalendar(false, true) }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.view === 'agenda' && UI.calCode !== 'not_configured') refreshCalendar(false, true) });
 boot();
