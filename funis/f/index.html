@@ -58,6 +58,13 @@ slug = slug.toLowerCase().replace(/[^a-z0-9-]/g, '');
 // Parâmetros que seguem para os links externos e o webhook (como no InLead): todos, menos o endereço do funil neste app.
 const urlParams = Object.assign({}, params); delete urlParams.f; delete urlParams.funil; if (urlParams[slug] === '') delete urlParams[slug];
 const app = document.getElementById('app');
+// Visita só quando a pessoa vê a tela: a Meta às vezes carrega a página escondida antes do clique (pré-carregamento).
+// Até ficar visível, a página já fica pronta, mas não registra a visita nem dispara o Pixel. Tocar em algo também conta.
+let seen = document.visibilityState !== 'hidden' && !document.prerendering;
+const onSeen = [];
+const markSeen = () => { if (seen) return; seen = true; onSeen.splice(0).forEach(fn => { try { fn() } catch (e) { console.error(e) } }) };
+const whenSeen = fn => { if (seen) fn(); else onSeen.push(fn) };
+if (!seen) { const chk = () => { if (document.visibilityState === 'visible' && !document.prerendering) markSeen() }; document.addEventListener('visibilitychange', chk); document.addEventListener('prerenderingchange', chk) }
 const show = (title, text) => { app.innerHTML = `<div class="msg"><div><b>${FR.esc(title)}</b>${FR.esc(text || '')}</div></div>` };
 
 async function api(op, body, opt){
@@ -110,6 +117,11 @@ function setup(f){
   if (px.gsv) meta('google-site-verification', px.gsv);
   document.documentElement.style.setProperty('--page-bg', d.backgroundColor || '#fff');
   const fl = document.createElement('link'); fl.rel = 'stylesheet'; fl.href = FR.fontsUrl(d); document.head.appendChild(fl);
+  whenSeen(() => tags(px));
+  if (s.scripts) { addHtml(s.scripts.head, document.head); addHtml(s.scripts.body, document.body) }
+}
+// Pixel da Meta, Google Analytics e Tag Manager (só depois que a pessoa vê a tela).
+function tags(px){
   if (px.facebook) {
     !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
     String(px.facebook).split(/[\s,;]+/).filter(Boolean).forEach(id => window.fbq('init', id));
@@ -117,7 +129,6 @@ function setup(f){
   }
   if (px.ga4) { addScript('https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(px.ga4)); window.dataLayer = window.dataLayer || []; window.gtag = function(){ dataLayer.push(arguments) }; gtag('js', new Date()); gtag('config', px.ga4) }
   if (px.gtm) { window.dataLayer = window.dataLayer || []; dataLayer.push({'gtm.start': Date.now(), event: 'gtm.js'}); addScript('https://www.googletagmanager.com/gtm.js?id=' + encodeURIComponent(px.gtm)) }
-  if (s.scripts) { addHtml(s.scripts.head, document.head); addHtml(s.scripts.body, document.body) }
 }
 // Filtro de tráfego: só deixa entrar quem cumpre as regras.
 function blocked(f){
@@ -159,19 +170,26 @@ function tracking(){
 }
 function tracker(live){
   const sess = session(), queue = []; let sentTracking = !!sess.tracked, timer = 0, inflight = Promise.resolve();
+  // Carregada escondida: o que aconteceu até aqui (a abertura da capa) vale a partir de quando a pessoa vê.
+  if (!seen) whenSeen(() => { const now = Date.now(); queue.forEach(e => { e.at = now }); flush(true) });
   const payload = () => { const evs = queue.splice(0); const b = {slug, session: sess.id, events: evs}; if (!sentTracking) { b.tracking = tracking(); sentTracking = true; sess.tracked = 1; saveSession(sess) } return b };
   function flush(keepalive){
     clearTimeout(timer);
-    if (!live || !queue.length) return inflight;
+    if (!live || !seen || !queue.length) return inflight;
     const b = payload();
     inflight = inflight.then(() => api('public.track', b, {keepalive: !!keepalive}).catch(e => console.warn('Falha ao registrar', e)));
     return inflight;
   }
   return {
     code: sess.id,
-    push(ev){ if (!live) return; queue.push(ev); clearTimeout(timer); timer = setTimeout(() => flush(true), ev.type === 'click' || ev.type === 'complete' ? 0 : 500) },
+    push(ev){
+      if (!live) return;
+      if (ev.type === 'click' || ev.type === 'answer') markSeen();
+      queue.push(ev); clearTimeout(timer);
+      if (seen) timer = setTimeout(() => flush(true), ev.type === 'click' || ev.type === 'complete' ? 0 : 500);
+    },
     flush,
-    beacon(){ if (!live || !queue.length) return; const b = JSON.stringify(Object.assign({op: 'public.track'}, payload())); try { if (!navigator.sendBeacon(API, new Blob([b], {type: 'text/plain'}))) throw 0 } catch (e) { fetch(API, {method: 'POST', body: b, keepalive: true, headers: {'content-type': 'text/plain;charset=UTF-8'}}).catch(() => {}) } },
+    beacon(){ if (!live || !seen || !queue.length) return; const b = JSON.stringify(Object.assign({op: 'public.track'}, payload())); try { if (!navigator.sendBeacon(API, new Blob([b], {type: 'text/plain'}))) throw 0 } catch (e) { fetch(API, {method: 'POST', body: b, keepalive: true, headers: {'content-type': 'text/plain;charset=UTF-8'}}).catch(() => {}) } },
   };
 }
 
