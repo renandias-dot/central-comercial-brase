@@ -142,6 +142,8 @@ O editor e todas as funções da equipe (leads, webhook, integrações, apagar) 
 
 Apagar os leads de um funil ou excluir um funil exige, no servidor, o endereço do funil como confirmação. Código errado espera um pouco antes de responder, para atrasar quem tenta adivinhar.
 
+Bloqueio por tentativas (tabela `fn_auth_fails`): 10 códigos errados do mesmo IP em 15 minutos travam esse IP por 15 minutos, mesmo com o código certo. Se a soma de erros de todos os IPs passar de 100 na última hora, o editor trava para todo mundo até a contagem baixar (protege contra quem troca de IP). Acertar o código zera a contagem do IP. A página pública do funil nunca é afetada. Para destravar na hora: `update fn_auth_fails set fails = 0, locked_until = null, window_start = now() - interval '2 hours';` no SQL do Supabase.
+
 ### Domínio próprio (Cloudflare Pages)
 
 O domínio `brasemarketing.com.br` já está na Cloudflare (o e-mail continua no Google Workspace). O repositório tem o que a Cloudflare Pages precisa:

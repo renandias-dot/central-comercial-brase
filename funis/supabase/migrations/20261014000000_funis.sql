@@ -152,3 +152,13 @@ create table if not exists fn_config (
   updated_at timestamptz not null default now()
 );
 alter table fn_config enable row level security;
+
+-- Tentativas erradas do código de acesso do editor, por IP: 10 erros em 15 min bloqueiam aquele IP por 15 min;
+-- 100 erros somados na última hora (de vários IPs) bloqueiam todo mundo até a soma baixar. Acertar zera o IP.
+create table if not exists fn_auth_fails (
+  ip text primary key,
+  fails integer not null default 0,
+  window_start timestamptz not null default now(),
+  locked_until timestamptz
+);
+alter table fn_auth_fails enable row level security;

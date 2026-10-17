@@ -49,6 +49,28 @@ async function setCode(code: string){
     on conflict (k) do update set v = excluded.v, updated_at = now()`;
   codeCache = {at: 0, v: null};
 }
+/* ---------- tentativas erradas do código (bloqueio) ---------- */
+// 10 erros do mesmo IP em 15 min: aquele IP fica 15 min sem poder entrar (nem com o código certo).
+// 100 erros somados na última hora, de qualquer IP: o editor fica bloqueado para todos até a conta baixar.
+// Acertar o código zera o IP. Os erros ficam na tabela fn_auth_fails.
+const IP_FAILS = 10, IP_WINDOW = 15, IP_LOCK = 15, ALL_FAILS = 100;
+const clientIp = (req: Request) => ((req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || '?').slice(0, 64);
+async function authState(ip: string){
+  const [r] = await sql`
+    select (select fails from fn_auth_fails where ip = ${ip}) as fails,
+           (select ceil(extract(epoch from locked_until - now()) / 60)::int from fn_auth_fails where ip = ${ip} and locked_until > now()) as wait,
+           (select coalesce(sum(fails), 0)::int from fn_auth_fails where window_start > now() - interval '1 hour') as total`;
+  return {fails: Number(r.fails) || 0, wait: Number(r.wait) || 0, total: Number(r.total) || 0};
+}
+async function authFailed(ip: string){
+  await sql`
+    insert into fn_auth_fails as a (ip, fails, window_start) values (${ip}, 1, now())
+    on conflict (ip) do update set
+      fails = case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then 1 else a.fails + 1 end,
+      window_start = case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then now() else a.window_start end,
+      locked_until = case when (case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then 1 else a.fails + 1 end) >= ${IP_FAILS}
+                          then now() + make_interval(mins => ${IP_LOCK}) else a.locked_until end`;
+}
 // Apagar exige repetir o endereço do funil (proteção contra chamada por engano).
 function confirmSlug(f: Row, b: Row){ if (String(b.confirm || '') !== f.slug) throw bad('Para apagar, confirme com o endereço do funil.') }
 
@@ -501,7 +523,11 @@ Deno.serve(async req => {
   const op = String(body.op || '');
   try {
     if (PUBLIC[op]) return reply(200, await PUBLIC[op](body, req));
-    if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
+    const ip = clientIp(req), st = await authState(ip);
+    if (st.wait > 0) return reply(429, {error: `Muitas tentativas com o código errado. Tente de novo em ${st.wait} min.`});
+    if (st.total >= ALL_FAILS) return reply(429, {error: 'Muitas tentativas com o código errado no momento. Tente de novo mais tarde.'});
+    if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await authFailed(ip); await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
+    if (st.fails) await sql`delete from fn_auth_fails where ip = ${ip}`;
     const fn = ops[op];
     if (!fn) return reply(400, {error: 'Operação desconhecida.'});
     return reply(200, await fn(body));
