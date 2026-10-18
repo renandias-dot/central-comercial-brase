@@ -1,0 +1,25 @@
+{
+  "id": "./",
+  "name": "Central Comercial Brase",
+  "short_name": "Brase CRM",
+  "description": "CRM da Brase: leads novos, tarefas do dia, funil e agenda no celular.",
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f1f2f4",
+  "theme_color": "#d9480f",
+  "categories": ["business", "productivity"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "shortcuts": [
+    {"name": "Hoje", "short_name": "Hoje", "description": "Toques e leads de hoje", "url": "./#hoje", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Pipeline", "short_name": "Pipeline", "description": "Funil de leads", "url": "./#pipeline", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]},
+    {"name": "Agenda", "short_name": "Agenda", "description": "Horários livres para oferecer", "url": "./#agenda", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png"}]}
+  ]
+}

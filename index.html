@@ -4,8 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<script>if (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) < 0) location.replace('https:' + location.href.slice(5));</script>
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)">
+<meta name="application-name" content="Brase CRM">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brase CRM">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "43dd10b696";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -484,6 +496,94 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 @keyframes sh{to{background-position:-200% 0}}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;background:var(--ink);color:var(--surface);padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
 #toast.err{background:var(--crit);color:#fff}
+/* ---------- celular: aplicativo instalado ou site aberto no telefone ---------- */
+.tabbar,#sheet-host,.stagebar,.pipe-tools{display:none}
+.row-act{display:contents}
+.btn.wa{color:var(--good)}
+.btn.wa svg{width:16px;height:16px;flex:none}
+.card-wa{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:11px;background:var(--good-soft);color:var(--good);margin-left:6px;flex:none}
+.card-wa svg{width:20px;height:20px}
+.dq{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.dq .btn{height:50px;font-size:15.5px;border-radius:12px}
+.dq .btn.wa{background:var(--good);border-color:var(--good);color:#fff}
+.dq .btn.wa svg{width:20px;height:20px}
+.ib{display:flex;align-items:center;gap:10px;padding:12px 14px;margin-bottom:14px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:12px}
+.ib.upd{border-color:var(--good);background:var(--good-soft)}
+.ib-t{flex:1;min-width:0;display:grid;gap:2px}
+.ib-t b{font-size:14px}
+.ib-t span{font-size:12.5px;color:var(--ink-2)}
+.inst-steps{display:grid;gap:10px;margin:0;padding:0;list-style:none;counter-reset:st}
+.inst-steps li{counter-increment:st;display:flex;align-items:center;gap:12px;font-size:15px;line-height:1.35}
+.inst-steps li::before{content:counter(st);display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);font-weight:800;flex:none}
+.inst-steps svg{width:20px;height:20px;vertical-align:-4px;color:var(--accent-strong)}
+@media (max-width:600px){
+  body.sheet-open{overflow:hidden}
+  button,a,select,.card,.row-main,.sb-chip{touch-action:manipulation}
+  .nav{position:sticky;top:0;flex-wrap:nowrap;align-items:center;gap:10px;padding:calc(8px + env(safe-area-inset-top,0px)) 14px 8px}
+  .nav-list{display:none}
+  .nav-foot{margin-left:auto}
+  .nav-foot select{max-width:48vw;height:38px;font-size:15px}
+  .main{padding-inline:14px;padding-block:14px calc(92px + env(safe-area-inset-bottom,0px))}
+  .head h1,.day-hero h1{font-size:25px}
+  .head{margin-bottom:12px}
+  /* barra de abas, ao alcance do polegar */
+  .tabbar{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--surface);border-top:1px solid var(--line);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 22px -16px rgba(0,0,0,.4)}
+  .tab{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:52px;border:0;background:none;color:var(--muted);font:600 11px/1 var(--f-body);border-radius:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .tab svg{width:24px;height:24px}
+  .tab[aria-current="page"]{color:var(--accent-strong)}
+  .tab:active{background:var(--sunken)}
+  .tab-badge{position:absolute;top:1px;left:calc(50% + 4px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--accent);color:#fff;font:700 10.5px/18px var(--f-body);font-style:normal;text-align:center}
+  .tab-add{color:var(--ink-2)}
+  .tab-add b{display:grid;place-items:center;width:48px;height:48px;margin-top:-20px;border-radius:50%;background:var(--accent);color:#fff;box-shadow:0 8px 18px -8px var(--accent);border:3px solid var(--surface)}
+  .tab-add b svg{width:24px;height:24px}
+  #toast{bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+  /* controles maiores para o dedo; 16px nos campos evita o zoom automático do iPhone */
+  .btn{height:42px;padding:0 15px;font-size:14px}
+  .btn.sm{height:38px;padding:0 13px;font-size:13.5px}
+  .in{height:44px;font-size:16px}
+  textarea.in{font-size:16px}
+  .in.search{width:100%}
+  .icon-btn{width:38px;height:38px;font-size:20px}
+  .ck{width:24px;height:24px}
+  .seg button{padding:8px 13px;font-size:13.5px}
+  .row{gap:12px;padding:12px 0;flex-wrap:wrap}
+  .row-act{display:flex;flex-basis:100%;order:5;gap:8px;padding-left:36px;flex-wrap:wrap}
+  .row-act:empty{display:none}
+  .row-act .btn{border-color:var(--line-2)}
+  .row .btn.wa{width:44px;height:44px;padding:0;border-radius:12px;background:var(--good-soft);border-color:transparent}
+  .row .btn.wa span{display:none}
+  .row .btn.wa svg{width:22px;height:22px}
+  .day-hero .actions .btn.primary{display:none}
+  /* Pipeline: uma etapa por vez, em lista */
+  .pipe-tools{display:grid;gap:8px;margin-bottom:8px}
+  .stagebar{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;position:sticky;top:var(--navh,56px);z-index:15;margin:0 -14px 12px;padding:8px 14px;background:var(--bg);overscroll-behavior-x:contain}
+  .stagebar::-webkit-scrollbar{display:none}
+  .sb-chip{flex:none;display:inline-flex;align-items:center;gap:7px;height:38px;padding:0 13px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);font:600 13.5px/1 var(--f-body);white-space:nowrap;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  .sb-chip .dot{width:9px;height:9px;border-radius:3px;background:var(--c)}
+  .sb-chip b{font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+  .sb-chip[aria-selected="true"]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+  .sb-chip[aria-selected="true"] b{color:inherit;opacity:.7}
+  .sb-sep{flex:none;width:1px;background:var(--line-2);margin:6px 2px}
+  .stage-list{display:grid;gap:10px}
+  .stage-list .card{padding:13px}
+  /* folha "Mais" e ajuda de instalação */
+  #sheet-host{display:block}
+  .sheet-wrap{position:fixed;inset:0;z-index:60;background:rgba(8,10,14,.5);display:flex;align-items:flex-end}
+  .sheet{width:100%;max-height:90vh;overflow-y:auto;background:var(--surface);border-radius:20px 20px 0 0;padding:8px 16px calc(16px + env(safe-area-inset-bottom,0px));display:grid;gap:12px;animation:sheet-up .22s ease-out}
+  @keyframes sheet-up{from{transform:translateY(28px);opacity:0}to{transform:none;opacity:1}}
+  .sheet-grip{width:40px;height:4px;border-radius:2px;background:var(--line-2);margin:4px auto 2px}
+  .sheet-title{font:800 20px/1.1 var(--f-display);font-stretch:112%}
+  .sheet-h{font:700 11.5px/1 var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+  .sheet-rows{display:grid;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .sheet-row{display:flex;align-items:center;gap:12px;min-height:54px;padding:0 14px;border:0;border-top:1px solid var(--line);background:none;color:var(--ink);font:600 15px/1 var(--f-body);text-align:left;cursor:pointer;width:100%;-webkit-tap-highlight-color:transparent}
+  .sheet-row:first-child{border-top:0}
+  .sheet-row:active{background:var(--sunken)}
+  .sheet-row svg{width:21px;height:21px;flex:none;color:var(--muted)}
+  .sheet-row span{flex:1}
+  .sheet-row svg:last-child{width:16px;color:var(--line-2)}
+  .sheet-row.danger,.sheet-row.danger svg{color:var(--crit)}
+  .sheet-v{text-align:center}
+}
 </style>
 
 <div class="app">
@@ -492,6 +592,7 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 </div>
 <div id="drawer-host"></div>
 <div id="modal-host"></div>
+<div id="sheet-host"></div>
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <div id="tip" hidden></div>
 
@@ -598,6 +699,7 @@ const fmtK = n => n >= 1000 ? (n / 1000).toLocaleString('pt-BR', {maximumFractio
 const COL_MAX = 60;
 const daysSince = v => v ? Math.max(0, Math.floor((Date.now() - new Date(v)) / 864e5)) : 0;
 const fmtHours = h => h == null ? '—' : h < 1 ? Math.max(1, Math.round(h * 60)) + ' min' : h < 24 ? Math.floor(h) + 'h' + pad(Math.round((h % 1) * 60)) : (h / 24).toFixed(1).replace('.', ',') + ' dias';
+const telLink = phone => { let d = String(phone || '').replace(/\D/g, ''); if (!d) return ''; if (d.length <= 11) d = '55' + d; return 'tel:+' + d };
 const waLink = phone => { let d = String(phone || '').replace(/\D/g, ''); if (!d) return ''; if (d.length <= 11) d = '55' + d; return 'https://wa.me/' + d };
 const adjWeekend = s => { if (!cfg().skipWeekends) return s; const w = parseYmd(s).getDay(); return w === 6 ? addDays(s, 2) : w === 0 ? addDays(s, 1) : s };
 const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0]||'?')[0] + (p.length > 1 ? p[p.length-1][0] : '')).toUpperCase() };
@@ -615,6 +717,7 @@ const UI = {
   docId: null, docEdit: false, docQ: '',
   cfgTab: 'equipe',
   drawer: null, drawerFocus: null, modal: null,
+  sheet: null, update: false, stage: ls.get('brase.stage') || 'novo', sbCenter: true,
 };
 UI.owner = UI.me;
 let db = null, MCP = null;
@@ -841,9 +944,9 @@ function viewHoje(){
       <div class="row-t">${esc(l.name)}${kind === 'late' ? ` <span class="chip late">atrasado ${daysBetween(t.due, t0)}d</span>` : ''}${i === 0 && !t.done ? speedChip(l.createdAt) : ''}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div>
       <div class="row-s">T${i+1} · ${esc(t.title)}${l.contact ? ' · ' + esc(l.contact) : ''}${l.company ? ' · ' + esc(l.company) : ''}</div>
     </div>
-    ${l.stage === 'novo' && ptCfg().on ? `<button class="btn sm ghost hide-sm" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button>` : ''}
+    ${l.stage === 'novo' && ptCfg().on ? `<div class="row-act"><button class="btn sm ghost" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button></div>` : ''}
     <span class="hide-sm">${stagePill(l.stage)}</span>
-    ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
+    ${l.phone ? `<a class="btn sm ghost wa" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp" aria-label="Abrir conversa no WhatsApp">${IC.wa}<span>WhatsApp</span></a>` : ''}
     ${own ? '' : avatar(l.ownerId)}
   </div>`;
 
@@ -924,10 +1027,10 @@ function cardHTML(l){
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
   const chips = freshChip(l) + printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
-  return `<article class="card ${freshOf(l) ? 'fresh' : ''}" draggable="true" data-drag="${l.id}" data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
+  return `<article class="card ${freshOf(l) ? 'fresh' : ''}" ${PHONE() ? '' : `draggable="true" data-drag="${l.id}"`} data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
-    <div class="card-foot">${avatar(l.ownerId)}${tt.length ? `<span class="dots" title="${dn} de ${tt.length} toques feitos">${tt.map(t => `<i class="${t.done ? 'on' : ''}"></i>`).join('')}</span>` : ''}${l.example ? '<span class="chip ex">Exemplo</span>' : ''}<span class="age ${ds >= 3 && act ? 'stale' : ''}" title="Dias nesta etapa">${ds}d na etapa</span></div>
+    <div class="card-foot">${avatar(l.ownerId)}${tt.length ? `<span class="dots" title="${dn} de ${tt.length} toques feitos">${tt.map(t => `<i class="${t.done ? 'on' : ''}"></i>`).join('')}</span>` : ''}${l.example ? '<span class="chip ex">Exemplo</span>' : ''}<span class="age ${ds >= 3 && act ? 'stale' : ''}" title="Dias nesta etapa">${ds}d na etapa</span>${l.phone && PHONE() ? `<a class="card-wa" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" aria-label="Abrir conversa no WhatsApp">${IC.wa}</a>` : ''}</div>
   </article>`;
 }
 function boardHTML(){
@@ -951,6 +1054,7 @@ function viewPipeline(){
   if (!loaded()) return loading();
   const own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
   const open = leadsArr().filter(l => ACTIVE(l.stage) && (!own || l.ownerId === own)).length;
+  if (PHONE()) return phonePipelineHTML(open, own);
   return head('Pipeline', `${open} leads em aberto · arraste os cards entre as etapas ou abra um card para editar`,
     `<input class="in search" type="search" id="pipe-search" data-i="pipe-search" placeholder="Buscar nome, empresa, telefone…" value="${attr(UI.search)}" aria-label="Buscar leads">
      <select class="in auto" data-c="owner" aria-label="Filtrar por vendedor">${ownerOptions(own, 'Todos os vendedores')}</select>
@@ -977,7 +1081,7 @@ function drawerHTML(l, id){
     <button class="btn ghost sm" style="margin-left:auto" data-a="close-drawer">Fechar ✕</button>
   </div>
   <div class="drawer-b">
-    ${printBanner(l, id)}<div>
+    ${printBanner(l, id)}${l.phone && PHONE() ? `<div class="dq"><a class="btn wa" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">${IC.wa}WhatsApp</a><a class="btn" href="${attr(telLink(l.phone))}">Ligar</a></div>` : ''}<div>
       <input class="in big" data-c="lead-field" data-id="${id}" data-k="name" id="lf-name" value="${attr(l.name)}" aria-label="Nome do lead" placeholder="Nome do lead">
       <input class="in sub" data-c="lead-field" data-id="${id}" data-k="company" id="lf-company" value="${attr(l.company)}" aria-label="Empresa" placeholder="Empresa">
     </div>
@@ -1892,8 +1996,7 @@ function freshPanelHTML(leads){
   const late = list.filter(l => AL_FRESH.get(l.id).late).length;
   return `<section class="panel al-panel"><div class="panel-h"><h2>Atender agora</h2><span class="sub">${list.length} lead${list.length > 1 ? 's' : ''} novo${list.length > 1 ? 's' : ''} sem 1º contato${late ? ' · ' + late + ' passou de ' + cfg().alerts.slaMin + ' min' : ''}</span></div><div class="panel-b"><div class="rows">
     ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${freshChip(l)}</div><div class="row-s">${[l.contact, l.company].filter(Boolean).map(esc).join(' · ') || 'Entrou ' + minsAgo(l.createdAt) + ' atrás'}</div></div>
-      ${l.phone ? `<a class="btn sm primary" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}
-      ${ptCfg().on ? `<button class="btn sm hide-sm" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button>` : ''}</div>`).join('')}
+      <div class="row-act">${l.phone ? `<a class="btn sm primary" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">WhatsApp</a>` : ''}${ptCfg().on ? `<button class="btn sm" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button>` : ''}</div></div>`).join('')}
     </div><p class="hint" style="margin-top:8px">O aviso some quando você marca o 1º toque ou muda a etapa do lead. Ideal: primeiro contato em até ${cfg().alerts.slaMin} minutos.</p></div></section>`;
 }
 // Vigia a cada 10 s: apita quando surge um aviso novo e repete enquanto houver pendência; pisca o título da aba.
@@ -1902,13 +2005,10 @@ function alertWatch(){
   const items = alRefresh(), now = Date.now(), A = cfg().alerts, sound = alSoundOn() && now >= AL_MUTE_UNTIL;
   const fresh = items.filter(i => !AL_SEEN.has(i.key)); fresh.forEach(i => AL_SEEN.add(i.key));
   if (fresh.length){
-    if (sound) { alBeep(fresh.some(i => i.k === 'print') ? 'print' : 'new'); AL_LAST_BEEP = now }
+    if (sound) { alBeep(fresh.some(i => i.k === 'print') ? 'print' : 'new'); AL_LAST_BEEP = now; try { navigator.vibrate && navigator.vibrate([200, 100, 200]) } catch {} }
     toast((fresh[0].k === 'print' ? 'Hora de enviar o print: ' : 'Lead novo: ') + fresh.slice(0, 2).map(i => i.name).join(', ') + (fresh.length > 2 ? ' e mais ' + (fresh.length - 2) : ''), 'err');
     try {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && alMode() !== 'off') fresh.slice(0, 3).forEach(i => {
-        const n = new Notification(i.k === 'print' ? 'Hora de enviar o print' : 'Lead novo', {body: i.name, tag: i.key, requireInteraction: true});
-        n.onclick = () => { try { window.focus(); n.close() } catch {} openLead(i.id) };
-      });
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted' && alMode() !== 'off') fresh.slice(0, 3).forEach(alNotify);
     } catch {}
   } else if (items.length && sound && A.repeatMin > 0 && now - AL_LAST_BEEP >= A.repeatMin * 6e4){ alBeep(items[0].k); AL_LAST_BEEP = now }
   if (items.length || leadsArr().some(isPrintWait)){ if (now - AL_LAST_RENDER >= 25e3){ AL_LAST_RENDER = now; scheduleRender() } else if (fresh.length) scheduleRender() }
@@ -2466,9 +2566,155 @@ function viewConfig(){
     + `<div class="tabs" role="tablist">${tabs.map(([id, l]) => `<button role="tab" data-a="cfg-tab" data-v="${id}" aria-current="${UI.cfgTab === id}">${l}</button>`).join('')}</div>` + body;
 }
 
+/* ---------- celular: aplicativo instalável (PWA), barra de abas, instalação e versão nova ---------- */
+const PHONE = () => { try { return matchMedia('(max-width:600px)').matches } catch { return false } };
+const IS_APP = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } };
+const IS_IOS = (() => { try { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) } catch { return false } })();
+let INSTALL_EVT = null, VER_AT = Date.now();
+const svg = (d, fill) => `<svg viewBox="0 0 24 24" ${fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"'} aria-hidden="true">${d}</svg>`;
+const IC = {
+  more: svg('<circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/>', true),
+  plus: svg('<path d="M12 5v14M5 12h14"/>').replace('stroke-width="1.9"', 'stroke-width="2.6"'),
+  chev: svg('<path d="m9 6 6 6-6 6"/>'),
+  wa: svg('<path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8z"/>'),
+  dl: svg('<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/>'),
+  share: svg('<path d="M12 15V3M8 7l4-4 4 4"/><path d="M7 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/>'),
+  addbox: svg('<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/>'),
+  dots: svg('<circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/>', true),
+  refresh: svg('<path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/>'),
+  out: svg('<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 8l-4 4 4 4M6 12h10"/>'),
+};
+try {
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); INSTALL_EVT = e; scheduleRender() });
+  window.addEventListener('appinstalled', () => { INSTALL_EVT = null; UI.sheet = null; toast('App instalado. Abra pela tela inicial do celular.'); scheduleRender() });
+  matchMedia('(max-width:600px)').addEventListener('change', () => scheduleRender());
+} catch {}
+function registerSW(){
+  if (!HOST || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-lead' && S.leads[e.data.id]) openLead(e.data.id) });
+}
+// Ao voltar para o app, confere se saiu uma versão nova (no máximo a cada 5 minutos) e avisa, sem recarregar sozinho.
+async function checkVersion(force){
+  if (!HOST || !window.BRASE_BUILD || (!force && Date.now() - VER_AT < 5 * 60e3)) return;
+  VER_AT = Date.now();
+  try { const r = await fetch('./version.json', {cache: 'no-store'}), j = await r.json(); if (j && j.build && j.build !== window.BRASE_BUILD && !UI.update){ UI.update = true; scheduleRender() } } catch {}
+}
+try { document.addEventListener('visibilitychange', () => { if (!document.hidden) checkVersion() }); setInterval(() => checkVersion(), 30 * 60e3) } catch {}
+
+function tabbarHTML(){
+  const badge = loaded() ? todayCount(validMe()) : 0, v = UI.view, more = !['hoje', 'pipeline', 'agenda'].includes(v);
+  const tab = (id, label, ic, extra) => `<button class="tab" data-a="nav" data-v="${id}" ${v === id ? 'aria-current="page"' : ''}>${ic}<span>${label}</span>${extra || ''}</button>`;
+  return `<nav class="tabbar" aria-label="Menu do aplicativo">
+    ${tab('hoje', 'Hoje', I.sun, badge ? `<i class="tab-badge">${badge > 99 ? '99+' : badge}</i>` : '')}
+    ${tab('pipeline', 'Pipeline', I.cols)}
+    <button class="tab tab-add" data-a="new-lead" aria-label="Novo lead"><b>${IC.plus}</b><span>Novo</span></button>
+    ${tab('agenda', 'Agenda', I.cal)}
+    <button class="tab" data-a="more-open" ${more ? 'aria-current="page"' : ''}>${IC.more}<span>Mais</span></button>
+  </nav>`;
+}
+function sheetHTML(){
+  if (UI.sheet === 'more'){
+    const rows = [['comissao', 'Comissão', I.coin], ['analises', 'Análises', I.bars], ['trafego', 'Tráfego', I.target], ['processos', 'Processos', I.book], ['whatsapp', 'WhatsApp', I.chat], ['config', 'Configurações', I.gear]];
+    const row = (act, label, ic, extra) => `<button class="sheet-row ${extra || ''}" data-a="${act}">${ic}<span>${label}</span>${extra === 'danger' ? '' : IC.chev}</button>`;
+    return `<div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" aria-label="Mais opções">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <div class="sheet-rows">${rows.map(([id, l, ic]) => `<button class="sheet-row" data-a="nav" data-v="${id}">${ic}<span>${l}</span>${IC.chev}</button>`).join('')}</div>
+      <h3 class="sheet-h">Neste celular</h3>
+      <label class="f">Você está como<select class="in" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
+      <div class="sheet-rows">
+        ${IS_APP() ? '' : row('install-app', 'Instalar o app', IC.dl)}
+        ${row('al-unlock', 'Liberar som e avisos', AL_BELL)}
+        ${row('reload-app', 'Atualizar o app', IC.refresh)}
+        <button class="sheet-row danger" data-a="logout" data-confirm="Toque de novo para sair">${IC.out}<span>Sair deste celular</span></button>
+      </div>
+      ${window.BRASE_BUILD ? `<p class="hint sheet-v">Versão ${esc(window.BRASE_BUILD)}</p>` : ''}
+      <button class="btn" data-a="sheet-close">Fechar</button>
+    </section></div>`;
+  }
+  if (UI.sheet === 'install'){
+    const steps = IS_IOS
+      ? [`Abra este endereço no <b>Safari</b>.`, `Toque em <b>Compartilhar</b> ${IC.share} na barra de baixo.`, `Role e toque em <b>Adicionar à Tela de Início</b> ${IC.addbox}.`, `Toque em <b>Adicionar</b>. O ícone da Brase aparece na sua tela.`]
+      : [`Toque nos <b>três pontinhos</b> ${IC.dots} do navegador (canto de cima).`, `Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.`, `Confirme. O ícone da Brase aparece na sua tela.`];
+    return `<div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" aria-label="Instalar o app">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <h2 class="sheet-title">Instalar o app da Brase</h2>
+      <ol class="inst-steps">${steps.map(s => `<li><span>${s}</span></li>`).join('')}</ol>
+      <p class="hint">${IS_INSTALL_NOTE()}</p>
+      <button class="btn primary" data-a="sheet-close">Entendi</button>
+    </section></div>`;
+  }
+  return '';
+}
+const IS_INSTALL_NOTE = () => IS_IOS ? 'No iPhone, o app guarda o código de acesso só dentro dele: na primeira vez que abrir, digite o código da equipe de novo.' : 'Depois de instalado, abre em tela cheia, como qualquer outro app.';
+function renderSheet(){
+  const h = $('#sheet-host'); if (!h) return;
+  const html = PHONE() ? sheetHTML() : '';
+  if (h._k !== html){ h._k = html; h.innerHTML = html }
+  try { document.body.classList.toggle('sheet-open', !!html) } catch {}
+}
+function installBannerHTML(){
+  if (!HOST || !PHONE() || IS_APP() || UI.sheet) return '';
+  if (Date.now() - (+ls.get('brase.installDismiss') || 0) < 14 * 864e5) return '';
+  return `<div class="ib" role="region" aria-label="Instalar o app"><div class="ib-t"><b>Instale o app da Brase</b><span>Abre direto da tela inicial, sem barra de endereço.</span></div><button class="btn sm primary" data-a="install-app">Instalar</button><button class="icon-btn" data-a="install-later" aria-label="Agora não">×</button></div>`;
+}
+const updateBannerHTML = () => UI.update ? `<div class="ib upd" role="status"><div class="ib-t"><b>Tem versão nova do app</b><span>Atualize para receber as melhorias.</span></div><button class="btn sm primary" data-a="reload-app">Atualizar</button></div>` : '';
+// Notificação: no Android o navegador só aceita pelo service worker; no computador vale o jeito direto.
+function alNotify(i){
+  const title = i.k === 'print' ? 'Hora de enviar o print' : 'Lead novo';
+  const opt = {body: i.name, tag: i.key, requireInteraction: true, icon: './icons/icon-192.png', badge: './icons/icon-192.png', vibrate: [200, 100, 200, 100, 200], data: {id: i.id, url: './#hoje'}};
+  try { if (navigator.serviceWorker && navigator.serviceWorker.controller){ navigator.serviceWorker.ready.then(r => r.showNotification(title, opt)).catch(() => {}); return } } catch {}
+  const n = new Notification(title, opt); n.onclick = () => { try { window.focus(); n.close() } catch {} openLead(i.id) };
+}
+// Lista do Pipeline no celular: uma etapa por vez.
+function phoneStageParts(){
+  const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
+  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad].some(v => String(v || '').toLowerCase().includes(qq))));
+  const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
+  if (!STAGE[UI.stage]) UI.stage = 'novo';
+  const cur = UI.stage, items = sortCol(by[cur], cur);
+  const chips = STAGES.map(st => `${st.id === 'perdido' ? '<i class="sb-sep"></i>' : ''}<button class="sb-chip" role="tab" data-a="stage-pick" data-v="${st.id}" style="--c:${st.color}" aria-selected="${cur === st.id}"><span class="dot"></span>${st.name}<b>${by[st.id].length}</b></button>`).join('');
+  const list = (items.slice(0, COL_MAX).map(cardHTML).join('') || '<div class="col-empty">Nenhum lead nesta etapa.</div>')
+    + (items.length > COL_MAX ? `<div class="col-empty">Mostrando ${COL_MAX} de ${items.length}. Use a busca para achar os demais.</div>` : '');
+  return {chips, list};
+}
+function phonePipelineHTML(open, own){
+  const p = phoneStageParts();
+  return `<div class="head"><div><h1>Pipeline</h1><p>${open} leads em aberto</p></div></div>
+    <div class="pipe-tools"><input class="in search" type="search" id="pipe-search" data-i="pipe-search" placeholder="Buscar nome, empresa, telefone…" value="${attr(UI.search)}" aria-label="Buscar leads"><select class="in" data-c="owner" aria-label="Filtrar por vendedor">${ownerOptions(own, 'Todos os vendedores')}</select></div>
+    ${exampleBanner()}<div class="stagebar" id="stagebar" role="tablist" aria-label="Etapas do funil">${p.chips}</div><div class="stage-list" id="stage-list">${p.list}</div>`;
+}
+
+/* Botão "voltar" do celular (e do navegador) fecha a ficha, a folha ou a janela aberta, em vez de sair do app.
+   Cada camada aberta ganha uma entrada no histórico; fechar pela tela devolve essa entrada. */
+let OV_DEPTH = 0, OV_IGNORE = 0;
+const ovCount = () => (UI.drawer ? 1 : 0) + (UI.modal ? 1 : 0) + (UI.sheet ? 1 : 0);
+function ovSync(){
+  const n = ovCount();
+  try {
+    if (n > OV_DEPTH){ for (; OV_DEPTH < n; OV_DEPTH++) history.pushState({brase: OV_DEPTH + 1}, '') }
+    else if (n < OV_DEPTH){ const k = OV_DEPTH - n; OV_DEPTH = n; OV_IGNORE++; history.go(-k) }
+  } catch {}
+}
+function ovBack(){
+  if (OV_IGNORE){ OV_IGNORE--; return }
+  if (!OV_DEPTH) return;
+  OV_DEPTH--;
+  if (UI.sheet){ UI.sheet = null; renderSheet() }
+  else if (UI.modal && !(UI.modal === 'creative' && UI.drawer)){ UI.modal = null; renderModal() }
+  else if (UI.drawer){ UI.drawer = null; renderDrawer() }
+  else if (UI.modal){ UI.modal = null; renderModal() }
+  ovSync();
+}
+try {
+  window.addEventListener('popstate', ovBack);
+  ['#drawer-host', '#modal-host', '#sheet-host'].forEach(s => { const el = $(s); if (el) new MutationObserver(ovSync).observe(el, {childList: true}) });
+} catch {}
+
 /* ---------- render ---------- */
 const VIEWS = {hoje: viewHoje, agenda: viewAgenda, pipeline: viewPipeline, comissao: viewComissao, analises: viewAnalises, trafego: viewTrafego, processos: viewProcessos, whatsapp: viewWhats, config: viewConfig};
-function navHTML(){
+function navHTML(){ return navHTML0() + tabbarHTML() }
+function navHTML0(){
   const items = [['hoje', 'Hoje', I.sun], ['agenda', 'Agenda', I.cal], ['pipeline', 'Pipeline', I.cols], ['comissao', 'Comissão', I.coin], ['analises', 'Análises', I.bars], ['trafego', 'Tráfego', I.target], ['processos', 'Processos', I.book], ['whatsapp', 'WhatsApp', I.chat], ['config', 'Configurações', I.gear]];
   const badge = loaded() ? todayCount(validMe()) : 0;
   const sync = S.connecting ? '<span class="sync wait">Conectando…</span>' : S.dbOk ? '<span class="sync">Sincronizado com a equipe</span>' : '<span class="sync off">Modo local · nada é salvo</span>';
@@ -2477,15 +2723,17 @@ function navHTML(){
     <div class="nav-foot"><label class="who-label" for="me-sel">Você está como</label><select class="in" id="me-sel" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>${sync}</div>`;
 }
 function render(){
-  const b = $('#board'), sl = b ? b.scrollLeft : 0;
+  const b = $('#board'), sl = b ? b.scrollLeft : 0, sb = $('.stagebar'), sbl = sb && typeof sb.scrollLeft === 'number' ? sb.scrollLeft : -1;
   $('#nav').innerHTML = navHTML();
   alRefresh();
-  $('#view').innerHTML = alertBarHTML() + VIEWS[UI.view]();
+  $('#view').innerHTML = updateBannerHTML() + installBannerHTML() + alertBarHTML() + VIEWS[UI.view]();
   const nb = $('#board'); if (nb) nb.scrollLeft = sl;
-  renderDrawer(); renderModal();
+  const nsb = $('.stagebar'); if (nsb && nsb.querySelector){ const cur = nsb.querySelector('[aria-selected="true"]'); if (UI.sbCenter && cur) nsb.scrollLeft = cur.offsetLeft - (nsb.clientWidth - cur.offsetWidth) / 2; else if (sbl >= 0) nsb.scrollLeft = sbl; UI.sbCenter = false }
+  try { document.documentElement.style.setProperty('--navh', ($('#nav').offsetHeight || 56) + 'px') } catch {}
+  renderDrawer(); renderModal(); renderSheet();
 }
 let pending = false, raf = 0;
-const typing = () => { const a = document.activeElement; return !!(a && a.matches('input:not([type=checkbox]),textarea,select') && a.closest('#view,#drawer-host,#modal-host')) };
+const typing = () => { const a = document.activeElement; return !!(a && a.matches('input:not([type=checkbox]),textarea,select') && a.closest('#view,#drawer-host,#modal-host,#sheet-host')) };
 function scheduleRender(){
   if (typing()){ pending = true; return }
   if (raf) return;
@@ -2499,8 +2747,15 @@ function copy(v){ try { navigator.clipboard.writeText(v).then(() => toast('Copia
 
 /* ---------- actions ---------- */
 const ACT = {
-  nav: t => { UI.view = t.dataset.v; ls.set('brase.view', UI.view); UI.drawer = null; render(); window.scrollTo(0, 0); if (UI.view === 'agenda') refreshCalendar(false, true) },
+  nav: t => { UI.sheet = null; UI.view = t.dataset.v; ls.set('brase.view', UI.view); UI.drawer = null; render(); window.scrollTo(0, 0); if (UI.view === 'agenda') refreshCalendar(false, true) },
   'open-lead': t => openLead(t.dataset.id),
+  'more-open': () => { UI.sheet = 'more'; renderSheet() },
+  'sheet-close': () => { UI.sheet = null; renderSheet() },
+  'install-app': async () => { const e = INSTALL_EVT; if (e){ INSTALL_EVT = null; UI.sheet = null; render(); try { e.prompt(); const c = await e.userChoice; if (c && c.outcome === 'accepted') toast('Instalando o app…') } catch {} } else { UI.sheet = 'install'; renderSheet() } },
+  'install-later': () => { ls.set('brase.installDismiss', String(Date.now())); render() },
+  'reload-app': async () => { try { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))) } catch {} location.reload() },
+  'logout': () => { try { localStorage.removeItem(CODE_KEY) } catch {} location.reload() },
+  'stage-pick': t => { UI.stage = t.dataset.v; ls.set('brase.stage', UI.stage); UI.sbCenter = true; render() },
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
@@ -2655,7 +2910,7 @@ const CHG = {
 const INP = {
   'ag-q': t => { if (!UI.ag) return; UI.ag.q = t.value; const r = document.querySelector('#ag-res'); if (r) r.innerHTML = agLeadResults(); offerLast = offerModalHTML() },
   'ag-msg': t => { if (UI.ag){ UI.ag.msg = t.value; offerLast = offerModalHTML() } },
-  'pipe-search': t => { UI.search = t.value; const b = $('#board'); if (b) b.innerHTML = boardHTML() },
+  'pipe-search': t => { UI.search = t.value; const b = $('#board'); if (b) b.innerHTML = boardHTML(); else if ($('#stage-list')){ const p = phoneStageParts(); $('#stagebar').innerHTML = p.chips; $('#stage-list').innerHTML = p.list } },
   'doc-q': t => { UI.docQ = t.value; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
 };
 const FORM = {
@@ -2677,6 +2932,7 @@ const FORM = {
 
 document.addEventListener('click', e => {
   if (e.target.classList && e.target.classList.contains('modal-wrap')){ UI.modal = null; renderModal(); return }
+  if (e.target.classList && e.target.classList.contains('sheet-wrap')){ UI.sheet = null; renderSheet(); return }
   const t = e.target.closest('[data-a]'); if (!t) return;
   const stop = e.target.closest('input,select,textarea,label,a[href]');
   if (stop && t.contains(stop) && stop !== t) return;
@@ -2786,7 +3042,7 @@ async function hostedDb(conf){
 
 /* ---------- boot ---------- */
 async function boot(){
-  render();
+  render(); registerSW();
   try { if (window.claude && typeof window.claude.use === 'function') window.claude.use('mcp').then(m => { MCP = m || null; if (MCP) scheduleRender() }, () => {}) } catch {}
   let d = null;
   if (HOST){ try { d = await hostedDb(HOST) } catch (e){ console.warn(e); toast('Não foi possível conectar ao banco. Recarregue a página.', 'err') } }

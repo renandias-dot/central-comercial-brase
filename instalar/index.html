@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<script>if (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) < 0) location.replace('https:' + location.href.slice(5));</script>
+<title>Instalar o app da Brase</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<meta name="theme-color" content="#d9480f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Brase CRM">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+<style>
+:root{--bg:#f1f2f4;--surface:#fff;--ink:#14161b;--ink-2:#454a54;--muted:#7c818b;--line:#e1e3e7;--accent:#d9480f;--accent-hover:#bf3e0b;--accent-soft:#fcebe2;--accent-strong:#b23a0a;--good:#12813a;--good-soft:#e1f2e6}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1014;--surface:#171a20;--ink:#eef0f3;--ink-2:#b9bec8;--muted:#80868f;--line:#262a32;--accent:#f0621f;--accent-hover:#ff7433;--accent-soft:#35190d;--accent-strong:#ff9a66;--good:#3fcb6f;--good-soft:#11291a}}
+*{box-sizing:border-box;margin:0}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:100vh;padding:max(20px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom));display:grid;place-items:start center}
+main{width:100%;max-width:460px;display:grid;gap:18px}
+.logo{display:flex;align-items:center;gap:12px}
+.mark{width:52px;height:52px;border-radius:14px;background:var(--accent) url(../icons/icon-192.png) center/cover;flex:none}
+.logo b{display:block;font-size:19px;line-height:1.1;letter-spacing:-.01em}
+.logo span{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-size:30px;line-height:1.08;letter-spacing:-.02em;font-weight:800}
+.lead{color:var(--ink-2);font-size:17px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;display:grid;gap:14px}
+.card h2{font-size:17px;font-weight:800}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:0 20px;border:0;border-radius:14px;background:var(--accent);color:#fff;font:700 17px/1 inherit;font-family:inherit;text-decoration:none;cursor:pointer;width:100%;-webkit-tap-highlight-color:transparent}
+.btn:active{background:var(--accent-hover)}
+.btn.ghost{background:none;color:var(--ink-2);border:1px solid var(--line);font-weight:600;font-size:15px;min-height:46px}
+.btn svg{width:22px;height:22px}
+ol{list-style:none;padding:0;display:grid;gap:14px;counter-reset:s}
+li{counter-increment:s;display:flex;gap:12px;align-items:flex-start}
+li::before{content:counter(s);display:grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--accent-soft);color:var(--accent-strong);font-weight:800;flex:none;margin-top:1px}
+li svg{width:20px;height:20px;vertical-align:-4px;color:var(--accent-strong)}
+.note{font-size:14px;color:var(--muted)}
+.ok{display:none;align-items:center;gap:10px;background:var(--good-soft);color:var(--good);border-radius:14px;padding:14px 16px;font-weight:700}
+[hidden]{display:none!important}
+.small{font-size:13.5px;color:var(--muted);text-align:center}
+.small a{color:inherit}
+</style>
+</head>
+<body>
+<main>
+  <div class="logo"><div class="mark" aria-hidden="true"></div><div><b>Central Comercial Brase</b><span>CRM no celular</span></div></div>
+  <div>
+    <h1>Instale o app da Brase</h1>
+    <p class="lead" style="margin-top:8px">O CRM no seu celular, direto da tela inicial. Leva menos de um minuto e não precisa de loja de aplicativos.</p>
+  </div>
+
+  <div class="ok" id="done" hidden>✓ Você já está usando o app instalado.</div>
+
+  <section class="card" id="android" hidden>
+    <h2>Android</h2>
+    <button class="btn" id="install" type="button" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7.5 10.5 12 15l4.5-4.5M5 19h14"/></svg>
+      Instalar o app
+    </button>
+    <ol id="android-steps" hidden>
+      <li><span>Abra esta página no <b>Chrome</b>.</span></li>
+      <li><span>Toque nos <b>três pontinhos</b> <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="19" r="1.7"/></svg> no canto de cima.</span></li>
+      <li><span>Toque em <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>) e confirme.</span></li>
+    </ol>
+  </section>
+
+  <section class="card" id="ios" hidden>
+    <h2>iPhone</h2>
+    <ol>
+      <li><span>Abra esta página no <b>Safari</b> (não funciona por outros navegadores).</span></li>
+      <li><span>Toque em <b>Compartilhar</b> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M7 11H6a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg> na barra de baixo.</span></li>
+      <li><span>Role a lista e toque em <b>Adicionar à Tela de Início</b> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M12 8v8M8 12h8"/></svg>.</span></li>
+      <li><span>Toque em <b>Adicionar</b>. O ícone da Brase aparece na sua tela.</span></li>
+    </ol>
+  </section>
+
+  <section class="card" id="desk" hidden>
+    <h2>Abra no celular</h2>
+    <p>Este endereço serve para instalar o app no <b>celular</b>. Mande o link para o telefone (por exemplo, pelo WhatsApp) e abra por lá.</p>
+  </section>
+
+  <section class="card">
+    <h2>Na primeira vez que abrir</h2>
+    <ol>
+      <li><span>Digite o <b>código de acesso</b> da equipe (peça ao Renan).</span></li>
+      <li><span>Em <b>Mais › Você está como</b>, escolha o seu nome.</span></li>
+      <li><span>Toque em <b>Liberar som e avisos</b> para ser avisado de lead novo.</span></li>
+    </ol>
+  </section>
+
+  <a class="btn ghost" href="../">Abrir o CRM sem instalar</a>
+  <p class="small" id="ver"></p>
+</main>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ua = navigator.userAgent || '', ios = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const android = /android/i.test(ua), mobile = ios || android || /mobile/i.test(ua);
+  const standalone = (() => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } })();
+  if (standalone) $('done').style.display = 'flex', $('done').hidden = false;
+  else if (ios) $('ios').hidden = false;
+  else if (android || mobile) { $('android').hidden = false; $('android-steps').hidden = false }
+  else $('desk').hidden = false;
+
+  let evt = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); evt = e; $('install').hidden = false; $('android-steps').hidden = true });
+  window.addEventListener('appinstalled', () => { $('install').hidden = true; $('android-steps').hidden = true; $('done').style.display = 'flex'; $('done').hidden = false; $('done').textContent = '✓ App instalado. Abra pelo ícone da Brase na tela inicial.' });
+  $('install').addEventListener('click', async () => { if (!evt) return; const e = evt; evt = null; try { e.prompt(); await e.userChoice } catch {} });
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) navigator.serviceWorker.register('../sw.js').catch(() => {});
+})();
+</script>
+</body>
+</html>
