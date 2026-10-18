@@ -31,6 +31,21 @@ self.addEventListener('fetch', e => {
   }
 });
 
+// Aviso do servidor (lead novo, print vencido), mesmo com o app fechado. Se o app já está na tela, ele mesmo avisa
+// (faixa, som) e só atualiza os dados; senão aparece a notificação do sistema.
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { t: 'Central Brase', b: e.data ? e.data.text() : '' }; }
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+    if (wins.some(c => c.focused && c.visibilityState === 'visible')) { wins.forEach(c => c.postMessage(Object.assign({type: 'push'}, d))); return; }
+    const opt = {body: d.b || '', icon: './icons/icon-192.png', badge: './icons/icon-192.png', vibrate: [200, 100, 200, 100, 200],
+      requireInteraction: d.k === 'new' || d.k === 'print', data: {id: d.id, url: d.url || './'}};
+    if (d.tag) { opt.tag = d.tag; opt.renotify = true; }
+    await self.registration.showNotification(d.t || 'Central Brase', opt);
+  })());
+});
+
 // Toque na notificação: traz a Central para a frente e abre o lead do aviso (ou abre o app, se estiver fechado).
 self.addEventListener('notificationclick', e => {
   e.notification.close();

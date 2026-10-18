@@ -6,18 +6,19 @@
 <meta name="robots" content="noindex">
 <script>if (location.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].indexOf(location.hostname) < 0) location.replace('https:' + location.href.slice(5));</script>
 <link rel="manifest" href="./manifest.webmanifest">
-<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#171a20" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#171a20" id="tc">
+<script>(function () { try { var t = localStorage.getItem('brase.theme') || 'dark', d = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches); if (t !== 'auto') document.documentElement.setAttribute('data-theme', t); document.getElementById('tc').setAttribute('content', d ? '#171a20' : '#ffffff'); } catch (e) {} })();</script>
+<meta name="color-scheme" content="dark light">
 <meta name="application-name" content="Brase CRM">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Brase CRM">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="format-detection" content="telephone=no">
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "43dd10b696";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "6e25492f3e";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -503,6 +504,11 @@ pre.code{background:var(--surface-2);border:1px solid var(--line);border-radius:
 .btn.wa svg{width:16px;height:16px;flex:none}
 .card-wa{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:11px;background:var(--good-soft);color:var(--good);margin-left:6px;flex:none}
 .card-wa svg{width:20px;height:20px}
+.sr-note{font-style:normal;font-size:12.5px;font-weight:700;color:var(--muted)}
+.sr-note.on{color:var(--good)}
+.theme-btn{justify-content:flex-start;gap:8px;width:100%}
+.theme-btn svg{width:16px;height:16px;flex:none}
+@media (max-width:860px){.theme-btn{display:none}}
 .dq{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .dq .btn{height:50px;font-size:15.5px;border-radius:12px}
 .dq .btn.wa{background:var(--good);border-color:var(--good);color:#fff}
@@ -722,7 +728,7 @@ const UI = {
 UI.owner = UI.me;
 let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
-let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null;
+let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null;
 
 const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
@@ -2032,6 +2038,7 @@ function alConfigHTML(){
       <label class="f">Som e notificações<select class="in" data-c="al-device" id="al-device"><option value="auto" ${mode === 'auto' ? 'selected' : ''}>Automático (liga para quem está como SDR)</option><option value="on" ${mode === 'on' ? 'selected' : ''}>Sempre ligado</option><option value="off" ${mode === 'off' ? 'selected' : ''}>Desligado</option></select></label>
     </div><div class="actions" style="margin-top:10px"><button class="btn sm" data-a="al-unlock">Liberar som e avisos do navegador</button><button class="btn sm ghost" data-a="al-test">Testar o som</button></div>
     <p class="hint" style="margin-top:8px">Notificações do navegador: ${permTxt}. O navegador só toca som depois que você clica uma vez na página; use o botão acima ao abrir o site.</p></div>
+    ${pushConfigHTML()}
     <div><h3 style="margin-bottom:8px">Para toda a equipe</h3>
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-al" data-k="newLead" ${A.newLead ? 'checked' : ''}> Avisar quando entrar um lead novo e ninguém tiver feito o 1º contato</label>
       <label class="switch" style="margin-top:8px"><input type="checkbox" class="ck" data-c="cfg-al" data-k="sound" ${A.sound ? 'checked' : ''}> Tocar som nos avisos</label>
@@ -2570,6 +2577,7 @@ function viewConfig(){
 const PHONE = () => { try { return matchMedia('(max-width:600px)').matches } catch { return false } };
 const IS_APP = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } };
 const IS_IOS = (() => { try { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) } catch { return false } })();
+const IS_EMBED = (() => { try { return /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|; wv\)/i.test(navigator.userAgent || '') } catch { return false } })();
 let INSTALL_EVT = null, VER_AT = Date.now();
 const svg = (d, fill) => `<svg viewBox="0 0 24 24" ${fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"'} aria-hidden="true">${d}</svg>`;
 const IC = {
@@ -2592,7 +2600,7 @@ try {
 function registerSW(){
   if (!HOST || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
   navigator.serviceWorker.register('./sw.js').catch(() => {});
-  navigator.serviceWorker.addEventListener('message', e => { if (e.data && e.data.type === 'open-lead' && S.leads[e.data.id]) openLead(e.data.id) });
+  navigator.serviceWorker.addEventListener('message', e => { if (!e.data) return; if (e.data.type === 'open-lead' && S.leads[e.data.id]) openLead(e.data.id); else if (e.data.type === 'push' && typeof HOSTPOLL === 'function') HOSTPOLL() });
 }
 // Ao voltar para o app, confere se saiu uma versão nova (no máximo a cada 5 minutos) e avisa, sem recarregar sozinho.
 async function checkVersion(force){
@@ -2623,8 +2631,11 @@ function sheetHTML(){
       <h3 class="sheet-h">Neste celular</h3>
       <label class="f">Você está como<select class="in" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
       <div class="sheet-rows">
+        <button class="sheet-row" data-a="theme">${MOON}<span>Aparência</span><em class="sr-note">${THEME_NAME[themePref()]}</em>${IC.chev}</button>
         ${IS_APP() ? '' : row('install-app', 'Instalar o app', IC.dl)}
         ${row('al-unlock', 'Liberar som e avisos', AL_BELL)}
+        ${HOSTPUSH ? `<button class="sheet-row" data-a="push-toggle">${AL_BELL}<span>Avisos com o app fechado</span><em class="sr-note ${pushIsOn() ? 'on' : ''}">${pushIsOn() ? 'Ligados' : PUSH_OK() ? 'Desligados' : 'Indisponível'}</em>${IC.chev}</button>` : ''}
+        ${pushIsOn() ? row('push-test', 'Enviar um aviso de teste', IC.refresh) : ''}
         ${row('reload-app', 'Atualizar o app', IC.refresh)}
         <button class="sheet-row danger" data-a="logout" data-confirm="Toque de novo para sair">${IC.out}<span>Sair deste celular</span></button>
       </div>
@@ -2633,7 +2644,8 @@ function sheetHTML(){
     </section></div>`;
   }
   if (UI.sheet === 'install'){
-    const steps = IS_IOS
+    const steps = IS_EMBED ? ['Você abriu dentro de outro app (WhatsApp, Instagram…), onde não dá para instalar.', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone).', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
+      : IS_IOS
       ? [`Abra este endereço no <b>Safari</b>.`, `Toque em <b>Compartilhar</b> ${IC.share} na barra de baixo.`, `Role e toque em <b>Adicionar à Tela de Início</b> ${IC.addbox}.`, `Toque em <b>Adicionar</b>. O ícone da Brase aparece na sua tela.`]
       : [`Toque nos <b>três pontinhos</b> ${IC.dots} do navegador (canto de cima).`, `Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.`, `Confirme. O ícone da Brase aparece na sua tela.`];
     return `<div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" aria-label="Instalar o app">
@@ -2661,6 +2673,7 @@ function installBannerHTML(){
 const updateBannerHTML = () => UI.update ? `<div class="ib upd" role="status"><div class="ib-t"><b>Tem versão nova do app</b><span>Atualize para receber as melhorias.</span></div><button class="btn sm primary" data-a="reload-app">Atualizar</button></div>` : '';
 // Notificação: no Android o navegador só aceita pelo service worker; no computador vale o jeito direto.
 function alNotify(i){
+  try { if (document.visibilityState === 'visible') return } catch {}
   const title = i.k === 'print' ? 'Hora de enviar o print' : 'Lead novo';
   const opt = {body: i.name, tag: i.key, requireInteraction: true, icon: './icons/icon-192.png', badge: './icons/icon-192.png', vibrate: [200, 100, 200, 100, 200], data: {id: i.id, url: './#hoje'}};
   try { if (navigator.serviceWorker && navigator.serviceWorker.controller){ navigator.serviceWorker.ready.then(r => r.showNotification(title, opt)).catch(() => {}); return } } catch {}
@@ -2711,6 +2724,97 @@ try {
   ['#drawer-host', '#modal-host', '#sheet-host'].forEach(s => { const el = $(s); if (el) new MutationObserver(ovSync).observe(el, {childList: true}) });
 } catch {}
 
+/* ---------- avisos com o app fechado (Web Push) ----------
+   O aparelho se inscreve no serviço de push do navegador e o servidor (crm-lead-webhook e crm-push-tick) manda o aviso
+   mesmo com o app fechado. Quem recebe: o responsável pelo lead (o "Você está como" deste aparelho) e a gestão. */
+const PUSH_OK = () => { try { return !!(HOST && HOSTPUSH && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window) } catch { return false } };
+let PUSH_SUB = null, PUSH_BUSY = false, PUSH_SEEN = false;
+const pushPerm = () => { try { return Notification.permission } catch { return 'denied' } };
+const pushIsOn = () => PUSH_OK() && pushPerm() === 'granted' && !!PUSH_SUB;
+const keyBytes = s => { const t = s.replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(t + '='.repeat((4 - t.length % 4) % 4)), c => c.charCodeAt(0)) };
+const sameKey = (a, b) => { if (!a || a.byteLength !== b.length) return false; const x = new Uint8Array(a); return b.every((v, i) => v === x[i]) };
+const pushBody = sub => ({op: 'push_subscribe', subscription: sub.toJSON(), sellerId: validMe(), ua: String(navigator.userAgent || '').slice(0, 200)});
+// Lê a inscrição que este aparelho já tem e a reenvia ao servidor (mantém o "Você está como" em dia).
+async function pushRefresh(){
+  if (!PUSH_OK()) return;
+  try {
+    const reg = await navigator.serviceWorker.ready; PUSH_SUB = await reg.pushManager.getSubscription(); PUSH_SEEN = true;
+    if (PUSH_SUB && pushPerm() === 'granted') HOSTCALL(pushBody(PUSH_SUB)).catch(() => {});
+    scheduleRender();
+  } catch { PUSH_SEEN = true }
+}
+async function pushEnable(){
+  if (PUSH_BUSY) return;
+  if (!PUSH_OK()){ toast(IS_IOS && !IS_APP() ? 'No iPhone, instale o app primeiro (Compartilhar › Adicionar à Tela de Início) e ative os avisos por lá.' : 'Este navegador não oferece avisos com o app fechado.', 'err'); return }
+  if (!validMe()){ toast('Escolha o seu nome em "Você está como" antes de ativar.', 'err'); return }
+  PUSH_BUSY = true;
+  try {
+    const perm = pushPerm() === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (perm !== 'granted'){ toast(perm === 'denied' ? 'As notificações estão bloqueadas. Libere nas configurações do celular (ou do navegador) e tente de novo.' : 'As notificações não foram liberadas.', 'err'); return }
+    const reg = await navigator.serviceWorker.ready, key = keyBytes(HOSTPUSH);
+    let sub = await reg.pushManager.getSubscription();
+    if (sub && !sameKey(sub.options && sub.options.applicationServerKey, key)){ await sub.unsubscribe().catch(() => {}); sub = null }
+    if (!sub) sub = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: key});
+    await HOSTCALL(pushBody(sub)); PUSH_SUB = sub; ls.set('brase.pushDismiss', ''); toast('Avisos ativados neste aparelho');
+  } catch (e){ toast('Não foi possível ativar os avisos: ' + ((e && e.message) || e), 'err') }
+  finally { PUSH_BUSY = false; render() }
+}
+async function pushDisable(){
+  try {
+    const reg = await navigator.serviceWorker.ready, sub = await reg.pushManager.getSubscription();
+    if (sub){ HOSTCALL({op: 'push_unsubscribe', endpoint: sub.endpoint}).catch(() => {}); await sub.unsubscribe().catch(() => {}) }
+    PUSH_SUB = null; toast('Avisos desligados neste aparelho');
+  } catch { toast('Não foi possível desligar agora.', 'err') }
+  render();
+}
+async function pushTest(){
+  if (!PUSH_SUB){ toast('Ative os avisos primeiro.', 'err'); return }
+  try {
+    const r = await HOSTCALL({op: 'push_test', endpoint: PUSH_SUB.endpoint});
+    toast(r.sent ? 'Aviso de teste enviado. Feche o app e veja se chega.' : 'O envio falhou: ' + ((r.errors && r.errors[0]) || (r.gone ? 'inscrição expirada, ative de novo' : 'erro')), r.sent ? '' : 'err');
+  } catch (e){ toast((e && e.message) || 'Não foi possível enviar o teste.', 'err') }
+}
+// Faixa de convite: só para quem já escolheu o nome, está no celular ou no app instalado e ainda não ligou.
+function pushBannerHTML(){
+  if (!PUSH_OK() || !PUSH_SEEN || PUSH_SUB || pushPerm() === 'denied' || !validMe() || UI.sheet) return '';
+  if (!(PHONE() || IS_APP())) return '';
+  if (Date.now() - (+ls.get('brase.pushDismiss') || 0) < 7 * 864e5) return '';
+  return `<div class="ib" role="region" aria-label="Avisos no celular"><div class="ib-t"><b>Receba lead novo no celular</b><span>O aviso chega mesmo com o app fechado.</span></div><button class="btn sm primary" data-a="push-toggle">Ativar</button><button class="icon-btn" data-a="push-later" aria-label="Agora não">×</button></div>`;
+}
+function pushConfigHTML(){
+  const on = pushIsOn(), perm = pushPerm();
+  const state = !HOST ? 'Disponível só no site da Brase (não no Claude).' : !HOSTPUSH ? 'O servidor ainda não tem as chaves dos avisos.'
+    : !PUSH_OK() ? (IS_IOS && !IS_APP() ? 'No iPhone, instale o app (Compartilhar › Adicionar à Tela de Início) e ative por lá.' : 'Este navegador não oferece avisos com o app fechado.')
+    : perm === 'denied' ? 'Bloqueados nas configurações deste aparelho. Libere e volte aqui.' : on ? 'Ligados neste aparelho. O aviso chega mesmo com o app fechado.' : 'Desligados neste aparelho.';
+  return `<div><h3 style="margin-bottom:8px">Avisos com o app fechado</h3>
+    <p class="hint">Lead novo, lead esperando e print vencido chegam como notificação no celular, mesmo com o app fechado. Vale para o vendedor escolhido em "Você está como" neste aparelho (a gestão recebe os de todos). Lead que entra fora do expediente avisa quando o expediente abre.</p>
+    <div class="actions" style="margin-top:10px">${on ? '<button class="btn sm" data-a="push-test">Enviar um aviso de teste</button><button class="btn sm ghost" data-a="push-toggle">Desligar neste aparelho</button>' : `<button class="btn sm primary" data-a="push-toggle" ${PUSH_OK() && perm !== 'denied' ? '' : 'disabled'}>Ativar neste aparelho</button>`}</div>
+    <p class="hint" style="margin-top:8px">${state}</p></div>`;
+}
+// Toque no aviso com o app fechado abre em /#lead=<id>: abre a ficha assim que os dados chegarem.
+function readLeadHash(){ const m = /^#lead=([\w-]+)$/.exec(location.hash || ''); if (m) UI.pendingLead = m[1] }
+function openPendingLead(){
+  if (!UI.pendingLead || !loaded()) return;
+  const id = UI.pendingLead; UI.pendingLead = null;
+  try { history.replaceState(null, '', location.pathname + location.search) } catch {}
+  if (S.leads[id]){ UI.drawer = id; UI.drawerFocus = null }
+}
+
+/* ---------- tema: modo noturno por padrão no app hospedado (escuro, claro ou automático pelo celular) ---------- */
+const THEME_NAME = {dark: 'Escuro', light: 'Claro', auto: 'Automático'};
+const themePref = () => { const t = ls.get('brase.theme'); return THEME_NAME[t] ? t : (HOST ? 'dark' : 'auto') };
+function applyTheme(){
+  try {
+    const t = themePref(), r = document.documentElement;
+    if (t === 'auto') r.removeAttribute('data-theme'); else r.setAttribute('data-theme', t);
+    const dark = t === 'dark' || (t === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches), m = document.getElementById('tc');
+    if (m) m.setAttribute('content', dark ? '#171a20' : '#ffffff');
+  } catch {}
+}
+try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePref() === 'auto') applyTheme() }) } catch {}
+const MOON = svg('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>');
+applyTheme();
+
 /* ---------- render ---------- */
 const VIEWS = {hoje: viewHoje, agenda: viewAgenda, pipeline: viewPipeline, comissao: viewComissao, analises: viewAnalises, trafego: viewTrafego, processos: viewProcessos, whatsapp: viewWhats, config: viewConfig};
 function navHTML(){ return navHTML0() + tabbarHTML() }
@@ -2720,13 +2824,14 @@ function navHTML0(){
   const sync = S.connecting ? '<span class="sync wait">Conectando…</span>' : S.dbOk ? '<span class="sync">Sincronizado com a equipe</span>' : '<span class="sync off">Modo local · nada é salvo</span>';
   return `<div class="brand"><div class="brand-mark">B</div><div><div class="brand-name">Brase</div><div class="brand-sub">Central comercial</div></div></div>
     <nav class="nav-list" aria-label="Seções">${items.map(([id, l, ic]) => `<button class="nav-item" data-a="nav" data-v="${id}" ${UI.view === id ? 'aria-current="page"' : ''}>${ic}<span>${l}</span>${id === 'hoje' && badge ? `<span class="nav-badge" title="Toques pendentes até hoje">${badge}</span>` : ''}</button>`).join('')}</nav>
-    <div class="nav-foot"><label class="who-label" for="me-sel">Você está como</label><select class="in" id="me-sel" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>${sync}</div>`;
+    <div class="nav-foot"><label class="who-label" for="me-sel">Você está como</label><select class="in" id="me-sel" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>${sync}<button class="btn sm ghost theme-btn" data-a="theme" title="Trocar entre escuro, claro e automático">${MOON}Tema: ${THEME_NAME[themePref()]}</button></div>`;
 }
 function render(){
+  openPendingLead();
   const b = $('#board'), sl = b ? b.scrollLeft : 0, sb = $('.stagebar'), sbl = sb && typeof sb.scrollLeft === 'number' ? sb.scrollLeft : -1;
   $('#nav').innerHTML = navHTML();
   alRefresh();
-  $('#view').innerHTML = updateBannerHTML() + installBannerHTML() + alertBarHTML() + VIEWS[UI.view]();
+  $('#view').innerHTML = updateBannerHTML() + installBannerHTML() + pushBannerHTML() + alertBarHTML() + VIEWS[UI.view]();
   const nb = $('#board'); if (nb) nb.scrollLeft = sl;
   const nsb = $('.stagebar'); if (nsb && nsb.querySelector){ const cur = nsb.querySelector('[aria-selected="true"]'); if (UI.sbCenter && cur) nsb.scrollLeft = cur.offsetLeft - (nsb.clientWidth - cur.offsetWidth) / 2; else if (sbl >= 0) nsb.scrollLeft = sbl; UI.sbCenter = false }
   try { document.documentElement.style.setProperty('--navh', ($('#nav').offsetHeight || 56) + 'px') } catch {}
@@ -2755,6 +2860,10 @@ const ACT = {
   'install-later': () => { ls.set('brase.installDismiss', String(Date.now())); render() },
   'reload-app': async () => { try { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))) } catch {} location.reload() },
   'logout': () => { try { localStorage.removeItem(CODE_KEY) } catch {} location.reload() },
+  'push-toggle': () => { pushIsOn() ? pushDisable() : pushEnable() },
+  'push-test': () => { pushTest() },
+  'push-later': () => { ls.set('brase.pushDismiss', String(Date.now())); render() },
+  'theme': () => { const o = ['dark', 'light', 'auto'], n = o[(o.indexOf(themePref()) + 1) % 3]; ls.set('brase.theme', n); applyTheme(); toast('Aparência: ' + THEME_NAME[n]); render() },
   'stage-pick': t => { UI.stage = t.dataset.v; ls.set('brase.stage', UI.stage); UI.sbCenter = true; render() },
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
@@ -2856,7 +2965,7 @@ const ACT = {
   },
 };
 const CHG = {
-  me: t => { UI.me = t.value; ls.set('brase.me', UI.me); UI.owner = UI.me; UI.comSeller = UI.me; render() },
+  me: t => { UI.me = t.value; ls.set('brase.me', UI.me); UI.owner = UI.me; UI.comSeller = UI.me; if (PUSH_SUB && HOSTCALL) HOSTCALL(pushBody(PUSH_SUB)).catch(() => {}); render() },
   owner: t => { UI.owner = t.value; render() },
   'an-owner': t => { UI.anOwner = t.value; render() },
   touch: t => { toggleTouch(t.dataset.lead, t.dataset.touch, t.checked); if (UI.view === 'hoje') render() },
@@ -3024,7 +3133,7 @@ async function hostedDb(conf){
   };
   setInterval(poll, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll() });
-  HOSTCALL = call; HOSTMETA = !!first.meta;
+  HOSTCALL = call; HOSTMETA = !!first.meta; HOSTPUSH = first.vapid || ''; HOSTPOLL = poll;
   HOSTCAL = async force => { const r = await call({op: 'calendar', force: !!force}); (cache.meta ||= new Map()).set('calendar', r); emit('meta'); return r };
   if (first.clickup) MCP = {hosted: true, callTool: async (server, tool, input) => ({payload: await call({op: 'clickup', tool, input})})};
   return {
@@ -3042,14 +3151,14 @@ async function hostedDb(conf){
 
 /* ---------- boot ---------- */
 async function boot(){
-  render(); registerSW();
+  readLeadHash(); render(); registerSW();
   try { if (window.claude && typeof window.claude.use === 'function') window.claude.use('mcp').then(m => { MCP = m || null; if (MCP) scheduleRender() }, () => {}) } catch {}
   let d = null;
   if (HOST){ try { d = await hostedDb(HOST) } catch (e){ console.warn(e); toast('Não foi possível conectar ao banco. Recarregue a página.', 'err') } }
   else try { if (window.claude && typeof window.claude.use === 'function') d = await window.claude.use('db') } catch { d = null }
   S.connecting = false;
   if (!d){ S.dbOk = false; render(); return }
-  db = d; S.dbOk = true;
+  db = d; S.dbOk = true; pushRefresh();
   COLS.forEach(c => {
     try {
       db.collection(c).onSnapshot(snap => { const m = {}; snap.docs.forEach(x => { m[x.id] = x.data() }); S[c] = m; S.ready[c] = true; scheduleRender() },
