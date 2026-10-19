@@ -152,3 +152,37 @@ create table if not exists fn_config (
   updated_at timestamptz not null default now()
 );
 alter table fn_config enable row level security;
+
+-- Tentativas erradas do código de acesso do editor, por IP: 10 erros em 15 min bloqueiam aquele IP por 15 min;
+-- 100 erros somados na última hora (de vários IPs) bloqueiam todo mundo até a soma baixar. Acertar zera o IP.
+create table if not exists fn_auth_fails (
+  ip text primary key,
+  fails integer not null default 0,
+  window_start timestamptz not null default now(),
+  locked_until timestamptz
+);
+alter table fn_auth_fails enable row level security;
+
+-- Gasto da conta de anúncios por anúncio e por dia (Graph API, Central Comercial ou a rotina com o MCP da Meta).
+-- Não tem funil: na leitura, o gasto de um anúncio num dia vai para o funil mais recente que recebeu visita dele até aquele dia.
+create table if not exists fn_ad_spend (
+  day date not null,
+  ad_id text not null,
+  ad_name text not null default '',
+  adset_id text not null default '',
+  adset_name text not null default '',
+  campaign_id text not null default '',
+  campaign_name text not null default '',
+  spend numeric(12,2) not null default 0,
+  impressions integer not null default 0,
+  clicks integer not null default 0,
+  link_clicks integer not null default 0,
+  lpv integer not null default 0,
+  meta_leads integer not null default 0,
+  source text not null default '',
+  updated_at timestamptz not null default now(),
+  primary key (day, ad_id)
+);
+alter table fn_ad_spend enable row level security;
+-- Chave das operações de máquina (cron e rotina diária da Meta), gerada no banco e nunca escrita no repositório.
+insert into fn_config (k, v) values ('cron', jsonb_build_object('key', encode(extensions.gen_random_bytes(24), 'hex'))) on conflict (k) do nothing;

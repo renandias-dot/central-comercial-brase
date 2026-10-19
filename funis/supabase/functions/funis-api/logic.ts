@@ -7,7 +7,7 @@ export type Session = {
   tracking: Record<string, string>; params?: Record<string, string>; answers: Record<string, Answer>; clicks: Record<string, {name?: string; label?: string; at?: string}>;
   steps: string[]; last_step: string | null; interacted: boolean; completed: boolean; webhook?: Record<string, unknown> | null;
   timeline?: [string, number, number?][]; phone?: string | null; email?: string | null;
-  crm?: {stage?: string; value?: number; at?: string} | null; sent?: Record<string, unknown>;
+  crm?: CrmInfo | null; sent?: Record<string, unknown>;
 };
 // Configurações de leitura dos leads (funil › settings.leads): regra de perfil, nota, abandono e repetidos.
 export type LeadSettings = {
@@ -325,7 +325,7 @@ export function parseSale(body: any): Sale {
 }
 
 /* ================= etapas do CRM (Central Comercial) ================= */
-const STAGES: [string, RegExp][] = [['novo', /^(novo|lead novo)$/], ['print', /^(print|print enviado)$/], ['qualificando', /^qualificando$/], ['agendando', /^agendando$/],
+const STAGES: [string, RegExp][] = [['novo', /^(novo|lead novo)$/], ['link', /^(link|link recebido)$/], ['print', /^(print|print enviado)$/], ['qualificando', /^qualificando$/], ['agendando', /^agendando$/],
   ['marcada', /^(marcada|reuniao marcada)$/], ['feita', /^(feita|reuniao feita|reuniao realizada)$/], ['fechado', /^(fechado|ganho|venda|vendido)$/],
   ['perdido', /^perdido$/], ['desqualificado', /^desqualificado$/], ['frio', /^frio$/], ['morno', /^morno$/]];
 export function stageId(v: unknown){
@@ -344,6 +344,33 @@ export function parseCrm(body: any){
     value: parseMoney(x.valor ?? x.value ?? x.amount ?? 0),
   } : null).filter((x: any) => x && x.stage && (x.code || x.phone));
 }
+export type CrmInfo = {stage?: string; value?: number; at?: string; booked?: string | null; met?: string | null; closed?: string | null; lead?: string; owner?: string; lost?: string};
+// Agendou = chegou a ter reunião marcada (mesmo que depois tenha virado perdido); fez = a reunião aconteceu; fechou = venda.
+export function crmFlags(c: CrmInfo | null | undefined){
+  const st = (c && c.stage) || '', won = st === 'fechado', met = won || st === 'feita' || !!(c && c.met);
+  return {inCrm: !!st, booked: met || MEETING_STAGES.has(st) || !!(c && c.booked), met, won};
+}
+const isoOf = (v: unknown) => { const t = String(v ?? '').trim(); return /^\d{4}-\d{2}-\d{2}/.test(t) && !isNaN(Date.parse(t)) ? t.slice(0, 30) : null };
+// Leads da Central Comercial (op "load" da crm-api). Ligam com a visita pelo código do visitante (inleadCode) ou pelo WhatsApp.
+// deno-lint-ignore no-explicit-any
+export function crmLeadRows(docs: any){
+  return (Array.isArray(docs) ? docs : []).filter((d: any) => d && d.col === 'leads' && d.data && typeof d.data === 'object').map((d: any) => {
+    const l = d.data, stage = stageId(l.stage);
+    const crm: CrmInfo = {stage, booked: isoOf(l.bookedAt), met: isoOf(l.meetingDoneAt), closed: stage === 'fechado' ? isoOf(l.closedAt) || isoOf(l.stageAt) : null, lead: String(d.id ?? '').slice(0, 80)};
+    const value = parseMoney(l.value); if (value) crm.value = value;
+    if (l.ownerId) crm.owner = String(l.ownerId).slice(0, 60);
+    if (l.lostReason) crm.lost = String(l.lostReason).slice(0, 120);
+    return {code: String(l.inleadCode ?? '').trim().slice(0, 40), phone: normPhone(l.phone), crm};
+  }).filter((x: {code: string; phone: string; crm: CrmInfo}) => x.crm.stage && (x.code || x.phone));
+}
+// Investimento que a Central Comercial guarda (meta/spend, buscado na Meta pela própria Central): só as linhas por dia.
+// deno-lint-ignore no-explicit-any
+export function crmSpendRows(doc: any): AdSpendRow[] {
+  return (doc && Array.isArray(doc.rows) ? doc.rows : []).filter((r: any) => r && r.day && r.adId).map((r: any) => ({
+    day: String(r.day).slice(0, 10), ad_id: String(r.adId), ad_name: r.ad, adset_id: r.adsetId, adset_name: r.adset, campaign_id: r.campaignId, campaign_name: r.campaign,
+    spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0, lpv: Number(r.lpv) || 0, meta_leads: Number(r.metaLeads) || 0,
+  }));
+}
 
 /* ================= relatórios: anúncios, caminhos e tempo ================= */
 // O link do anúncio usa o modelo da Meta "Nome|ID" (ex.: utm_content=IFood Escondeu|120244276786450151).
@@ -354,19 +381,44 @@ export function splitUtm(v: unknown){
   const t = String(v ?? '').trim(), k = t.lastIndexOf('|');
   return k > 0 && /^\d{6,}$/.test(t.slice(k + 1).trim()) ? {name: t.slice(0, k).trim(), id: t.slice(k + 1).trim()} : {name: t, id: ''};
 }
-export type SpendRow = {day: string; campaign_id?: string; campaign_name?: string; adset_id?: string; adset_name?: string; ad_id?: string; ad_name?: string; spend: number};
+export type SpendRow = {day: string; campaign_id?: string; campaign_name?: string; adset_id?: string; adset_name?: string; ad_id?: string; ad_name?: string; spend: number;
+  impressions?: number; clicks?: number; link_clicks?: number; lpv?: number; meta_leads?: number};
+export type AdSpendRow = SpendRow & {ad_id: string};
+// O gasto de um anúncio num dia vai para o funil mais recente que já recebia visita daquele anúncio naquele dia
+// (o anúncio que trocou do InLead para o app passa a contar no funil novo a partir da troca). first_day é o dia da
+// primeira visita, ou o seguinte se ela chegou depois do meio-dia (o dia da troca fica com o funil antigo);
+// first_seen é o dia da primeira visita, usado quando nenhum funil tinha o anúncio antes (anúncio novo).
+type First = {funnel_id: string; ad_id: string; first_day: string; first_seen?: string};
+export function attributeSpend<T extends AdSpendRow>(rows: T[], firsts: First[], fid: string): T[] {
+  const by = new Map<string, First[]>();
+  for (const f of firsts) { const l = by.get(f.ad_id) || []; l.push(f); by.set(f.ad_id, l) }
+  for (const l of by.values()) l.sort((a, b) => a.first_day < b.first_day ? 1 : a.first_day > b.first_day ? -1 : 0);
+  return rows.filter(r => {
+    const l = by.get(r.ad_id) || [];
+    const owner = l.find(f => f.first_day <= r.day) || [...l].reverse().find(f => (f.first_seen || f.first_day) <= r.day);
+    return !!owner && owner.funnel_id === fid;
+  });
+}
+// Dia no horário de Brasília (o mesmo da conta de anúncios).
+export const brDay = (t: unknown) => { const ms = typeof t === 'number' ? t : t instanceof Date ? t.getTime() : Date.parse(String(t ?? '')); return isNaN(ms) ? '' : new Date(ms - 3 * 3600e3).toISOString().slice(0, 10) };
 type SaleRow = {session_id?: string | null; status: string; value: number};
 const SPEND_KEYS: Record<string, [string, string]> = {campaign: ['campaign_id', 'campaign_name'], adset: ['adset_id', 'adset_name'], ad: ['ad_id', 'ad_name']};
+const sentOf = (s: Session, submit: Set<string>) => {
+  const wk = s.webhook as {ok?: boolean; kind?: string} | null;
+  return Object.values(s.clicks || {}).some(c => c && submit.has(String(c.name))) || !!(wk && wk.ok && wk.kind !== 'abandono' && wk.kind !== 'importado');
+};
+const META_KEYS = ['impressions', 'clicks', 'link_clicks', 'lpv', 'meta_leads'] as const;
 export function aggregateAds(sessions: Session[], o: {level?: string; settings?: LeadSettings | null; submitNames?: string[]; sales?: SaleRow[]; spend?: SpendRow[]}){
   const level = levelParam(o.level || '') ? o.level as string : 'ad', param = levelParam(level);
   const submit = new Set((o.submitNames || []).filter(Boolean));
   const salesBy = new Map<string, SaleRow[]>();
   for (const x of o.sales || []) if (x.session_id) { const l = salesBy.get(x.session_id) || []; l.push(x); salesBy.set(x.session_id, l) }
-  type Row = {key: string; name: string; id: string; visits: number; started: number; contacts: number; submitted: number; abandoned: number; icp: number; scoreSum: number; scoreN: number; hot: number; meetings: number; won: number; crmRevenue: number; sales: number; salesRevenue: number; refunds: number; spend: number; daily: Record<string, {visits: number; started: number}>};
+  type Row = {key: string; name: string; id: string; visits: number; started: number; contacts: number; submitted: number; abandoned: number; icp: number; scoreSum: number; scoreN: number; hot: number; inCrm: number; meetings: number; met: number; won: number; crmRevenue: number; sales: number; salesRevenue: number; refunds: number; spend: number;
+    impressions: number; clicks: number; link_clicks: number; lpv: number; meta_leads: number; daily: Record<string, {visits: number; started: number}>};
   const rows = new Map<string, Row>();
   const row = (key: string) => {
     let r = rows.get(key);
-    if (!r) { const u = splitUtm(key); r = {key, name: u.name || '(sem ' + param + ')', id: u.id, visits: 0, started: 0, contacts: 0, submitted: 0, abandoned: 0, icp: 0, scoreSum: 0, scoreN: 0, hot: 0, meetings: 0, won: 0, crmRevenue: 0, sales: 0, salesRevenue: 0, refunds: 0, spend: 0, daily: {}}; rows.set(key, r) }
+    if (!r) { const u = splitUtm(key); r = {key, name: u.name || '(sem ' + param + ')', id: u.id, visits: 0, started: 0, contacts: 0, submitted: 0, abandoned: 0, icp: 0, scoreSum: 0, scoreN: 0, hot: 0, inCrm: 0, meetings: 0, met: 0, won: 0, crmRevenue: 0, sales: 0, salesRevenue: 0, refunds: 0, spend: 0, impressions: 0, clicks: 0, link_clicks: 0, lpv: 0, meta_leads: 0, daily: {}}; rows.set(key, r) }
     return r;
   };
   for (const s of sessions) {
@@ -375,39 +427,83 @@ export function aggregateAds(sessions: Session[], o: {level?: string; settings?:
     const day = String(s.created_at || '').slice(0, 10);
     r.visits++; if (s.interacted) r.started++;
     const d = r.daily[day] = r.daily[day] || {visits: 0, started: 0}; d.visits++; if (s.interacted) d.started++;
-    const wk = s.webhook as {ok?: boolean; kind?: string} | null;
-    const sent = Object.values(s.clicks || {}).some(c => c && submit.has(String(c.name))) || !!(wk && wk.ok && wk.kind !== 'abandono' && wk.kind !== 'importado');
+    const sent = sentOf(s, submit);
     if (s.phone) r.contacts++;
     if (sent) r.submitted++; else if (s.phone) r.abandoned++;
     if (m.icp) r.icp++;
     if (m.score != null) { r.scoreSum += m.score; r.scoreN++ }
     if (m.hot) r.hot++;
-    const st = s.crm && s.crm.stage || '';
-    if (MEETING_STAGES.has(st)) r.meetings++;
-    if (st === 'fechado') { r.won++; r.crmRevenue += Number(s.crm && s.crm.value) || 0 }
+    const c = crmFlags(s.crm);
+    if (c.inCrm) r.inCrm++;
+    if (c.booked) r.meetings++;
+    if (c.met) r.met++;
+    if (c.won) { r.won++; r.crmRevenue += Number(s.crm && s.crm.value) || 0 }
     for (const x of salesBy.get(s.id) || []) { if (x.status === 'approved') { r.sales++; r.salesRevenue += Number(x.value) || 0 } else if (x.status === 'refunded') { r.refunds++; r.salesRevenue -= Number(x.value) || 0 } }
   }
-  // gasto do Gerenciador de Anúncios (por ID; sem ID, pelo nome)
+  // gasto do Gerenciador de Anúncios (por ID; sem ID, pelo nome), com impressões, cliques e visitas da Meta quando houver
   const sk = SPEND_KEYS[level];
   if (sk) for (const sp of o.spend || []) {
     const id = String((sp as Record<string, unknown>)[sk[0]] || ''), name = String((sp as Record<string, unknown>)[sk[1]] || '');
     let r = [...rows.values()].find(x => (id && x.id === id) || (!x.id && name && x.name === name));
     if (!r) r = row(id ? `${name}|${id}` : name);
     r.spend += Number(sp.spend) || 0;
+    for (const k of META_KEYS) r[k] += Number(sp[k]) || 0;
   }
   const div = (a: number, b: number) => b ? a / b : null;
   const cost = (a: number, b: number) => a && b ? a / b : null; // sem gasto, custo fica vazio (não R$ 0)
   const list = [...rows.values()].map(r => ({
     key: r.key, name: r.name, id: r.id, visits: r.visits, started: r.started, contacts: r.contacts, submitted: r.submitted, abandoned: r.abandoned,
-    icp: r.icp, hot: r.hot, score: r.scoreN ? Math.round(r.scoreSum / r.scoreN) : null, meetings: r.meetings, won: r.won, sales: r.sales, refunds: r.refunds,
+    icp: r.icp, hot: r.hot, score: r.scoreN ? Math.round(r.scoreSum / r.scoreN) : null, inCrm: r.inCrm, meetings: r.meetings, met: r.met, won: r.won, sales: r.sales, refunds: r.refunds,
     revenue: Math.round((r.salesRevenue + r.crmRevenue) * 100) / 100, spend: Math.round(r.spend * 100) / 100,
+    impressions: r.impressions, clicks: r.clicks, link_clicks: r.link_clicks, lpv: r.lpv, meta_leads: r.meta_leads,
+    ctr: div(r.link_clicks, r.impressions), cpc: cost(r.spend, r.link_clicks), cpm: r.impressions ? cost(r.spend * 1000, r.impressions) : null,
     startRate: div(r.started, r.visits), icpRate: div(r.icp, r.started), cpl: cost(r.spend, r.submitted || r.contacts), cpIcp: cost(r.spend, r.icp),
-    cpMeeting: cost(r.spend, r.meetings), cpSale: cost(r.spend, r.won + r.sales), roas: div(r.salesRevenue + r.crmRevenue, r.spend),
+    cpMeeting: cost(r.spend, r.meetings), cpMet: cost(r.spend, r.met), cpSale: cost(r.spend, r.won + r.sales), roas: div(r.salesRevenue + r.crmRevenue, r.spend),
     daily: Object.keys(r.daily).sort().map(day => ({day, ...r.daily[day]})),
   })).sort((a, b) => b.visits - a.visits || b.spend - a.spend);
-  const t = list.reduce((a, r) => { for (const k of ['visits', 'started', 'contacts', 'submitted', 'abandoned', 'icp', 'hot', 'meetings', 'won', 'sales', 'refunds', 'revenue', 'spend'] as const) a[k] = (a[k] || 0) + (r[k] || 0); return a }, {} as Record<string, number>);
-  const totals: Record<string, number | null> = {...t, startRate: div(t.started, t.visits), icpRate: div(t.icp, t.started), cpl: cost(t.spend, t.submitted || t.contacts), cpIcp: cost(t.spend, t.icp), cpMeeting: cost(t.spend, t.meetings), cpSale: cost(t.spend, t.won + t.sales), roas: div(t.revenue, t.spend)};
+  const t = list.reduce((a, r) => { for (const k of ['visits', 'started', 'contacts', 'submitted', 'abandoned', 'icp', 'hot', 'inCrm', 'meetings', 'met', 'won', 'sales', 'refunds', 'revenue', 'spend', ...META_KEYS] as const) a[k] = (a[k] || 0) + (r[k] || 0); return a }, {} as Record<string, number>);
+  const totals: Record<string, number | null> = {...t, ctr: div(t.link_clicks, t.impressions), cpc: cost(t.spend, t.link_clicks), cpm: t.impressions ? cost(t.spend * 1000, t.impressions) : null,
+    startRate: div(t.started, t.visits), icpRate: div(t.icp, t.started), cpl: cost(t.spend, t.submitted || t.contacts), cpIcp: cost(t.spend, t.icp), cpMeeting: cost(t.spend, t.meetings), cpMet: cost(t.spend, t.met), cpSale: cost(t.spend, t.won + t.sales), roas: div(t.revenue, t.spend)};
   return {level, param, rows: list, totals};
+}
+// Ponta a ponta: anúncio (Meta) → funil → Central Comercial. "Pago" = visita que veio de anúncio da Meta (ID do anúncio no link ou origem FB/IG).
+export function isPaid(s: Session){
+  const p = {...(s.tracking || {}), ...(s.params || {})} as Record<string, string>;
+  return !!splitUtm(p.utm_content).id || /^(fb|facebook|ig|instagram|meta|an|msg)$/i.test(String(p.utm_source || '').trim()) || !!p.fbclid;
+}
+export function aggregateE2E(sessions: Session[], spend: SpendRow[], o: {settings?: LeadSettings | null; submitNames?: string[]; sales?: SaleRow[]} = {}){
+  const submit = new Set((o.submitNames || []).filter(Boolean));
+  const salesBy = new Map<string, SaleRow[]>();
+  for (const x of o.sales || []) if (x.session_id) { const l = salesBy.get(x.session_id) || []; l.push(x); salesBy.set(x.session_id, l) }
+  const KEYS = ['visits', 'started', 'contacts', 'submitted', 'abandoned', 'icp', 'inCrm', 'booked', 'met', 'won', 'sales', 'revenue'] as const;
+  type Block = Record<typeof KEYS[number], number>;
+  const blank = () => Object.fromEntries(KEYS.map(k => [k, 0])) as Block;
+  const all = blank(), paid = blank(), stagesAll: Record<string, number> = {}, stagesPaid: Record<string, number> = {};
+  const days: Record<string, Block & {spend: number; impressions: number; link_clicks: number; lpv: number}> = {};
+  const dayOf = (d: string) => days[d] = days[d] || {...blank(), spend: 0, impressions: 0, link_clicks: 0, lpv: 0};
+  for (const s of sessions) {
+    const m = leadMetrics(s, o.settings), c = crmFlags(s.crm), sent = sentOf(s, submit);
+    let rev = c.won ? Number(s.crm && s.crm.value) || 0 : 0, sales = 0;
+    for (const x of salesBy.get(s.id) || []) { if (x.status === 'approved') { sales++; rev += Number(x.value) || 0 } else if (x.status === 'refunded') rev -= Number(x.value) || 0 }
+    const add = (b: Block) => {
+      b.visits++; if (s.interacted) b.started++; if (s.phone) b.contacts++;
+      if (sent) b.submitted++; else if (s.phone) b.abandoned++;
+      if (m.icp) b.icp++; if (c.inCrm) b.inCrm++; if (c.booked) b.booked++; if (c.met) b.met++; if (c.won) b.won++;
+      b.sales += sales; b.revenue += rev;
+    };
+    add(all);
+    const st = (s.crm && s.crm.stage) || '';
+    if (st) stagesAll[st] = (stagesAll[st] || 0) + 1;
+    if (isPaid(s)) { add(paid); add(dayOf(brDay(s.created_at))); if (st) stagesPaid[st] = (stagesPaid[st] || 0) + 1 }
+  }
+  const meta = {spend: 0, impressions: 0, clicks: 0, link_clicks: 0, lpv: 0, meta_leads: 0};
+  for (const r of spend) {
+    meta.spend += Number(r.spend) || 0; for (const k of META_KEYS) meta[k] += Number(r[k]) || 0;
+    const d = dayOf(r.day); d.spend += Number(r.spend) || 0; d.impressions += Number(r.impressions) || 0; d.link_clicks += Number(r.link_clicks) || 0; d.lpv += Number(r.lpv) || 0;
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  meta.spend = r2(meta.spend); all.revenue = r2(all.revenue); paid.revenue = r2(paid.revenue);
+  return {all, paid, meta, stages: {all: stagesAll, paid: stagesPaid}, daily: Object.keys(days).sort().map(day => ({day, ...days[day], spend: r2(days[day].spend), revenue: r2(days[day].revenue)}))};
 }
 const median = (a: number[]) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), k = s.length >> 1; return s.length % 2 ? s[k] : (s[k - 1] + s[k]) / 2 };
 // Por etapa: visitantes, quantos pararam ali, tempo mediano até a próxima e quantos voltaram; e as passagens mais comuns.

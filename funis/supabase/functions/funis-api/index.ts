@@ -5,7 +5,7 @@
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadRows, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -17,6 +17,8 @@ const BUCKET = 'funis';
 const RS_API = env('RESTAURANTES_API') || 'https://kxabfippeekyxpcgjytx.supabase.co/functions/v1/restaurantes-api';
 const RS_KEY = env('RESTAURANTES_ACCESS_CODE');
 const SELF_URL = SUPABASE_URL + '/functions/v1/funis-api';
+// Central Comercial (CRM). O código de acesso dela fica em fn_config (k = 'crm'), guardado pelo editor.
+const CRM_API = env('CRM_API') || 'https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api';
 
 class HttpError extends Error { constructor(public status: number, message: string){ super(message) } }
 const bad = (message: string, status = 400) => new HttpError(status, message);
@@ -48,6 +50,28 @@ async function setCode(code: string){
   await sql`insert into fn_config (k, v) values ('access', ${json({salt, hash: await sha256(salt + ':' + code), at: new Date().toISOString()})})
     on conflict (k) do update set v = excluded.v, updated_at = now()`;
   codeCache = {at: 0, v: null};
+}
+/* ---------- tentativas erradas do código (bloqueio) ---------- */
+// 10 erros do mesmo IP em 15 min: aquele IP fica 15 min sem poder entrar (nem com o código certo).
+// 100 erros somados na última hora, de qualquer IP: o editor fica bloqueado para todos até a conta baixar.
+// Acertar o código zera o IP. Os erros ficam na tabela fn_auth_fails.
+const IP_FAILS = 10, IP_WINDOW = 15, IP_LOCK = 15, ALL_FAILS = 100;
+const clientIp = (req: Request) => ((req.headers.get('x-forwarded-for') || '').split(',')[0].trim() || req.headers.get('cf-connecting-ip') || req.headers.get('x-real-ip') || '?').slice(0, 64);
+async function authState(ip: string){
+  const [r] = await sql`
+    select (select fails from fn_auth_fails where ip = ${ip}) as fails,
+           (select ceil(extract(epoch from locked_until - now()) / 60)::int from fn_auth_fails where ip = ${ip} and locked_until > now()) as wait,
+           (select coalesce(sum(fails), 0)::int from fn_auth_fails where window_start > now() - interval '1 hour') as total`;
+  return {fails: Number(r.fails) || 0, wait: Number(r.wait) || 0, total: Number(r.total) || 0};
+}
+async function authFailed(ip: string){
+  await sql`
+    insert into fn_auth_fails as a (ip, fails, window_start) values (${ip}, 1, now())
+    on conflict (ip) do update set
+      fails = case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then 1 else a.fails + 1 end,
+      window_start = case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then now() else a.window_start end,
+      locked_until = case when (case when a.window_start < now() - make_interval(mins => ${IP_WINDOW}) then 1 else a.fails + 1 end) >= ${IP_FAILS}
+                          then now() + make_interval(mins => ${IP_LOCK}) else a.locked_until end`;
 }
 // Apagar exige repetir o endereço do funil (proteção contra chamada por engano).
 function confirmSlug(f: Row, b: Row){ if (String(b.confirm || '') !== f.slug) throw bad('Para apagar, confirme com o endereço do funil.') }
@@ -265,6 +289,128 @@ async function upsertSpend(fid: string, rows: SpendRow[], source: string){
   }
   return clean.length;
 }
+/* ---------- Meta: gasto da conta por anúncio e por dia (fn_ad_spend), dividido entre os funis na leitura ---------- */
+// Várias fontes (Graph API, Central Comercial, rotina com o MCP da Meta): cada número fica com o maior valor visto,
+// porque o dia de hoje chega incompleto e só cresce até fechar.
+async function upsertAdSpend(rows: AdSpendRow[], source: string){
+  const s = (v: unknown, n = 200) => v == null ? '' : String(v).trim().slice(0, n);
+  const n = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+  const uniq = new Map<string, Row>();
+  for (const r of rows.slice(0, 20000)) {
+    const row = {day: s(r.day, 10), ad_id: s(r.ad_id, 40), ad_name: s(r.ad_name), adset_id: s(r.adset_id, 40), adset_name: s(r.adset_name), campaign_id: s(r.campaign_id, 40), campaign_name: s(r.campaign_name),
+      spend: Math.max(0, Math.round((Number(r.spend) || 0) * 100) / 100), impressions: n(r.impressions), clicks: n(r.clicks), link_clicks: n(r.link_clicks), lpv: n(r.lpv), meta_leads: n(r.meta_leads), source: s(source, 20)};
+    if (/^\d{4}-\d{2}-\d{2}$/.test(row.day) && /^\d{6,}$/.test(row.ad_id)) uniq.set(row.day + '|' + row.ad_id, row);
+  }
+  const clean = [...uniq.values()];
+  for (let i = 0; i < clean.length; i += 500) {
+    await sql`insert into fn_ad_spend ${sql(clean.slice(i, i + 500), 'day', 'ad_id', 'ad_name', 'adset_id', 'adset_name', 'campaign_id', 'campaign_name', 'spend', 'impressions', 'clicks', 'link_clicks', 'lpv', 'meta_leads', 'source')}
+      on conflict (day, ad_id) do update set
+        source = case when excluded.spend >= fn_ad_spend.spend then excluded.source else fn_ad_spend.source end,
+        spend = greatest(fn_ad_spend.spend, excluded.spend), impressions = greatest(fn_ad_spend.impressions, excluded.impressions), clicks = greatest(fn_ad_spend.clicks, excluded.clicks),
+        link_clicks = greatest(fn_ad_spend.link_clicks, excluded.link_clicks), lpv = greatest(fn_ad_spend.lpv, excluded.lpv), meta_leads = greatest(fn_ad_spend.meta_leads, excluded.meta_leads),
+        ad_name = coalesce(nullif(excluded.ad_name, ''), fn_ad_spend.ad_name), adset_id = coalesce(nullif(excluded.adset_id, ''), fn_ad_spend.adset_id), adset_name = coalesce(nullif(excluded.adset_name, ''), fn_ad_spend.adset_name),
+        campaign_id = coalesce(nullif(excluded.campaign_id, ''), fn_ad_spend.campaign_id), campaign_name = coalesce(nullif(excluded.campaign_name, ''), fn_ad_spend.campaign_name), updated_at = now()`;
+  }
+  return clean.length;
+}
+// Gasto de um funil: o importado por planilha (fn_spend) + o da conta (fn_ad_spend) dos anúncios que trazem visita para ele.
+async function funnelSpend(fid: string, since: Date){
+  const day = brDay(since.getTime() ? since : new Date('2000-01-01'));
+  const [auto, firsts, manual] = await Promise.all([
+    sql`select to_char(day, 'YYYY-MM-DD') as day, ad_id, ad_name, adset_id, adset_name, campaign_id, campaign_name, spend::float as spend, impressions, clicks, link_clicks, lpv, meta_leads from fn_ad_spend where day >= ${day}::date`,
+    sql`select funnel_id::text as funnel_id, ad_id, to_char(min(created_at at time zone 'America/Sao_Paulo') + interval '12 hours', 'YYYY-MM-DD') as first_day,
+               to_char(min(created_at at time zone 'America/Sao_Paulo'), 'YYYY-MM-DD') as first_seen
+          from (select funnel_id, created_at, substring(coalesce(nullif(params ->> 'utm_content', ''), tracking ->> 'utm_content') from '\\|\\s*(\\d{6,})\\s*$') as ad_id from fn_sessions) s
+         where ad_id is not null group by 1, 2`,
+    sql`select to_char(day, 'YYYY-MM-DD') as day, campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, spend::float as spend from fn_spend where funnel_id = ${fid} and day >= ${day}::date`,
+  ]);
+  const mine = attributeSpend(auto as unknown as AdSpendRow[], firsts as unknown as {funnel_id: string; ad_id: string; first_day: string; first_seen: string}[], fid);
+  const taken = new Set(manual.map(r => r.day + '|' + r.ad_id));
+  return [...(manual as unknown as SpendRow[]), ...mine.filter(r => !taken.has(r.day + '|' + r.ad_id))];
+}
+async function metaStatus(){
+  const [r] = await sql`select to_char(max(day), 'YYYY-MM-DD') as last_day, max(updated_at) as updated_at, count(*)::int as rows from fn_ad_spend`;
+  return {lastDay: r.last_day, updatedAt: r.updated_at, rows: r.rows};
+}
+// Busca na Graph API com o token guardado num funil (Configurações › Pixel/Scripts) e grava na conta toda.
+async function metaPull(token: string, account: string, since: string, until: string){
+  const fields = 'ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,spend,impressions,clicks,inline_link_clicks,actions';
+  let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${account}/insights?level=ad&fields=${fields}&time_increment=1&limit=500&time_range=${encodeURIComponent(JSON.stringify({since, until}))}&access_token=${encodeURIComponent(token)}`;
+  const rows: AdSpendRow[] = [];
+  for (let page = 0; url && page < 40; page++) {
+    const r = await fetch(url, {signal: AbortSignal.timeout(20000)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw bad('A Meta recusou: ' + ((j.error && j.error.message) || 'HTTP ' + r.status), 502);
+    for (const x of j.data || []) {
+      const act = (k: string) => Number(((x.actions || []).find((a: Row) => a.action_type === k) || {}).value) || 0;
+      rows.push({day: x.date_start, campaign_id: x.campaign_id, campaign_name: x.campaign_name, adset_id: x.adset_id, adset_name: x.adset_name, ad_id: x.ad_id, ad_name: x.ad_name, spend: Number(x.spend) || 0,
+        impressions: Number(x.impressions) || 0, clicks: Number(x.clicks) || 0, link_clicks: Number(x.inline_link_clicks) || 0, lpv: act('landing_page_view'), meta_leads: act('lead') || act('offsite_conversion.fb_pixel_lead')});
+    }
+    url = j.paging && j.paging.next;
+  }
+  return {rows: await upsertAdSpend(rows, 'api'), spend: Math.round(rows.reduce((t, x) => t + x.spend, 0) * 100) / 100};
+}
+
+/* ---------- Central Comercial: etapa, agendamento, reunião e venda de cada lead ---------- */
+async function getConf(k: string){ const [r] = await sql`select v from fn_config where k = ${k}`; return (r && r.v) || {} }
+const setConf = (k: string, v: unknown) => sql`insert into fn_config (k, v) values (${k}, ${json(v)}) on conflict (k) do update set v = excluded.v, updated_at = now()`;
+// Liga cada lead da Central à visita: pelo código do visitante (o mesmo do webhook) ou, sem ele, pelo WhatsApp (a visita mais recente).
+async function applyCrmLeads(leads: {code: string; phone: string; crm: CrmInfo}[]){
+  if (!leads.length) return {matched: 0, changed: 0};
+  const [r] = await sql`
+    with x as (select * from jsonb_to_recordset(${json(leads)}) as x(code text, phone text, crm jsonb)),
+    m as (
+      select distinct on (x.code, x.phone) s.funnel_id, s.id, x.crm
+        from x join fn_sessions s on (x.code <> '' and s.id = x.code) or (x.phone <> '' and s.phone = x.phone)
+       order by x.code, x.phone, (x.code <> '' and s.id = x.code) desc, s.created_at desc),
+    u as (update fn_sessions s set crm = m.crm from m where s.funnel_id = m.funnel_id and s.id = m.id and s.crm is distinct from m.crm returning s.id)
+    select (select count(*) from m)::int as matched, (select count(*) from u)::int as changed`;
+  return r as {matched: number; changed: number};
+}
+async function crmSync(){
+  const conf = await getConf('crm');
+  if (!conf.key) throw bad('Guarde o código de acesso da Central Comercial em Configurações › Integrações.');
+  const t0 = Date.now();
+  try {
+    const r = await fetch(conf.url || CRM_API, {method: 'POST', headers: {'content-type': 'application/json', 'x-crm-key': conf.key}, body: JSON.stringify({op: 'load'}), signal: AbortSignal.timeout(40000)});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401) throw bad('A Central Comercial recusou o código de acesso. Guarde o código novo em Configurações › Integrações.', 502);
+    if (!r.ok) throw bad('A Central Comercial não respondeu (' + (j.error || 'HTTP ' + r.status) + ').', 502);
+    const docs = Array.isArray(j.docs) ? j.docs : [];
+    const leads = crmLeadRows(docs), hit = await applyCrmLeads(leads);
+    const sp = docs.find((d: Row) => d && d.col === 'meta' && d.id === 'spend'), spendRows = crmSpendRows(sp && sp.data);
+    const st = {ok: true, at: new Date().toISOString(), leads: leads.length, ...hit, spendRows: spendRows.length ? await upsertAdSpend(spendRows, 'crm') : 0, spendUpdatedAt: (sp && sp.data && sp.data.updatedAt) || null, ms: Date.now() - t0};
+    await setConf('crm_sync', st);
+    return st;
+  } catch (e) {
+    await setConf('crm_sync', {ok: false, at: new Date().toISOString(), error: errText(e)});
+    throw e;
+  }
+}
+// A cada 30 min (pg_cron): Central Comercial e, se algum funil tiver o token da Meta, os últimos 3 dias da conta.
+async function cronSync(){
+  const out: Row = {};
+  try { out.crm = (await getConf('crm')).key ? await crmSync() : {skipped: true} } catch (e) { out.crm = {ok: false, error: errText(e)} }
+  const accounts = new Map<string, string>();
+  for (const f of await sql`select secrets from fn_funnels where secrets ->> 'adsToken' is not null and secrets ->> 'adsAccount' is not null`) accounts.set(f.secrets.adsAccount, f.secrets.adsToken);
+  out.meta = [];
+  for (const [account, token] of accounts) {
+    try { out.meta.push({account, ...(await metaPull(token, account, brDay(Date.now() - 2 * 864e5), brDay(Date.now())))}) } catch (e) { out.meta.push({account, error: errText(e)}) }
+  }
+  return out;
+}
+// Operações de máquina (cron e a rotina diária da Meta): cabeçalho x-fn-cron com a chave guardada em fn_config (k = 'cron').
+const MACHINE: Record<string, (b: Row) => Promise<unknown>> = {
+  async 'cron.sync'(){ return await cronSync() },
+  async 'cron.spend'(b){ return {rows: await upsertAdSpend(Array.isArray(b.rows) ? b.rows : [], /^[a-z-]{2,20}$/.test(String(b.source)) ? String(b.source) : 'meta'), meta: await metaStatus()} },
+};
+async function machineOk(req: Request){
+  const k = req.headers.get('x-fn-cron') || '';
+  if (k.length < 20) return false;
+  const c = await getConf('cron');
+  return !!c.key && sameKey(k, c.key);
+}
+
 async function applyCrm(fid: string, body: unknown){
   let matched = 0;
   for (const x of parseCrm(body)) {
@@ -386,11 +532,33 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
     const [sessions, sales, spend] = await Promise.all([
       periodSessions(f.id, since),
       sql`select session_id, status, value::float as value from fn_sales where funnel_id = ${f.id} and created_at >= ${since}`,
-      sql`select to_char(day, 'YYYY-MM-DD') as day, campaign_id, campaign_name, adset_id, adset_name, ad_id, ad_name, spend::float as spend from fn_spend where funnel_id = ${f.id} and day >= ${since}::date`,
+      funnelSpend(f.id, since),
     ]);
     const settings = (b.settings || leadsOf(f.draft) || leadsOf(f.published)) as LeadSettings;
-    return aggregateAds(sessions, {level: String(b.level || 'ad'), settings, submitNames: String((f.webhook && f.webhook.component) || '').split(',').map(x => x.trim()), sales: sales as unknown as {session_id: string; status: string; value: number}[], spend: spend as unknown as SpendRow[]});
+    return aggregateAds(sessions, {level: String(b.level || 'ad'), settings, submitNames: String((f.webhook && f.webhook.component) || '').split(',').map(x => x.trim()), sales: sales as unknown as {session_id: string; status: string; value: number}[], spend});
   },
+  // Ponta a ponta: Meta (gasto, impressões, cliques) → funil (visitas, envios) → Central Comercial (agendou, fez reunião, fechou).
+  async 'leads.e2e'(b){
+    const f = await funnelById(b.id), since = sinceOf(b);
+    waitUntil(sweep(f.id));
+    const [sessions, sales, spend, meta, conf, crm] = await Promise.all([
+      periodSessions(f.id, since),
+      sql`select session_id, status, value::float as value from fn_sales where funnel_id = ${f.id} and created_at >= ${since}`,
+      funnelSpend(f.id, since), metaStatus(), getConf('crm'), getConf('crm_sync'),
+    ]);
+    const settings = (b.settings || leadsOf(f.draft) || leadsOf(f.published)) as LeadSettings;
+    const rep = aggregateE2E(sessions, spend, {settings, submitNames: String((f.webhook && f.webhook.component) || '').split(',').map(x => x.trim()), sales: sales as unknown as {session_id: string; status: string; value: number}[]});
+    return {...rep, sources: {meta, crm: {configured: !!conf.key, ...crm}}};
+  },
+  async 'crm.config'(b){
+    let conf = await getConf('crm');
+    if (b.clear) conf = {};
+    else if (typeof b.key === 'string' && b.key.trim()) conf = {...conf, key: b.key.trim().slice(0, 200)};
+    if (typeof b.url === 'string' && /^https:\/\/[\w.-]+\//.test(b.url.trim())) conf = {...conf, url: b.url.trim().slice(0, 300)};
+    if (b.clear || b.key || b.url) await setConf('crm', conf);
+    return {configured: !!conf.key, url: conf.url || CRM_API, status: await getConf('crm_sync')};
+  },
+  async 'crm.sync'(){ return await crmSync() },
   async 'leads.paths'(b){
     const f = await funnelById(b.id);
     const sessions = (await sql`select id, steps, timeline, completed from fn_sessions where funnel_id = ${f.id} and created_at >= ${sinceOf(b)} limit 20000`) as unknown as Session[];
@@ -405,19 +573,9 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
   async 'spend.sync'(b){
     const f = await funnelById(b.id), sec = f.secrets || {};
     if (!sec.adsToken || !sec.adsAccount) throw bad('Preencha o token e a conta de anúncios em Configurações › Pixel/Scripts.');
-    const since = new Date(Math.max(Date.now() - 90 * 864e5, b.since ? new Date(b.since).getTime() : Date.now() - 30 * 864e5)).toISOString().slice(0, 10);
-    const until = new Date().toISOString().slice(0, 10);
-    let url = `https://graph.facebook.com/${GRAPH_VERSION}/act_${sec.adsAccount}/insights?level=ad&fields=ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,spend&time_increment=1&limit=500&time_range=${encodeURIComponent(JSON.stringify({since, until}))}&access_token=${encodeURIComponent(sec.adsToken)}`;
-    const rows: SpendRow[] = [];
-    for (let page = 0; url && page < 40; page++) {
-      const r = await fetch(url, {signal: AbortSignal.timeout(20000)});
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw bad('A Meta recusou: ' + ((j.error && j.error.message) || 'HTTP ' + r.status), 502);
-      for (const x of j.data || []) rows.push({day: x.date_start, campaign_id: x.campaign_id, campaign_name: x.campaign_name, adset_id: x.adset_id, adset_name: x.adset_name, ad_id: x.ad_id, ad_name: x.ad_name, spend: Number(x.spend) || 0});
-      url = j.paging && j.paging.next;
-    }
-    const n = await upsertSpend(f.id, rows, 'api');
-    return {rows: n, spend: Math.round(rows.reduce((t, x) => t + x.spend, 0) * 100) / 100, since, until};
+    const since = brDay(Math.max(Date.now() - 90 * 864e5, b.since ? new Date(b.since).getTime() : Date.now() - 30 * 864e5));
+    const until = brDay(Date.now());
+    return {...(await metaPull(sec.adsToken, sec.adsAccount, since, until)), since, until};
   },
   // Leads antigos (InLead): não sobrescreve quem já existe aqui.
   async 'leads.import'(b){
@@ -501,7 +659,12 @@ Deno.serve(async req => {
   const op = String(body.op || '');
   try {
     if (PUBLIC[op]) return reply(200, await PUBLIC[op](body, req));
-    if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
+    if (MACHINE[op]) return (await machineOk(req)) ? reply(200, await MACHINE[op](body)) : reply(401, {error: 'Chave inválida.'});
+    const ip = clientIp(req), st = await authState(ip);
+    if (st.wait > 0) return reply(429, {error: `Muitas tentativas com o código errado. Tente de novo em ${st.wait} min.`});
+    if (st.total >= ALL_FAILS) return reply(429, {error: 'Muitas tentativas com o código errado no momento. Tente de novo mais tarde.'});
+    if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await authFailed(ip); await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
+    if (st.fails) await sql`delete from fn_auth_fails where ip = ${ip}`;
     const fn = ops[op];
     if (!fn) return reply(400, {error: 'Operação desconhecida.'});
     return reply(200, await fn(body));
