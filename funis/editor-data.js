@@ -65,7 +65,7 @@ async function loadLeads(more){
 async function renderLeads(main){
   const L = UI.leads, my = ++LEADS.seq;
   main.innerHTML = `<div class="leads" id="leads-root"><div class="leads-top">
-    <div class="seg">${[['respostas', 'Respostas'], ['resultados', 'Resultados'], ['performance', 'Performance'], ['anuncios', 'Anúncios'], ['caminhos', 'Caminhos']].map(([k, l]) => `<button data-a="lsub" data-v="${k}" aria-pressed="${L.sub === k}">${l}</button>`).join('')}</div>
+    <div class="seg">${[['respostas', 'Respostas'], ['resultados', 'Resultados'], ['performance', 'Performance'], ['ponta', 'Ponta a ponta'], ['anuncios', 'Anúncios'], ['caminhos', 'Caminhos']].map(([k, l]) => `<button data-a="lsub" data-v="${k}" aria-pressed="${L.sub === k}">${l}</button>`).join('')}</div>
     <div class="seg">${PERIODS.map(([k, l]) => `<button data-a="lperiod" data-v="${k}" aria-pressed="${L.period === k}">${l}</button>`).join('')}</div>
     <span style="flex:1"></span><button class="btn sm" data-a="lrefresh">${IC.refresh}Atualizar</button><button class="btn sm" data-a="lexport">${IC.download}Exportar leads</button>${DB.server ? `<label class="btn sm" title="Planilha ou JSON do InLead">${IC.upload}Importar do InLead<input type="file" hidden accept=".csv,.json,text/csv,application/json" data-import="inlead" multiple></label>` : ''}<button class="btn sm danger" data-a="lreset">${IC.trash}Resetar dados</button></div>
     ${DB.server ? '' : '<div class="banner" style="margin-bottom:14px">Modo local: aqui aparecem só os testes feitos no botão ▶ deste navegador. Os leads reais aparecem quando o servidor estiver configurado.</div>'}
@@ -83,9 +83,9 @@ function paintLeads(data){
   const body = $('#leads-body'); if (!body) return;
   const st = data.stats || {visits: 0, steps: {}};
   const sub = UI.leads.sub;
-  if (sub === 'anuncios' || sub === 'caminhos') {
-    body.innerHTML = kpis(st) + '<div id="ins-body"><div class="empty">Carregando…</div></div>';
-    (sub === 'anuncios' ? adsHtml() : pathsHtml()).then(h => { const b = $('#ins-body'); if (b && UI.leads.sub === sub) { b.innerHTML = h; wireTips(b) } }).catch(e => { const b = $('#ins-body'); if (b) b.innerHTML = `<div class="empty">${esc(e.message)}</div>` });
+  if (sub === 'anuncios' || sub === 'caminhos' || sub === 'ponta') {
+    body.innerHTML = (sub === 'ponta' ? '' : kpis(st)) + '<div id="ins-body"><div class="empty">Carregando…</div></div>';
+    (sub === 'anuncios' ? adsHtml() : sub === 'ponta' ? e2eHtml() : pathsHtml()).then(h => { const b = $('#ins-body'); if (b && UI.leads.sub === sub) { b.innerHTML = h; wireTips(b) } }).catch(e => { const b = $('#ins-body'); if (b) b.innerHTML = `<div class="empty">${esc(e.message)}</div>` });
     return;
   }
   body.innerHTML = kpis(st) + (sub === 'resultados' ? resultsHtml(st) : sub === 'performance' ? perfHtml(st) : answersHtml(data));
@@ -184,7 +184,7 @@ Object.assign(ACT, {
   lperiod: t => { UI.leads.period = t.dataset.v; LEADS.cache = null; renderLeads($('#ed-main')) },
   lorder: t => { UI.leads.order = t.dataset.v; LEADS.cache = null; renderLeads($('#ed-main')) },
   lmetric: t => { UI.leads.metric = t.dataset.v; paintLeads(LEADS.cache) },
-  lrefresh: () => { LEADS.cache = null; renderLeads($('#ed-main')) },
+  lrefresh: () => { LEADS.cache = null; INS.ads = null; INS.paths = null; INS.e2e = null; renderLeads($('#ed-main')) },
   lmore: async () => { const d = await loadLeads(true); paintLeads(d) },
   lexport: exportCsv,
   lreset: async () => { if (!(await confirmBox('Resetar os dados deste funil?', 'Todos os acessos e respostas serão apagados. Os leads que já foram para o CRM continuam lá. Não dá para desfazer.', 'Apagar tudo', true))) return; await DB.reset(REC.id, REC.slug); LEADS.cache = null; toast('Dados apagados'); renderLeads($('#ed-main')) },

@@ -1,7 +1,9 @@
 /* Funis Brase — editor: leitura dos leads (perfil, nota, abandono, repetidos), anúncios e custos, caminhos,
  * integrações (API de Conversões, gasto da Meta, vendas do checkout, etapas do CRM) e importação de leads do InLead. */
 'use strict';
-const INS = {ads: null, adsKey: '', paths: null, pathsKey: '', int: null, intId: null, level: 'ad', sort: {k: 'visits', d: -1}, sel: null, utm: []};
+const INS = {ads: null, adsKey: '', paths: null, pathsKey: '', e2e: null, e2eKey: '', scope: 'paid', crm: null, int: null, intId: null, level: 'ad', sort: {k: 'visits', d: -1}, sel: null, utm: []};
+// Central Comercial (CRM): o lead abre direto pelo endereço #lead=<id>.
+const CRM_APP = 'https://app.brasemarketing.com.br/';
 const needServer = () => { if (!DB.server) throw new Error('Isso precisa do servidor (Supabase) configurado.') };
 const money = v => v == null ? '—' : 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
 const pctOf = v => v == null ? '—' : (v * 100).toLocaleString('pt-BR', {maximumFractionDigits: 1}) + '%';
@@ -24,7 +26,7 @@ function leadInsight(l){
   const tags = (ls.tags || []).filter(t => t && String(t.label || '').trim() && hasGroups(t.when) && FR.evalRoles(t.when, {vars})).map(t => String(t.label).trim());
   return {icp: hasGroups(ls.icp) ? FR.evalRoles(ls.icp, {vars}) : null, score: rules.length ? score : null, hot: rules.length && Number(ls.hot) > 0 ? score >= Number(ls.hot) : null, reasons, tags};
 }
-const STAGE_NAMES = {novo: 'Lead Novo', print: 'Print Enviado', qualificando: 'Qualificando', agendando: 'Agendando', marcada: 'Reunião Marcada', feita: 'Reunião Feita', fechado: 'Fechado', perdido: 'Perdido', desqualificado: 'Desqualificado', frio: 'Frio', morno: 'Morno'};
+const STAGE_NAMES = {novo: 'Lead Novo', link: 'Link Recebido', print: 'Print Enviado', qualificando: 'Qualificando', agendando: 'Agendando', marcada: 'Reunião Marcada', feita: 'Reunião Feita', fechado: 'Fechado', perdido: 'Perdido', desqualificado: 'Desqualificado', frio: 'Frio', morno: 'Morno'};
 // Colunas extras da tabela de respostas.
 function insightHead(){ return ['Nota', 'Perfil', 'Etiquetas', 'Teste A/B', 'WhatsApp', 'Envio', 'CRM', 'Venda'] }
 const abOf = l => Object.entries(l.params || {}).filter(([k]) => /^teste_/.test(k)).map(([k, v]) => k.slice(6) + ': ' + v).join(' · ');
@@ -51,19 +53,25 @@ function insightDrawer(l, data){
   if (m.tags.length) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Etiquetas</span><span>${m.tags.map(t => `<span class="chip acc">${esc(t)}</span>`).join(' ')}</span></div>`);
   if (abOf(l)) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Teste A/B</span><span>${esc(abOf(l))}</span></div>`);
   if (l.phone) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">WhatsApp</span><span>+${esc(l.phone)} ${validPhone(l.phone) ? '<span class="chip ok">válido</span>' : '<span class="chip bad">confira</span>'}</span></div>`);
-  if (l.crm && l.crm.stage) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">CRM</span><span>${esc(STAGE_NAMES[l.crm.stage] || l.crm.stage)}${l.crm.value ? ' · ' + money(l.crm.value) : ''}</span></div>`);
+  if (l.crm && l.crm.stage) {
+    const c = l.crm, when = (t, d) => d ? `<span class="chip ok">${t} ${esc(fmtDate(d))}</span>` : '';
+    rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Central Comercial</span><span>${esc(STAGE_NAMES[c.stage] || c.stage)}${c.value ? ' · ' + money(c.value) : ''}${c.lead ? ` · <a href="${attr(CRM_APP + '#lead=' + encodeURIComponent(c.lead))}" target="_blank" rel="noopener">abrir</a>` : ''}</span></div>`);
+    if (c.booked || c.met || c.closed || c.lost) rows.push(`<div class="row" style="justify-content:flex-end;flex-wrap:wrap;gap:4px">${when('agendou', c.booked)}${when('reunião', c.met)}${when('fechou', c.closed)}${c.lost ? `<span class="chip">${esc(c.lost)}</span>` : ''}</div>`);
+  }
   for (const s of sales) rows.push(`<div class="row" style="justify-content:space-between"><span class="muted">Venda${s.product ? ' · ' + esc(s.product) : ''}</span><span>${s.status === 'approved' ? money(s.value) : esc(s.status)} · ${esc(fmtDateTime(s.created_at))}</span></div>`);
   return rows.length ? `<div><div class="eyebrow" style="margin-bottom:6px">Leitura do lead</div><div style="display:grid;gap:6px">${rows.join('')}</div></div>` : '';
 }
 
 /* ================= Leads › Anúncios ================= */
 const LEVEL_OPTS = [['campaign', 'Campanha', 'utm_campaign'], ['adset', 'Conjunto', 'utm_medium'], ['ad', 'Anúncio', 'utm_content'], ['placement', 'Posicionamento', 'utm_term'], ['source', 'Origem', 'utm_source']];
+const intOrDash = n => n ? fmtInt(n) : '—';
 const AD_COLS = [
-  ['spend', 'Gasto', r => money(r.spend)], ['visits', 'Visitas', r => fmtInt(r.visits)], ['startRate', 'Inícios', r => `${fmtInt(r.started)} <small>${pctOf(r.startRate)}</small>`],
+  ['spend', 'Gasto', r => money(r.spend)], ['impressions', 'Impressões', r => intOrDash(r.impressions)], ['link_clicks', 'Cliques', r => intOrDash(r.link_clicks)], ['ctr', 'CTR', r => pctOf(r.ctr)], ['cpc', 'CPC', r => money(r.cpc)],
+  ['visits', 'Visitas', r => fmtInt(r.visits)], ['startRate', 'Inícios', r => `${fmtInt(r.started)} <small>${pctOf(r.startRate)}</small>`],
   ['icp', 'No perfil', r => `${fmtInt(r.icp)} <small>${pctOf(r.icpRate)}</small>`], ['score', 'Nota média', r => r.score == null ? '—' : fmtInt(r.score)],
-  ['submitted', 'Envios', r => fmtInt(r.submitted)], ['abandoned', 'Abandonos', r => fmtInt(r.abandoned)], ['meetings', 'Reuniões', r => fmtInt(r.meetings)],
+  ['submitted', 'Envios', r => fmtInt(r.submitted)], ['abandoned', 'Abandonos', r => fmtInt(r.abandoned)], ['meetings', 'Agendaram', r => fmtInt(r.meetings)], ['met', 'Reuniões feitas', r => fmtInt(r.met)],
   ['sales', 'Vendas', r => fmtInt(r.sales + r.won)], ['revenue', 'Receita', r => money(r.revenue)],
-  ['cpl', 'Custo/envio', r => money(r.cpl)], ['cpIcp', 'Custo/lead no perfil', r => money(r.cpIcp)], ['cpMeeting', 'Custo/reunião', r => money(r.cpMeeting)], ['cpSale', 'Custo/venda', r => money(r.cpSale)],
+  ['cpl', 'Custo/envio', r => money(r.cpl)], ['cpIcp', 'Custo/lead no perfil', r => money(r.cpIcp)], ['cpMeeting', 'Custo/agendamento', r => money(r.cpMeeting)], ['cpMet', 'Custo/reunião feita', r => money(r.cpMet)], ['cpSale', 'Custo/venda', r => money(r.cpSale)],
   ['roas', 'ROAS', r => r.roas == null ? '—' : r.roas.toLocaleString('pt-BR', {maximumFractionDigits: 2}) + 'x'],
 ];
 const levelOpts = () => LEVEL_OPTS.concat(FR.abTests(D).map(t => ['ab:' + FR.abName(t.name), 'Teste: ' + FR.abName(t.name), 'teste_' + FR.abName(t.name)]));
@@ -84,12 +92,12 @@ async function adsHtml(){
   const sel = rows.find(x => x.key === INS.sel) || null;
   return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg">${levelOpts().map(([v, l]) => `<button data-a="ads-level" data-v="${v}" aria-pressed="${INS.level === v}">${l}</button>`).join('')}</span>
       <span class="hint">${/^ab:/.test(INS.level) ? `agrupado pela variante do teste (<code>${lvl[2]}</code>) · Inícios mostra quanto cada capa faz começar` : `agrupado por <code>${lvl[2]}</code> do link do anúncio`} · clique numa linha para ver o dia a dia</span><span style="flex:1"></span><button class="btn sm" data-a="ads-csv">${IC.download}CSV</button></div>
-    ${noSpend || noRules ? `<div class="banner" style="margin-bottom:10px">${noSpend ? 'Sem gasto no período: importe a planilha do Gerenciador de Anúncios ou ligue a busca automática em Configurações › Pixel/Scripts para ver os custos. ' : ''}${noRules ? 'Defina a regra de perfil em Configurações › Leads e dados para ver quantos leads no perfil cada anúncio traz.' : ''}</div>` : ''}
+    ${noSpend || noRules ? `<div class="banner" style="margin-bottom:10px">${noSpend ? (/^(campaign|adset|ad)$/.test(INS.level) ? 'Sem gasto da Meta para os anúncios deste funil no período. O gasto entra sozinho (Central Comercial, rotina diária da Meta ou token em Configurações › Pixel/Scripts) ou pela planilha do Gerenciador. ' : 'Gasto e números da Meta aparecem só por campanha, conjunto e anúncio. ') : ''}${noRules ? 'Defina a regra de perfil em Configurações › Leads e dados para ver quantos leads no perfil cada anúncio traz.' : ''}</div>` : ''}
     <div class="tbl-wrap"><table class="tbl ads"><thead><tr><th class="sticky">${lvl[1]}</th>${AD_COLS.map(([c, l]) => `<th data-a="ads-sort" data-v="${c}" style="cursor:pointer">${l}${INS.sort.k === c ? (d < 0 ? ' ↓' : ' ↑') : ''}</th>`).join('')}</tr></thead>
       <tbody>${rows.map(x => `<tr data-a="ads-row" data-key="${attr(x.key)}"${x.key === INS.sel ? ' class="on"' : ''}><td class="sticky" title="${attr(x.key)}">${esc(x.name)}${x.id ? `<span class="nm">${esc(x.id)}</span>` : ''}</td>${AD_COLS.map(([, , f]) => `<td class="num">${f(x)}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${AD_COLS.length + 1}" class="empty">Sem acessos no período.</td></tr>`}</tbody>
       <tfoot><tr><td class="sticky"><b>Total</b></td>${AD_COLS.map(([, , f]) => `<td class="num"><b>${f(Object.assign({started: t.started, won: t.won || 0}, t))}</b></td>`).join('')}</tr></tfoot></table></div>
     ${sel ? fatigueHtml(sel) : ''}
-    <p class="hint" style="margin-top:8px">Envios = clicaram no componente do webhook · Abandonos = deixaram o WhatsApp e não enviaram · Reuniões e vendas do CRM entram pelo webhook ou planilha em Configurações › Integrações · ROAS = (vendas do checkout + vendas do CRM) ÷ gasto.</p>`;
+    <p class="hint" style="margin-top:8px">Impressões, cliques (no link), CTR e CPC vêm da Meta · Envios = clicaram no componente do webhook · Abandonos = deixaram o WhatsApp e não enviaram · Agendaram, reuniões feitas e vendas vêm da Central Comercial (a cada 30 min) · ROAS = (vendas do checkout + vendas da Central) ÷ gasto.</p>`;
 }
 // Cansaço do criativo: taxa de início por dia (quem começou ÷ quem visitou).
 function fatigueHtml(r){
@@ -107,6 +115,61 @@ function adsCsv(){
   const plain = (x, c) => { const v = x[c]; return v == null ? '' : typeof v === 'number' ? String(Math.round(v * 100) / 100).replace('.', ',') : v };
   const lines = [head.map(csvCell).join(';')].concat(r.rows.map(x => [x.name, x.id].concat(AD_COLS.map(([c]) => c === 'sales' ? x.sales + x.won : plain(x, c))).map(csvCell).join(';')));
   download(`anuncios-${REC.slug}-${INS.level}-${new Date().toISOString().slice(0, 10)}.csv`, '﻿' + lines.join('\r\n'), 'text/csv;charset=utf-8');
+}
+
+/* ================= Leads › Ponta a ponta ================= */
+// Meta (gasto, impressões, cliques) → funil (visitas, envios) → Central Comercial (agendou, reunião feita, fechou).
+async function loadE2E(force){
+  needServer();
+  const key = [REC.id, UI.leads.period, JSON.stringify(D.settings.leads || {})].join('|');
+  if (!force && INS.e2e && INS.e2eKey === key) return INS.e2e;
+  INS.e2e = await api('leads.e2e', {id: REC.id, period: UI.leads.period, settings: D.settings.leads || {}}); INS.e2eKey = key;
+  return INS.e2e;
+}
+const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - new Date(t)) / 60e3); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : 'em ' + fmtDateTime(t) };
+const STAGE_ORDER = ['novo', 'link', 'print', 'qualificando', 'agendando', 'marcada', 'feita', 'fechado', 'perdido', 'desqualificado', 'frio', 'morno'];
+async function e2eHtml(){
+  if (!DB.server) return '<div class="panel"><div class="empty">A visão ponta a ponta precisa do servidor configurado.</div></div>';
+  const r = await loadE2E(), paid = INS.scope !== 'all', b = paid ? r.paid : r.all, m = r.meta, src = r.sources || {}, crm = src.crm || {}, meta = src.meta || {};
+  const div = (a, x) => x ? a / x : null, per = n => m.spend && n ? m.spend / n : null, won = b.won + b.sales;
+  const yesterday = new Date(Date.now() - 27 * 3600e3).toISOString().slice(0, 10);
+  const k = (l, v, s) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
+  const steps = [
+    ['Impressões', 'Meta', m.impressions, null, '', null],
+    ['Cliques no link', 'Meta', m.link_clicks, div(m.link_clicks, m.impressions), 'CTR', per(m.link_clicks)],
+    ['Visitas na página', 'Meta', m.lpv, div(m.lpv, m.link_clicks), 'dos cliques', per(m.lpv)],
+    ['Visitas no funil', 'Funil', b.visits, null, '', per(b.visits)],
+    ['Começaram o quiz', 'Funil', b.started, div(b.started, b.visits), 'das visitas', per(b.started)],
+    ['Deixaram o WhatsApp', 'Funil', b.contacts, div(b.contacts, b.started), 'de quem começou', per(b.contacts)],
+    ['Enviaram (lead)', 'Funil', b.submitted, div(b.submitted, b.contacts), 'de quem deixou', per(b.submitted)],
+    ['Chegaram na Central', 'Central', b.inCrm, div(b.inCrm, b.submitted), 'dos envios', per(b.inCrm)],
+    ['Agendaram reunião', 'Central', b.booked, div(b.booked, b.inCrm), 'de quem chegou', per(b.booked)],
+    ['Reunião feita', 'Central', b.met, div(b.met, b.booked), 'das agendadas', per(b.met)],
+    ['Fecharam', 'Central', won, div(won, b.met), 'das reuniões', per(won)],
+  ];
+  const stages = (paid ? r.stages.paid : r.stages.all) || {}, nSt = Object.values(stages).reduce((a, x) => a + x, 0);
+  const stRows = STAGE_ORDER.filter(s => stages[s]).concat(Object.keys(stages).filter(s => !STAGE_ORDER.includes(s))).map(s => ({label: STAGE_NAMES[s] || s, n: stages[s]}));
+  const notes = [];
+  if (!crm.configured) notes.push('<div class="banner warn">A Central Comercial ainda não está ligada: guarde o código dela em Configurações › Integrações para ver agendamentos, reuniões e vendas.</div>');
+  else if (crm.ok === false) notes.push(`<div class="banner warn">A última leitura da Central Comercial falhou (${esc(crm.error || 'erro')}). Os números da Central podem estar desatualizados.</div>`);
+  if (!m.spend) notes.push('<div class="banner">Sem gasto da Meta para os anúncios deste funil no período.</div>');
+  else if (meta.lastDay && meta.lastDay < yesterday) notes.push(`<div class="banner warn">O gasto da Meta vai até ${esc(fmtDate(meta.lastDay + 'T12:00'))}: os custos dos dias seguintes ainda não entraram.</div>`);
+  const status = [meta.updatedAt ? `Meta: até ${esc(fmtDate(meta.lastDay + 'T12:00'))}, atualizado ${esc(ago(meta.updatedAt))}` : 'Meta: sem dados', crm.configured ? (crm.at ? `Central: lida ${esc(ago(crm.at))}` : 'Central: ainda não lida') : 'Central: desligada'].join(' · ');
+  const days = (r.daily || []).slice().reverse();
+  return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg"><button data-a="e2e-scope" data-v="paid" aria-pressed="${paid}">Só anúncios da Meta</button><button data-a="e2e-scope" data-v="all" aria-pressed="${!paid}">Todo o tráfego</button></span>
+      <span class="hint">${status}</span><span style="flex:1"></span>${crm.configured ? `<button class="btn sm" data-a="crm-sync">${IC.refresh}Ler a Central agora</button>` : ''}</div>
+    ${notes.length ? `<div style="display:grid;gap:8px;margin-bottom:10px">${notes.join('')}</div>` : ''}
+    <div class="kpis">${k('Investimento', money(m.spend), m.impressions ? `${fmtInt(m.impressions)} impressões · CTR ${pctOf(div(m.link_clicks, m.impressions))}` : 'Meta, anúncios deste funil')}${k('Leads (envios)', fmtInt(b.submitted), `custo por lead ${money(per(b.submitted))}`)}${k('Agendaram', fmtInt(b.booked), `custo por agendamento ${money(per(b.booked))}`)}${k('Reuniões feitas', fmtInt(b.met), `custo por reunião ${money(per(b.met))}`)}${k('Vendas', fmtInt(won), `CAC ${money(per(won))}${b.revenue ? ' · ' + money(b.revenue) + ' · ROAS ' + (div(b.revenue, m.spend) || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + 'x' : ''}`)}</div>
+    <div style="display:grid;gap:12px;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)" class="perf">
+      <section class="panel"><div class="panel-h"><h2>Do anúncio à venda</h2><span class="hint">${paid ? 'só visitas que vieram de anúncio da Meta' : 'todas as visitas; custos sobre o gasto da Meta'}</span></div><div class="panel-b">
+        <table class="tbl" style="width:100%"><thead><tr><th>Etapa</th><th>De onde</th><th>Quantos</th><th>Passaram</th><th>Custo por</th></tr></thead><tbody>
+        ${steps.map(([l, s, n, rate, rl, c]) => `<tr><td>${esc(l)}</td><td><span class="chip${s === 'Central' ? ' acc' : s === 'Meta' ? '' : ' ok'}">${s}</span></td><td class="num"><b>${fmtInt(n)}</b></td><td class="num">${rate == null ? '' : `${pctOf(rate)} <small class="muted">${rl}</small>`}</td><td class="num">${money(c)}</td></tr>`).join('')}</tbody></table>
+        <p class="hint" style="margin-top:8px;white-space:normal">A Meta contou ${fmtInt(m.meta_leads)} leads pelo Pixel no período. Visitas, envios e etapas da Central contam pela data da visita no funil; agendamentos e vendas aparecem conforme a equipe avança o lead na Central (lida a cada 30 min). O gasto de um anúncio entra neste funil a partir do dia em que ele passou a mandar visitas para cá.</p></div></section>
+      <section class="panel"><div class="panel-h"><h2>Onde estão os leads na Central</h2><span class="hint">${fmtInt(nSt)} leads deste período</span></div><div class="panel-b">${stRows.length ? barsHtml(stRows, nSt) : '<div class="empty">Nenhum lead deste período chegou na Central ainda.</div>'}</div></section>
+    </div>
+    <section class="panel" style="margin-top:12px"><div class="panel-h"><h2>Dia a dia</h2><span class="hint">só tráfego dos anúncios da Meta</span></div><div class="panel-b"><div class="tbl-wrap" style="min-height:0;max-height:420px">
+      <table class="tbl" style="width:100%"><thead><tr><th>Dia</th><th>Gasto</th><th>Impressões</th><th>Cliques</th><th>Visitas</th><th>Envios</th><th>Custo/envio</th><th>Agendaram</th><th>Reuniões feitas</th><th>Fecharam</th></tr></thead><tbody>
+      ${days.map(d => `<tr><td>${esc(fmtDate(d.day + 'T12:00'))}</td><td class="num">${money(d.spend)}</td><td class="num">${intOrDash(d.impressions)}</td><td class="num">${intOrDash(d.link_clicks)}</td><td class="num">${fmtInt(d.visits)}</td><td class="num">${fmtInt(d.submitted)}</td><td class="num">${money(d.spend && d.submitted ? d.spend / d.submitted : null)}</td><td class="num">${fmtInt(d.booked)}</td><td class="num">${fmtInt(d.met)}</td><td class="num">${fmtInt(d.won + d.sales)}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">Sem dados no período.</td></tr>'}</tbody></table></div></div></section>`;
 }
 
 /* ================= Leads › Caminhos ================= */
@@ -204,12 +267,18 @@ async function loadInt(force){
 function intHtml(){
   if (!DB.server) return '<h2>Integrações</h2><div class="banner warn">As integrações precisam do servidor configurado.</div>';
   const it = INS.int;
-  if (!it || INS.intId !== REC.id) { loadInt().then(() => { if (UI.cfg === 'integracoes') renderConfigBody() }).catch(e => toast(e.message, 'err')); return '<h2>Integrações</h2><div class="empty">Carregando…</div>' }
+  if (!it || INS.intId !== REC.id || !INS.crm) { Promise.all([loadInt(), loadCrm()]).then(() => { if (UI.cfg === 'integracoes') renderConfigBody() }).catch(e => toast(e.message, 'err')); return '<h2>Integrações</h2><div class="empty">Carregando…</div>' }
+  const c = INS.crm, st = c.status || {};
+  const crmState = !c.configured ? '<span class="chip">desligada</span>' : st.ok === false ? `<span class="chip bad" title="${attr(st.error || '')}">falhou ${esc(ago(st.at))}</span> <span class="hint">${esc(st.error || '')}</span>` : st.at ? `<span class="chip ok">ligada</span> <span class="hint">lida ${esc(ago(st.at))} · ${fmtInt(st.leads)} leads, ${fmtInt(st.matched)} ligados a visitas dos funis</span>` : '<span class="chip ok">ligada</span>';
   return `<h2>Integrações</h2>
+    <div class="psec"><span class="eyebrow">Central Comercial (CRM) · automático</span><p class="hint" style="white-space:normal">Com o código de acesso da Central, o servidor lê os leads de lá a cada 30 minutos e liga cada um à visita no funil (pelo código do visitante que vai no webhook ou pelo WhatsApp). Etapa, agendamento, reunião feita e venda aparecem em Leads › Ponta a ponta e Anúncios. Também traz o investimento da Meta que a Central já buscou. Vale para todos os funis.</p>
+      <div class="row" style="flex-wrap:wrap;gap:6px">${crmState}</div>
+      <label class="f">Código de acesso da Central<input class="in" type="password" id="crm-key" autocomplete="off" placeholder="${c.configured ? '•••••••• (guardado no servidor; deixe vazio para manter)' : 'o mesmo que a equipe usa para entrar na Central'}"></label>
+      <div class="row" style="flex-wrap:wrap"><button class="btn primary" data-a="crm-save">Salvar e ler agora</button>${c.configured ? `<button class="btn" data-a="crm-sync">${IC.refresh}Ler agora</button><button class="btn ghost" data-a="crm-clear">Desligar</button>` : ''}</div></div>
     <div class="psec"><span class="eyebrow">Vendas do checkout (Kirvano, Hotmart, Kiwify)</span><p class="hint">Cole este endereço no webhook de vendas do checkout (na Kirvano: Integrações › Webhooks, eventos de venda aprovada e reembolso). Cada venda entra ligada ao lead e aparece na aba Leads (coluna Venda e aba Anúncios).</p>
       <div class="row"><input class="in" readonly value="${attr(it.saleUrl)}"><button class="btn" data-a="copy" data-v="${attr(it.saleUrl)}">${IC.copy}Copiar</button></div>
       ${P.tog('F:settings.checkoutMark', 'Marcar o visitante no link do checkout (sck=fn-código)', {defOn: true})}<p class="hint">Assim a venda volta ligada ao lead certo mesmo se o telefone for diferente. Sem a marca, liga pelo telefone ou e-mail. Publique o funil para valer.</p></div>
-    <div class="psec"><span class="eyebrow">Etapas do CRM (Central Comercial)</span><p class="hint">Para ver reuniões e vendas por anúncio: mande as etapas para este endereço (POST em JSON <code>{"codigo" ou "telefone", "etapa", "valor"}</code>, um lead ou uma lista) ou importe uma planilha com as colunas telefone (ou código), etapa e valor.</p>
+    <div class="psec"><span class="eyebrow">Etapas de outro CRM (manual)</span><p class="hint">Sem a leitura automática acima: mande as etapas para este endereço (POST em JSON <code>{"codigo" ou "telefone", "etapa", "valor"}</code>, um lead ou uma lista) ou importe uma planilha com as colunas telefone (ou código), etapa e valor.</p>
       <div class="row"><input class="in" readonly value="${attr(it.crmUrl)}"><button class="btn" data-a="copy" data-v="${attr(it.crmUrl)}">${IC.copy}Copiar</button></div>
       <div class="row"><label class="btn">${IC.upload}Importar planilha do CRM<input type="file" hidden accept=".csv,text/csv" data-import="crm"></label></div></div>
     <div class="psec"><span class="eyebrow">Leads antigos do InLead</span><p class="hint">Traga os leads do InLead (planilha do “Exportar leads” ou o JSON da API do painel). Entram com nota, perfil e WhatsApp validado, marcados como importados (não vão de novo para o CRM).</p>
@@ -225,11 +294,23 @@ function metaHtml(){
       <div class="psec" style="margin:6px 0 0;padding:0;border:0"><span class="eyebrow">Só quando… (opcional)</span><p class="hint">Sem condição, o evento sai assim que o lead entra no perfil. Com condição, espera também ela, ex.: <code>@VT19S2</code> é igual a <code>clicked</code> (o lead no perfil enviou o formulário). Assim a Meta aprende com quem de fato deixou o WhatsApp.</p>${rulesBuilder('pixel.icpWhen', (D.settings.pixel || {}).icpWhen, 'Adicionar condição')}</div>
       <p class="hint">O mesmo evento sai do navegador (Pixel) e do servidor com o mesmo código, então a Meta não conta duas vezes. O servidor manda telefone, e-mail e nome em SHA-256, IP, navegador, fbc e fbp. Eventos: os de botões e opções (aba Avançado), LeadQualificado e Purchase (vendas do checkout).</p>
       ${DB.server ? `${secret('capiToken', 'Token da API de Conversões', it && it.capiTokenSet, 'Gerenciador de Eventos › Configurações › Gerar token')}<label class="f">Código de teste (opcional)<input class="in" data-int="capiTest" value="${attr((it && it.capiTest) || '')}" placeholder="TEST12345"></label>` : '<div class="banner warn">Precisa do servidor configurado.</div>'}</div>
-    <div class="psec"><span class="eyebrow">Gasto dos anúncios</span><p class="hint">Com o gasto, a aba Leads › Anúncios mostra custo por envio, por lead no perfil, por reunião, por venda e ROAS.</p>
+    <div class="psec"><span class="eyebrow">Gasto dos anúncios</span><p class="hint" style="white-space:normal">Gasto, impressões, cliques e visitas na página de cada anúncio entram sozinhos pela Central Comercial e pela atualização diária com a Meta, e aparecem em Leads › Ponta a ponta e Anúncios (custo por lead, por agendamento, por reunião, por venda e ROAS). Com o token abaixo, o próprio servidor busca na Meta a cada 30 minutos.</p>
       ${DB.server ? `<div class="row" style="flex-wrap:wrap"><label class="btn">${IC.upload}Importar planilha do Gerenciador de Anúncios<input type="file" hidden accept=".csv,text/csv" data-import="spend"></label><button class="btn ghost" data-a="spend-clear">Apagar gasto importado</button></div>
       <p class="hint">No Gerenciador: relatório por anúncio com as colunas Dia, Nome e Identificação do anúncio (ou conjunto/campanha) e Valor usado › Exportar › CSV.</p>
       <label class="f">Conta de anúncios (busca automática)<input class="in" data-int="adsAccount" value="${attr((it && it.adsAccount) || '')}" placeholder="act_123… ou só os números"></label>${secret('adsToken', 'Token de acesso da Meta (ads_read)', it && it.adsTokenSet, 'Token de usuário do sistema com permissão ads_read')}
       <div class="row" style="flex-wrap:wrap"><button class="btn primary" data-a="int-save">Salvar tokens</button><button class="btn" data-a="spend-sync">${IC.refresh}Buscar gasto dos últimos 30 dias</button></div>` : ''}</div>`;
+}
+async function loadCrm(force){
+  needServer();
+  if (!force && INS.crm) return INS.crm;
+  INS.crm = await api('crm.config', {}); return INS.crm;
+}
+async function crmSync(){
+  toast('Lendo a Central Comercial…');
+  const r = await api('crm.sync', {});
+  INS.crm = null; INS.e2e = null; INS.ads = null; LEADS.cache = null;
+  toast(`Central lida: ${fmtInt(r.leads)} leads, ${fmtInt(r.matched)} ligados a visitas (${fmtInt(r.changed)} com novidade)`);
+  if (UI.tab === 'config') renderConfigBody(); else if (UI.tab === 'leads') renderLeads($('#ed-main'));
 }
 async function saveInt(){
   const v = {}; $$('[data-int]').forEach(i => { v[i.dataset.int] = i.value });
@@ -359,6 +440,14 @@ Object.assign(ACT, {
   'ads-sort': t => { const k = t.dataset.v; INS.sort = {k, d: INS.sort.k === k ? -INS.sort.d : -1}; paintLeads(LEADS.cache) },
   'ads-row': t => { INS.sel = INS.sel === t.dataset.key ? null : t.dataset.key; paintLeads(LEADS.cache) },
   'ads-csv': adsCsv,
+  'e2e-scope': t => { INS.scope = t.dataset.v; paintLeads(LEADS.cache) },
+  'crm-sync': () => crmSync().catch(e => { INS.crm = null; toast(e.message, 'err'); if (UI.tab === 'config') renderConfigBody() }),
+  'crm-save': async () => {
+    const key = ($('#crm-key') || {}).value || '';
+    if (!key.trim() && !(INS.crm && INS.crm.configured)) { toast('Digite o código de acesso da Central.', 'err'); return }
+    try { if (key.trim()) INS.crm = await api('crm.config', {key: key.trim()}); await crmSync() } catch (e) { INS.crm = null; toast(e.message, 'err'); renderConfigBody() }
+  },
+  'crm-clear': async () => { if (!(await confirmBox('Desligar a Central Comercial?', 'O servidor para de ler a Central. As etapas já trazidas continuam nos leads.', 'Desligar', true))) return; INS.crm = await api('crm.config', {clear: true}); renderConfigBody(); toast('Central desligada') },
   'rr-add': t => { mutate(() => ensureRoles(t.dataset.p)[+t.dataset.g].push({variable: '', compare: '==', value: ''}), {canvas: false}); renderConfigBody() },
   'rr-group': t => { mutate(() => ensureRoles(t.dataset.p).push([{variable: '', compare: '==', value: ''}]), {canvas: false}); renderConfigBody() },
   'rr-del': t => { mutate(() => { const r = ensureRoles(t.dataset.p); r[+t.dataset.g].splice(+t.dataset.c, 1); const k = r.findIndex(g => !g.length); if (k >= 0) r.splice(k, 1) }, {canvas: false}); renderConfigBody() },
