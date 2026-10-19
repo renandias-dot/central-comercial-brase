@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "6e25492f3e";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "05b7504005";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -306,6 +306,7 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .pt-ban{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
 .pt-ban small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}.pt-ban.late{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}
 .pt-act{display:flex;gap:6px;flex-wrap:wrap}
+.pt-ban.off{background:var(--sunken);border-color:var(--line)}
 .pt-panel{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
 .al-bar{position:sticky;top:0;z-index:35;display:flex;gap:12px;align-items:flex-start;padding:11px 14px;margin:0 0 14px;border-radius:12px;background:var(--accent);color:#fff;box-shadow:var(--shadow);animation:alPulse 1.6s ease-in-out infinite}
 .al-bar.hot{background:#c92a2a;animation-name:alPulseHot}
@@ -823,7 +824,7 @@ function moveLead(id, stage){
   l.stage = stage; l.stageAt = now; l.updatedAt = now;
   l.history = [...(l.history || []), {s: stage, at: now}].slice(-80);
   applyMilestones(l, stage, now);
-  if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
+  if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on && !l.noPowerDataAt) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
   else if (l.printDue) delete l.printDue;
   if (stage === 'print' && !l.printSentAt) l.printSentAt = now;
   let handed = false;
@@ -1032,7 +1033,7 @@ function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = freshChip(l) + printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card ${freshOf(l) ? 'fresh' : ''}" ${PHONE() ? '' : `draggable="true" data-drag="${l.id}"`} data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -1041,7 +1042,7 @@ function cardHTML(l){
 }
 function boardHTML(){
   const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
-  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad].some(v => String(v || '').toLowerCase().includes(qq))));
+  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad, l.noPowerDataAt && 'fora do PowerData'].some(v => String(v || '').toLowerCase().includes(qq))));
   const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
   let html = '';
   STAGES.forEach(s => {
@@ -1904,10 +1905,12 @@ function printChip(l){
 function printBanner(l, id){
   const c = ptCfg(); if (!c.on) return '';
   if (l.stage === 'novo') return `<div class="pt-ban"><div><b>O lead mandou o link?</b><small>Marque agora: se ele não responder sobre o momento atual, o print fica programado para ${c.minutes >= 60 && c.minutes % 60 === 0 ? c.minutes / 60 + ' h' : c.minutes + ' min'} depois.</small></div><button class="btn primary sm" data-a="link-received" data-id="${attr(id)}">Link recebido</button></div>`;
+  if (l.stage === 'link' && l.noPowerDataAt) return `<div class="pt-ban off"><div><b>Loja fora do PowerData</b><small>Sem print com os concorrentes: o timer foi cancelado. Siga a cadência e, quando o lead responder, clique em “Lead respondeu”.</small></div>
+    <div class="pt-act"><button class="btn primary sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm" data-a="print-sent" data-id="${attr(id)}" title="Montou o print de outro jeito">Print enviado</button><button class="btn sm ghost" data-a="pd-undo" data-id="${attr(id)}" title="A loja apareceu no PowerData: volta a programar o print">Desfazer</button></div></div>`;
   if (!isPrintWait(l)) return '';
   const ms = printMs(l);
   return `<div class="pt-ban ${ms <= 0 ? 'late' : ''}"><div><b>${ms <= 0 ? 'Hora de enviar o print' : 'Print programado para ' + clockOf(l.printDue)}</b><small>${ms <= 0 ? 'O prazo venceu às ' + clockOf(l.printDue) + '. Envie o print com os concorrentes.' : 'Faltam ' + durTxt(ms) + '. Se o lead responder antes, clique em “Lead respondeu”.'}</small></div>
-    <div class="pt-act"><button class="btn primary sm" data-a="print-sent" data-id="${attr(id)}">Print enviado</button><button class="btn sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm ghost" data-a="print-snooze" data-id="${attr(id)}" title="Adia o aviso em 30 minutos">+30 min</button></div></div>`;
+    <div class="pt-act"><button class="btn primary sm" data-a="print-sent" data-id="${attr(id)}">Print enviado</button><button class="btn sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm" data-a="no-powerdata" data-id="${attr(id)}" title="A loja do lead não aparece no PowerData: cancela o timer do print e marca o lead">Não está no PowerData</button><button class="btn sm ghost" data-a="print-snooze" data-id="${attr(id)}" title="Adia o aviso em 30 minutos">+30 min</button></div></div>`;
 }
 function printPanelHTML(leads){
   const list = leads.filter(isPrintWait).sort((a, b) => a.printDue.localeCompare(b.printDue));
@@ -1916,8 +1919,8 @@ function printPanelHTML(leads){
   return `<section class="panel pt-panel"><div class="panel-h"><h2>Print para enviar</h2><span class="sub">${late ? late + ' na hora de enviar · ' : ''}${list.length} lead${list.length > 1 ? 's' : ''} em “Link recebido”</span>${canNotify ? '<button class="btn sm ghost" data-a="al-unlock" title="Libera o som e as notificações do navegador">Ativar som e avisos</button>' : ''}</div><div class="panel-b"><div class="rows">
     ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${printChip(l)}</div><div class="row-s">${l.linkAt ? 'link recebido há ' + minsAgo(l.linkAt) : 'link recebido'}${l.contact ? ' · ' + esc(l.contact) : ''}</div></div>
       ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
-      <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button></div>`).join('')}
-    </div><p class="hint" style="margin-top:8px">O lead mandou o link e não respondeu sobre o momento atual? No prazo, envie o print com os concorrentes. Se ele responder, clique em “Lead respondeu”.</p></div></section>`;
+      <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button><button class="btn sm hide-sm" data-a="no-powerdata" data-id="${attr(l.id)}" title="A loja do lead não aparece no PowerData: cancela o timer do print e marca o lead">Não está no PowerData</button></div>`).join('')}
+    </div><p class="hint" style="margin-top:8px">O lead mandou o link e não respondeu sobre o momento atual? No prazo, envie o print com os concorrentes. Se ele responder, clique em “Lead respondeu”. Se a loja não aparece no PowerData, clique em “Não está no PowerData”.</p></div></section>`;
 }
 async function linkReceived(id){ if (S.leads[id] && S.leads[id].stage === 'novo') moveLead(id, 'link') }
 function printSent(id){ if (S.leads[id]) moveLead(id, 'print') }
@@ -1927,6 +1930,20 @@ async function leadReplied(id){
   await put('leads', id, l);
   moveLead(id, 'qualificando');
 }
+// A loja do lead não aparece no PowerData, então não dá para montar o print: marca o lead e cancela o timer (e os avisos).
+function noPowerData(id){
+  const cur = S.leads[id]; if (!cur) return;
+  const l = clone(cur); l.noPowerDataAt = iso(); delete l.printDue; l.updatedAt = iso(); put('leads', id, l);
+  toast('Loja fora do PowerData · timer do print cancelado');
+}
+function powerDataUndo(id){
+  const cur = S.leads[id]; if (!cur || !cur.noPowerDataAt) return;
+  const l = clone(cur); delete l.noPowerDataAt; l.updatedAt = iso();
+  if (l.stage === 'link' && ptCfg().on) l.printDue = new Date(printDueFrom(Date.now())).toISOString();
+  put('leads', id, l);
+  toast(l.printDue ? 'Desfeito · print programado para ' + clockOf(l.printDue) : 'Desfeito');
+}
+const pdChip = l => l.noPowerDataAt ? `<span class="chip" title="A loja não aparece no PowerData (marcado em ${fmtDM(localDay(l.noPowerDataAt))})">fora do PowerData</span>` : '';
 function printSnooze(id){
   const cur = S.leads[id]; if (!cur || !isPrintWait(cur)) return;
   const l = clone(cur), at = Math.max(Date.now(), +new Date(l.printDue)) + 30 * 60e3; l.printDue = new Date(at).toISOString(); l.updatedAt = iso(); put('leads', id, l);
@@ -2682,7 +2699,7 @@ function alNotify(i){
 // Lista do Pipeline no celular: uma etapa por vez.
 function phoneStageParts(){
   const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
-  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad].some(v => String(v || '').toLowerCase().includes(qq))));
+  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad, l.noPowerDataAt && 'fora do PowerData'].some(v => String(v || '').toLowerCase().includes(qq))));
   const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
   if (!STAGE[UI.stage]) UI.stage = 'novo';
   const cur = UI.stage, items = sortCol(by[cur], cur);
@@ -2875,6 +2892,8 @@ const ACT = {
   'print-sent': t => { printSent(t.dataset.id); toast('Print registrado') },
   'lead-replied': t => leadReplied(t.dataset.id),
   'print-snooze': t => printSnooze(t.dataset.id),
+  'no-powerdata': t => noPowerData(t.dataset.id),
+  'pd-undo': t => powerDataUndo(t.dataset.id),
   'notif-on': () => { try { Notification.requestPermission().then(p => { toast(p === 'granted' ? 'Avisos ativados neste navegador' : 'O navegador não liberou os avisos', p === 'granted' ? '' : 'err'); render() }) } catch { toast('Este navegador não permite avisos', 'err') } },
   'ag-refresh': () => refreshCalendar(true),
   'ag-pick': t => { const s = +t.dataset.s, set = new Set(UI.agSel || []); if (set.has(s)) set.delete(s); else { if (set.size >= 5){ toast('Selecione até 5 horários por lead.', 'err'); return } set.add(s) } UI.agSel = [...set]; render() },
