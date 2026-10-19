@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-api/logic.test.ts
 import {assert, assertEquals, assertThrows} from 'jsr:@std/assert@1';
-import {abandonDue, aggregateAds, aggregatePaths, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
+import {abandonDue, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
 import {evalRoles, interpolate} from './rules.ts';
 
 const brase = JSON.parse(await Deno.readTextFile(new URL('../../../data/brase-2.json', import.meta.url)));
@@ -280,4 +280,68 @@ Deno.test('etiquetas no webhook e relatório por variante do teste A/B', () => {
   const r = aggregateAds([a, b, c], {level: 'ab:capa'});
   assertEquals(r.param, 'teste_capa');
   assertEquals(r.rows.map(x => [x.key, x.visits]), [['v1', 2], ['atual', 1]]);
+});
+
+Deno.test('Central Comercial: liga pelo código ou WhatsApp e separa agendou, fez reunião e fechou', () => {
+  const rows = crmLeadRows([
+    {col: 'leads', id: 'l1', data: {inleadCode: 'T97gu5', phone: '(31) 99999-0001', stage: 'marcada', bookedAt: '2026-10-19T16:17:12.021Z', meetingDoneAt: null, value: null, ownerId: 'luiz-felipe'}},
+    {col: 'leads', id: 'l2', data: {phone: '31999990002', stage: 'perdido', bookedAt: '2026-10-10T10:00:00Z', meetingDoneAt: '2026-10-12T10:00:00Z', lostReason: 'Sem verba'}},
+    {col: 'leads', id: 'l3', data: {phone: '31999990003', stage: 'fechado', closedAt: '2026-10-15T10:00:00Z', value: 'R$ 1.500,00'}},
+    {col: 'leads', id: 'l4', data: {stage: 'novo'}},
+    {col: 'meta', id: 'spend', data: {}},
+  ]);
+  assertEquals(rows.length, 3);
+  assertEquals(rows[0].code, 'T97gu5');
+  assertEquals(rows[0].phone, '5531999990001');
+  assertEquals(rows[0].crm.lead, 'l1');
+  assertEquals(crmFlags(rows[0].crm), {inCrm: true, booked: true, met: false, won: false});
+  assertEquals(crmFlags(rows[1].crm), {inCrm: true, booked: true, met: true, won: false});
+  assertEquals(rows[1].crm.lost, 'Sem verba');
+  assertEquals(crmFlags(rows[2].crm), {inCrm: true, booked: true, met: true, won: true});
+  assertEquals(rows[2].crm.value, 1500);
+  assertEquals(crmFlags({stage: 'frio'}), {inCrm: true, booked: false, met: false, won: false});
+  assertEquals(crmFlags(null).inCrm, false);
+  const sp = crmSpendRows({rows: [{adId: '120257610621130151', ad: 'IFood Escondeu 4.0', day: '2026-10-16', spend: 58.44, impressions: 1764, clicks: 39, lpv: 21, metaLeads: 3}, {adId: '1', month: '2026-07', spend: 9}]});
+  assertEquals(sp.length, 1);
+  assertEquals(sp[0].lpv, 21);
+});
+
+Deno.test('gasto da conta vai para o funil mais recente que recebeu visita do anúncio naquele dia', () => {
+  const firsts = [{funnel_id: 'velho', ad_id: '111111', first_day: '2026-02-17'}, {funnel_id: 'novo', ad_id: '111111', first_day: '2026-10-15'}, {funnel_id: 'velho', ad_id: '222222', first_day: '2026-06-12'}];
+  const rows = ['2026-02-16', '2026-10-14', '2026-10-15', '2026-10-19'].map(day => ({day, ad_id: '111111', spend: 10})).concat([{day: '2026-10-19', ad_id: '222222', spend: 5}, {day: '2026-10-19', ad_id: '333333', spend: 7}]);
+  assertEquals(attributeSpend(rows, firsts, 'novo').map(r => r.day), ['2026-10-15', '2026-10-19']);
+  assertEquals(attributeSpend(rows, firsts, 'velho').map(r => r.day + ':' + r.ad_id), ['2026-10-14:111111', '2026-10-19:222222']);
+  assertEquals(brDay('2026-10-19T02:30:00Z'), '2026-10-18');
+  // troca à noite: o dia da troca fica com o funil antigo; anúncio novo (sem funil antes) conta desde a primeira visita
+  const late = [{funnel_id: 'velho', ad_id: '111111', first_day: '2026-02-17', first_seen: '2026-02-17'}, {funnel_id: 'novo', ad_id: '111111', first_day: '2026-10-15', first_seen: '2026-10-14'}, {funnel_id: 'novo', ad_id: '444444', first_day: '2026-10-19', first_seen: '2026-10-18'}];
+  const r2 = [{day: '2026-10-14', ad_id: '111111', spend: 1}, {day: '2026-10-15', ad_id: '111111', spend: 1}, {day: '2026-10-18', ad_id: '444444', spend: 1}];
+  assertEquals(attributeSpend(r2, late, 'novo').map(r => r.day), ['2026-10-15', '2026-10-18']);
+  assertEquals(attributeSpend(r2, late, 'velho').map(r => r.day), ['2026-10-14']);
+});
+
+Deno.test('ponta a ponta: Meta → funil → Central, só tráfego pago e todo o tráfego', () => {
+  const base = {answers: {}, steps: [], last_step: null, completed: false} as unknown as Session;
+  const ad = {utm_source: 'FB', utm_content: 'IFood Escondeu 4.0|120257610621130151'};
+  const sessions = [
+    {...base, id: 'a1', created_at: '2026-10-18T15:00:00Z', tracking: ad, clicks: {x: {name: 'Enviar'}}, interacted: true, phone: '5531999990001', crm: {stage: 'marcada', booked: '2026-10-19T16:00:00Z'}},
+    {...base, id: 'a2', created_at: '2026-10-18T16:00:00Z', tracking: ad, clicks: {}, interacted: true, phone: '5531999990002', crm: {stage: 'fechado', value: 1500}},
+    {...base, id: 'a3', created_at: '2026-10-19T01:00:00Z', tracking: ad, clicks: {}, interacted: false},
+    {...base, id: 'o1', created_at: '2026-10-19T12:00:00Z', tracking: {}, clicks: {x: {name: 'Enviar'}}, interacted: true, phone: '5531999990003', crm: {stage: 'frio'}},
+  ] as Session[];
+  assert(isPaid(sessions[0]) && !isPaid(sessions[3]));
+  const spend = [{day: '2026-10-18', ad_id: '120257610621130151', spend: 26.57, impressions: 698, clicks: 8, link_clicks: 6, lpv: 5, meta_leads: 1}, {day: '2026-10-19', ad_id: '120257610621130151', spend: 14.05, impressions: 417, link_clicks: 6, lpv: 4}];
+  const r = aggregateE2E(sessions, spend, {submitNames: ['Enviar']});
+  assertEquals(r.paid, {visits: 3, started: 2, contacts: 2, submitted: 1, abandoned: 1, icp: 0, inCrm: 2, booked: 2, met: 1, won: 1, sales: 0, revenue: 1500});
+  assertEquals(r.all.visits, 4);
+  assertEquals(r.all.inCrm, 3);
+  assertEquals(r.meta.spend, 40.62);
+  assertEquals(r.meta.link_clicks, 12);
+  assertEquals(r.stages.paid, {marcada: 1, fechado: 1});
+  assertEquals(r.daily.map(d => [d.day, d.visits, d.spend]), [['2026-10-18', 3, 26.57], ['2026-10-19', 0, 14.05]]);
+  // por anúncio: agendadas, feitas e números da Meta
+  const ads = aggregateAds(sessions, {level: 'ad', submitNames: ['Enviar'], spend: spend.map(x => ({...x, ad_name: 'IFood Escondeu 4.0'}))});
+  const row = ads.rows.find(x => x.id === '120257610621130151')!;
+  assertEquals([row.meetings, row.met, row.won, row.inCrm, row.impressions, row.link_clicks, row.lpv], [2, 1, 1, 2, 1115, 12, 9]);
+  assertEquals(Math.round(row.cpMet! * 100) / 100, 40.62);
+  assertEquals(Math.round(row.ctr! * 10000) / 10000, 0.0108);
 });
