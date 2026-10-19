@@ -363,6 +363,20 @@ export function crmLeadRows(docs: any){
     return {code: String(l.inleadCode ?? '').trim().slice(0, 40), phone: normPhone(l.phone), crm};
   }).filter((x: {code: string; phone: string; crm: CrmInfo}) => x.crm.stage && (x.code || x.phone));
 }
+// Todos os leads da Central (para a visão da conta inteira), sem nome nem contato: origem, anúncio, etapa e datas.
+export type CrmLeadFact = {id: string; created_at: string | null; source: string; utm_source: string; campaign_id: string; campaign_name: string; ad_id: string; ad_name: string;
+  stage: string; booked_at: string | null; met_at: string | null; closed_at: string | null; value: number | null; code: string; owner: string};
+// deno-lint-ignore no-explicit-any
+export function crmLeadFacts(docs: any): CrmLeadFact[] {
+  const s = (v: unknown, n = 200) => v == null ? '' : String(v).trim().slice(0, n);
+  return (Array.isArray(docs) ? docs : []).filter((d: any) => d && d.col === 'leads' && d.id && d.data && typeof d.data === 'object').map((d: any) => {
+    const l = d.data, u = l.utm && typeof l.utm === 'object' ? l.utm : {}, stage = stageId(l.stage);
+    return {id: s(d.id, 80), created_at: isoOf(l.createdAt), source: s(l.source, 60), utm_source: s(u.source, 60).toLowerCase(), campaign_id: s(u.campaignId, 40), campaign_name: s(u.campaign),
+      ad_id: s(u.adId, 40), ad_name: s(u.ad), stage, booked_at: isoOf(l.bookedAt), met_at: isoOf(l.meetingDoneAt), closed_at: stage === 'fechado' ? isoOf(l.closedAt) || isoOf(l.stageAt) : null,
+      value: parseMoney(l.value) || null, code: s(l.inleadCode, 40), owner: s(l.ownerId, 60)};
+  });
+}
+export const isMetaLead = (l: {source?: string; utm_source?: string}) => l.utm_source === 'meta' || /meta/i.test(String(l.source || ''));
 // Investimento que a Central Comercial guarda (meta/spend, buscado na Meta pela própria Central): só as linhas por dia.
 // deno-lint-ignore no-explicit-any
 export function crmSpendRows(doc: any): AdSpendRow[] {
@@ -504,6 +518,24 @@ export function aggregateE2E(sessions: Session[], spend: SpendRow[], o: {setting
   const r2 = (n: number) => Math.round(n * 100) / 100;
   meta.spend = r2(meta.spend); all.revenue = r2(all.revenue); paid.revenue = r2(paid.revenue);
   return {all, paid, meta, stages: {all: stagesAll, paid: stagesPaid}, daily: Object.keys(days).sort().map(day => ({day, ...days[day], spend: r2(days[day].spend), revenue: r2(days[day].revenue)}))};
+}
+// Conta inteira (como a Central enxerga): todo o gasto da Meta, as visitas de todos os funis e os leads da Central pela data
+// em que entraram lá — também os que vieram por outro caminho (InLead, WhatsApp direto). "Pago" = lead da Meta.
+export function aggregateAccount(sessions: Session[], leads: CrmLeadFact[], spend: SpendRow[], o: {submitNames?: string[]; sales?: SaleRow[]} = {}){
+  const r = aggregateE2E(sessions.map(s => ({...s, crm: null})), spend, o);
+  const stagesAll: Record<string, number> = {}, stagesPaid: Record<string, number> = {};
+  type Day = typeof r.daily[number];
+  const byDay = new Map<string, Day>(r.daily.map(d => [d.day, d]));
+  const dayOf = (d: string) => { let x = byDay.get(d); if (!x) { x = {day: d, visits: 0, started: 0, contacts: 0, submitted: 0, abandoned: 0, icp: 0, inCrm: 0, booked: 0, met: 0, won: 0, sales: 0, revenue: 0, spend: 0, impressions: 0, link_clicks: 0, lpv: 0}; byDay.set(d, x) } return x };
+  for (const l of leads) {
+    const c = crmFlags({stage: l.stage, booked: l.booked_at, met: l.met_at}), v = c.won ? Number(l.value) || 0 : 0;
+    const add = (b: {inCrm: number; booked: number; met: number; won: number; revenue: number}) => { b.inCrm++; if (c.booked) b.booked++; if (c.met) b.met++; if (c.won) { b.won++; b.revenue += v } };
+    add(r.all); if (l.stage) stagesAll[l.stage] = (stagesAll[l.stage] || 0) + 1;
+    if (isMetaLead(l)) { add(r.paid); add(dayOf(brDay(l.created_at))); if (l.stage) stagesPaid[l.stage] = (stagesPaid[l.stage] || 0) + 1 }
+  }
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  r.all.revenue = r2(r.all.revenue); r.paid.revenue = r2(r.paid.revenue);
+  return {...r, stages: {all: stagesAll, paid: stagesPaid}, daily: [...byDay.values()].filter(d => d.day).sort((a, b) => a.day < b.day ? -1 : 1).map(d => ({...d, revenue: r2(d.revenue)}))};
 }
 const median = (a: number[]) => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), k = s.length >> 1; return s.length % 2 ? s[k] : (s[k - 1] + s[k]) / 2 };
 // Por etapa: visitantes, quantos pararam ali, tempo mediano até a próxima e quantos voltaram; e as passagens mais comuns.

@@ -121,17 +121,17 @@ function adsCsv(){
 // Meta (gasto, impressões, cliques) → funil (visitas, envios) → Central Comercial (agendou, reunião feita, fechou).
 async function loadE2E(force){
   needServer();
-  const key = [REC.id, UI.leads.period, JSON.stringify(D.settings.leads || {})].join('|');
+  const account = INS.scope === 'account', key = [REC.id, UI.leads.period, account, JSON.stringify(D.settings.leads || {})].join('|');
   if (!force && INS.e2e && INS.e2eKey === key) return INS.e2e;
-  INS.e2e = await api('leads.e2e', {id: REC.id, period: UI.leads.period, settings: D.settings.leads || {}}); INS.e2eKey = key;
+  INS.e2e = await api('leads.e2e', {id: REC.id, period: UI.leads.period, settings: D.settings.leads || {}, scope: account ? 'account' : 'funnel'}); INS.e2eKey = key;
   return INS.e2e;
 }
 const ago = t => { if (!t) return ''; const m = Math.round((Date.now() - new Date(t)) / 60e3); return m < 1 ? 'agora' : m < 60 ? `há ${m} min` : m < 1440 ? `há ${Math.round(m / 60)} h` : 'em ' + fmtDateTime(t) };
 const STAGE_ORDER = ['novo', 'link', 'print', 'qualificando', 'agendando', 'marcada', 'feita', 'fechado', 'perdido', 'desqualificado', 'frio', 'morno'];
 async function e2eHtml(){
   if (!DB.server) return '<div class="panel"><div class="empty">A visão ponta a ponta precisa do servidor configurado.</div></div>';
-  const r = await loadE2E(), paid = INS.scope !== 'all', b = paid ? r.paid : r.all, m = r.meta, src = r.sources || {}, crm = src.crm || {}, meta = src.meta || {};
-  const div = (a, x) => x ? a / x : null, per = n => m.spend && n ? m.spend / n : null, won = b.won + b.sales;
+  const r = await loadE2E(), account = r.scope === 'account', paid = account || INS.scope !== 'all', b = paid ? r.paid : r.all, m = r.meta, src = r.sources || {}, crm = src.crm || {}, meta = src.meta || {};
+  const div = (a, x) => x ? a / x : null, per = n => m.spend && n ? m.spend / n : null, won = b.won + b.sales, leadsN = account ? b.inCrm : b.submitted;
   const yesterday = new Date(Date.now() - 27 * 3600e3).toISOString().slice(0, 10);
   const k = (l, v, s) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}</span><span class="s">${s}</span></div>`;
   const steps = [
@@ -142,7 +142,7 @@ async function e2eHtml(){
     ['Começaram o quiz', 'Funil', b.started, div(b.started, b.visits), 'das visitas', per(b.started)],
     ['Deixaram o WhatsApp', 'Funil', b.contacts, div(b.contacts, b.started), 'de quem começou', per(b.contacts)],
     ['Enviaram (lead)', 'Funil', b.submitted, div(b.submitted, b.contacts), 'de quem deixou', per(b.submitted)],
-    ['Chegaram na Central', 'Central', b.inCrm, div(b.inCrm, b.submitted), 'dos envios', per(b.inCrm)],
+    account ? ['Leads da Meta na Central', 'Central', b.inCrm, null, '', per(b.inCrm)] : ['Chegaram na Central', 'Central', b.inCrm, div(b.inCrm, b.submitted), 'dos envios', per(b.inCrm)],
     ['Agendaram reunião', 'Central', b.booked, div(b.booked, b.inCrm), 'de quem chegou', per(b.booked)],
     ['Reunião feita', 'Central', b.met, div(b.met, b.booked), 'das agendadas', per(b.met)],
     ['Fecharam', 'Central', won, div(won, b.met), 'das reuniões', per(won)],
@@ -152,24 +152,26 @@ async function e2eHtml(){
   const notes = [];
   if (!crm.configured) notes.push('<div class="banner warn">A Central Comercial ainda não está ligada: guarde o código dela em Configurações › Integrações para ver agendamentos, reuniões e vendas.</div>');
   else if (crm.ok === false) notes.push(`<div class="banner warn">A última leitura da Central Comercial falhou (${esc(crm.error || 'erro')}). Os números da Central podem estar desatualizados.</div>`);
-  if (!m.spend) notes.push('<div class="banner">Sem gasto da Meta para os anúncios deste funil no período.</div>');
+  const periodFrom = UI.leads.period === 'all' ? '' : new Date(Date.now() - ({day: 1, week: 7, month: 30}[UI.leads.period] || 7) * 864e5 - 3 * 3600e3).toISOString().slice(0, 10);
+  if (!account && r.firstPaid && periodFrom && r.firstPaid > periodFrom) notes.push(`<div class="banner">Este funil recebe anúncios desde ${esc(fmtDate(r.firstPaid + 'T12:00'))}; antes disso os anúncios levavam para outro funil. Por isso o investimento aqui é ${money(m.spend)}, enquanto a conta inteira investiu ${money(meta.accountSpend)} no período. Para ver o total com todos os leads da Central, use “Conta inteira”.</div>`);
+  if (!m.spend) notes.push(`<div class="banner">Sem gasto da Meta ${account ? 'na conta' : 'para os anúncios deste funil'} no período.</div>`);
   else if (meta.lastDay && meta.lastDay < yesterday) notes.push(`<div class="banner warn">O gasto da Meta vai até ${esc(fmtDate(meta.lastDay + 'T12:00'))}: os custos dos dias seguintes ainda não entraram.</div>`);
   const status = [meta.updatedAt ? `Meta: até ${esc(fmtDate(meta.lastDay + 'T12:00'))}, atualizado ${esc(ago(meta.updatedAt))}` : 'Meta: sem dados', crm.configured ? (crm.at ? `Central: lida ${esc(ago(crm.at))}` : 'Central: ainda não lida') : 'Central: desligada'].join(' · ');
   const days = (r.daily || []).slice().reverse();
-  return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg"><button data-a="e2e-scope" data-v="paid" aria-pressed="${paid}">Só anúncios da Meta</button><button data-a="e2e-scope" data-v="all" aria-pressed="${!paid}">Todo o tráfego</button></span>
+  return `<div class="row" style="margin-bottom:10px;flex-wrap:wrap;gap:8px"><span class="seg"><button data-a="e2e-scope" data-v="paid" aria-pressed="${INS.scope === 'paid'}">Este funil · anúncios da Meta</button><button data-a="e2e-scope" data-v="all" aria-pressed="${INS.scope === 'all'}">Este funil · todo o tráfego</button><button data-a="e2e-scope" data-v="account" aria-pressed="${account}">Conta inteira</button></span>
       <span class="hint">${status}</span><span style="flex:1"></span>${crm.configured ? `<button class="btn sm" data-a="crm-sync">${IC.refresh}Ler a Central agora</button>` : ''}</div>
     ${notes.length ? `<div style="display:grid;gap:8px;margin-bottom:10px">${notes.join('')}</div>` : ''}
-    <div class="kpis">${k('Investimento', money(m.spend), m.impressions ? `${fmtInt(m.impressions)} impressões · CTR ${pctOf(div(m.link_clicks, m.impressions))}` : 'Meta, anúncios deste funil')}${k('Leads (envios)', fmtInt(b.submitted), `custo por lead ${money(per(b.submitted))}`)}${k('Agendaram', fmtInt(b.booked), `custo por agendamento ${money(per(b.booked))}`)}${k('Reuniões feitas', fmtInt(b.met), `custo por reunião ${money(per(b.met))}`)}${k('Vendas', fmtInt(won), `CAC ${money(per(won))}${b.revenue ? ' · ' + money(b.revenue) + ' · ROAS ' + (div(b.revenue, m.spend) || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + 'x' : ''}`)}</div>
+    <div class="kpis">${k('Investimento', money(m.spend), m.impressions ? `${fmtInt(m.impressions)} impressões · CTR ${pctOf(div(m.link_clicks, m.impressions))}` : 'Meta, anúncios deste funil')}${k(account ? 'Leads da Meta (Central)' : 'Leads (envios)', fmtInt(leadsN), `custo por lead ${money(per(leadsN))}`)}${k('Agendaram', fmtInt(b.booked), `custo por agendamento ${money(per(b.booked))}`)}${k('Reuniões feitas', fmtInt(b.met), `custo por reunião ${money(per(b.met))}`)}${k('Vendas', fmtInt(won), `CAC ${money(per(won))}${b.revenue ? ' · ' + money(b.revenue) + ' · ROAS ' + (div(b.revenue, m.spend) || 0).toLocaleString('pt-BR', {maximumFractionDigits: 2}) + 'x' : ''}`)}</div>
     <div style="display:grid;gap:12px;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)" class="perf">
-      <section class="panel"><div class="panel-h"><h2>Do anúncio à venda</h2><span class="hint">${paid ? 'só visitas que vieram de anúncio da Meta' : 'todas as visitas; custos sobre o gasto da Meta'}</span></div><div class="panel-b">
+      <section class="panel"><div class="panel-h"><h2>Do anúncio à venda</h2><span class="hint">${account ? 'conta inteira: todo o gasto da Meta, todos os funis e os leads da Meta na Central' : paid ? 'só visitas que vieram de anúncio da Meta' : 'todas as visitas; custos sobre o gasto da Meta'}</span></div><div class="panel-b">
         <table class="tbl" style="width:100%"><thead><tr><th>Etapa</th><th>De onde</th><th>Quantos</th><th>Passaram</th><th>Custo por</th></tr></thead><tbody>
         ${steps.map(([l, s, n, rate, rl, c]) => `<tr><td>${esc(l)}</td><td><span class="chip${s === 'Central' ? ' acc' : s === 'Meta' ? '' : ' ok'}">${s}</span></td><td class="num"><b>${fmtInt(n)}</b></td><td class="num">${rate == null ? '' : `${pctOf(rate)} <small class="muted">${rl}</small>`}</td><td class="num">${money(c)}</td></tr>`).join('')}</tbody></table>
-        <p class="hint" style="margin-top:8px;white-space:normal">A Meta contou ${fmtInt(m.meta_leads)} leads pelo Pixel no período. Visitas, envios e etapas da Central contam pela data da visita no funil; agendamentos e vendas aparecem conforme a equipe avança o lead na Central (lida a cada 30 min). O gasto de um anúncio entra neste funil a partir do dia em que ele passou a mandar visitas para cá.</p></div></section>
-      <section class="panel"><div class="panel-h"><h2>Onde estão os leads na Central</h2><span class="hint">${fmtInt(nSt)} leads deste período</span></div><div class="panel-b">${stRows.length ? barsHtml(stRows, nSt) : '<div class="empty">Nenhum lead deste período chegou na Central ainda.</div>'}</div></section>
+        <p class="hint" style="margin-top:8px;white-space:normal">A Meta contou ${fmtInt(m.meta_leads)} leads pelo Pixel no período. ${account ? 'Os leads da Central contam pela data em que entraram lá, inclusive os que chegaram por outro caminho (InLead, WhatsApp direto); custo por lead = investimento ÷ leads da Meta na Central, como na aba Tráfego da Central. Visitas e envios somam todos os funis.' : 'Visitas, envios e etapas da Central contam pela data da visita no funil; agendamentos e vendas aparecem conforme a equipe avança o lead na Central (lida a cada 30 min). O gasto de um anúncio entra neste funil a partir do dia em que ele passou a mandar visitas para cá.'}</p></div></section>
+      <section class="panel"><div class="panel-h"><h2>Onde estão os leads${account ? ' da Meta' : ''} na Central</h2><span class="hint">${fmtInt(nSt)} leads deste período</span></div><div class="panel-b">${stRows.length ? barsHtml(stRows, nSt) : '<div class="empty">Nenhum lead deste período chegou na Central ainda.</div>'}</div></section>
     </div>
-    <section class="panel" style="margin-top:12px"><div class="panel-h"><h2>Dia a dia</h2><span class="hint">só tráfego dos anúncios da Meta</span></div><div class="panel-b"><div class="tbl-wrap" style="min-height:0;max-height:420px">
-      <table class="tbl" style="width:100%"><thead><tr><th>Dia</th><th>Gasto</th><th>Impressões</th><th>Cliques</th><th>Visitas</th><th>Envios</th><th>Custo/envio</th><th>Agendaram</th><th>Reuniões feitas</th><th>Fecharam</th></tr></thead><tbody>
-      ${days.map(d => `<tr><td>${esc(fmtDate(d.day + 'T12:00'))}</td><td class="num">${money(d.spend)}</td><td class="num">${intOrDash(d.impressions)}</td><td class="num">${intOrDash(d.link_clicks)}</td><td class="num">${fmtInt(d.visits)}</td><td class="num">${fmtInt(d.submitted)}</td><td class="num">${money(d.spend && d.submitted ? d.spend / d.submitted : null)}</td><td class="num">${fmtInt(d.booked)}</td><td class="num">${fmtInt(d.met)}</td><td class="num">${fmtInt(d.won + d.sales)}</td></tr>`).join('') || '<tr><td colspan="10" class="empty">Sem dados no período.</td></tr>'}</tbody></table></div></div></section>`;
+    <section class="panel" style="margin-top:12px"><div class="panel-h"><h2>Dia a dia</h2><span class="hint">${account ? 'conta inteira; leads da Meta pela data de entrada na Central' : 'só tráfego dos anúncios da Meta'}</span></div><div class="panel-b"><div class="tbl-wrap" style="min-height:0;max-height:420px">
+      <table class="tbl" style="width:100%"><thead><tr><th>Dia</th><th>Gasto</th><th>Impressões</th><th>Cliques</th><th>Visitas</th><th>${account ? 'Leads (Central)' : 'Envios'}</th><th>Custo/lead</th><th>Agendaram</th><th>Reuniões feitas</th><th>Fecharam</th></tr></thead><tbody>
+      ${days.map(d => { const n = account ? d.inCrm : d.submitted; return `<tr><td>${esc(fmtDate(d.day + 'T12:00'))}</td><td class="num">${money(d.spend)}</td><td class="num">${intOrDash(d.impressions)}</td><td class="num">${intOrDash(d.link_clicks)}</td><td class="num">${fmtInt(d.visits)}</td><td class="num">${fmtInt(n)}</td><td class="num">${money(d.spend && n ? d.spend / n : null)}</td><td class="num">${fmtInt(d.booked)}</td><td class="num">${fmtInt(d.met)}</td><td class="num">${fmtInt(d.won + d.sales)}</td></tr>` }).join('') || '<tr><td colspan="10" class="empty">Sem dados no período.</td></tr>'}</tbody></table></div></div></section>`;
 }
 
 /* ================= Leads › Caminhos ================= */

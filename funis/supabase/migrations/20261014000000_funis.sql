@@ -186,3 +186,25 @@ create table if not exists fn_ad_spend (
 alter table fn_ad_spend enable row level security;
 -- Chave das operações de máquina (cron e rotina diária da Meta), gerada no banco e nunca escrita no repositório.
 insert into fn_config (k, v) values ('cron', jsonb_build_object('key', encode(extensions.gen_random_bytes(24), 'hex'))) on conflict (k) do nothing;
+
+-- Leads da Central Comercial para a visão da conta inteira (sem nome nem contato), atualizados a cada leitura da Central.
+create table if not exists fn_crm_leads (
+  id text primary key,
+  created_at timestamptz,
+  source text not null default '',
+  utm_source text not null default '',
+  campaign_id text not null default '',
+  campaign_name text not null default '',
+  ad_id text not null default '',
+  ad_name text not null default '',
+  stage text not null default '',
+  booked_at timestamptz,
+  met_at timestamptz,
+  closed_at timestamptz,
+  value numeric(12,2),
+  code text not null default '',
+  owner text not null default '',
+  synced_at timestamptz not null default now()
+);
+create index if not exists fn_crm_leads_created on fn_crm_leads (created_at);
+alter table fn_crm_leads enable row level security;

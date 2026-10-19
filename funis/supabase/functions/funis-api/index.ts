@@ -5,7 +5,7 @@
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadRows, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -378,6 +378,18 @@ async function crmSync(){
     if (!r.ok) throw bad('A Central Comercial não respondeu (' + (j.error || 'HTTP ' + r.status) + ').', 502);
     const docs = Array.isArray(j.docs) ? j.docs : [];
     const leads = crmLeadRows(docs), hit = await applyCrmLeads(leads);
+    // Cópia enxuta de todos os leads (sem nome nem contato) para a visão da conta inteira; some quem saiu da Central.
+    const facts = crmLeadFacts(docs);
+    if (facts.length) {
+      const started = new Date(t0);
+      for (let i = 0; i < facts.length; i += 500) {
+        await sql`insert into fn_crm_leads ${sql(facts.slice(i, i + 500) as unknown as Row[], 'id', 'created_at', 'source', 'utm_source', 'campaign_id', 'campaign_name', 'ad_id', 'ad_name', 'stage', 'booked_at', 'met_at', 'closed_at', 'value', 'code', 'owner')}
+          on conflict (id) do update set created_at = excluded.created_at, source = excluded.source, utm_source = excluded.utm_source, campaign_id = excluded.campaign_id, campaign_name = excluded.campaign_name,
+            ad_id = excluded.ad_id, ad_name = excluded.ad_name, stage = excluded.stage, booked_at = excluded.booked_at, met_at = excluded.met_at, closed_at = excluded.closed_at,
+            value = excluded.value, code = excluded.code, owner = excluded.owner, synced_at = now()`;
+      }
+      await sql`delete from fn_crm_leads where synced_at < ${started}`;
+    }
     const sp = docs.find((d: Row) => d && d.col === 'meta' && d.id === 'spend'), spendRows = crmSpendRows(sp && sp.data);
     const st = {ok: true, at: new Date().toISOString(), leads: leads.length, ...hit, spendRows: spendRows.length ? await upsertAdSpend(spendRows, 'crm') : 0, spendUpdatedAt: (sp && sp.data && sp.data.updatedAt) || null, ms: Date.now() - t0};
     await setConf('crm_sync', st);
@@ -539,16 +551,33 @@ const ops: Record<string, (b: Row) => Promise<unknown>> = {
   },
   // Ponta a ponta: Meta (gasto, impressões, cliques) → funil (visitas, envios) → Central Comercial (agendou, fez reunião, fechou).
   async 'leads.e2e'(b){
-    const f = await funnelById(b.id), since = sinceOf(b);
+    const f = await funnelById(b.id), since = sinceOf(b), day = brDay(since.getTime() ? since : new Date('2000-01-01'));
     waitUntil(sweep(f.id));
-    const [sessions, sales, spend, meta, conf, crm] = await Promise.all([
+    const [meta, conf, crm, [acc]] = await Promise.all([metaStatus(), getConf('crm'), getConf('crm_sync'),
+      sql`select coalesce(sum(spend), 0)::float as spend from fn_ad_spend where day >= ${day}::date`]);
+    const sources = {meta: {...meta, accountSpend: Math.round(acc.spend * 100) / 100}, crm: {configured: !!conf.key, ...crm}};
+    // Conta inteira: todos os funis, todo o gasto da Meta e os leads da Central pela data em que entraram lá.
+    if (b.scope === 'account') {
+      const [sessions, sales, spend, leads, hooks] = await Promise.all([
+        sql`select ${sessionCols} from fn_sessions where created_at >= ${since} order by created_at desc limit 50000`.then(r => r.map(asSession)),
+        sql`select session_id, status, value::float as value from fn_sales where created_at >= ${since}`,
+        sql`select to_char(day, 'YYYY-MM-DD') as day, ad_id, spend::float as spend, impressions, clicks, link_clicks, lpv, meta_leads from fn_ad_spend where day >= ${day}::date`,
+        sql`select id, created_at, source, utm_source, campaign_id, campaign_name, ad_id, ad_name, stage, booked_at, met_at, closed_at, value::float as value, code, owner from fn_crm_leads where created_at >= ${since}`,
+        sql`select webhook ->> 'component' as c from fn_funnels`,
+      ]);
+      const submitNames = hooks.flatMap((h: Row) => String(h.c || '').split(',').map(x => x.trim())).filter(Boolean);
+      const facts = leads.map((l: Row) => ({...l, created_at: iso(l.created_at) || null, booked_at: iso(l.booked_at) || null, met_at: iso(l.met_at) || null, closed_at: iso(l.closed_at) || null})) as unknown as CrmLeadFact[];
+      return {scope: 'account', ...aggregateAccount(sessions, facts, spend as unknown as SpendRow[], {submitNames, sales: sales as unknown as {session_id: string; status: string; value: number}[]}), sources};
+    }
+    const [sessions, sales, spend, [fp]] = await Promise.all([
       periodSessions(f.id, since),
       sql`select session_id, status, value::float as value from fn_sales where funnel_id = ${f.id} and created_at >= ${since}`,
-      funnelSpend(f.id, since), metaStatus(), getConf('crm'), getConf('crm_sync'),
+      funnelSpend(f.id, since),
+      sql`select min(created_at) as at from fn_sessions where funnel_id = ${f.id} and coalesce(nullif(params ->> 'utm_content', ''), tracking ->> 'utm_content') ~ '\\|\\s*\\d{6,}\\s*$'`,
     ]);
     const settings = (b.settings || leadsOf(f.draft) || leadsOf(f.published)) as LeadSettings;
     const rep = aggregateE2E(sessions, spend, {settings, submitNames: String((f.webhook && f.webhook.component) || '').split(',').map(x => x.trim()), sales: sales as unknown as {session_id: string; status: string; value: number}[]});
-    return {...rep, sources: {meta, crm: {configured: !!conf.key, ...crm}}};
+    return {scope: 'funnel', ...rep, firstPaid: fp && fp.at ? brDay(fp.at) : null, sources};
   },
   async 'crm.config'(b){
     let conf = await getConf('crm');

@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-api/logic.test.ts
 import {assert, assertEquals, assertThrows} from 'jsr:@std/assert@1';
-import {abandonDue, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
+import {abandonDue, aggregateAccount, aggregateAds, aggregateE2E, crmLeadFacts, isMetaLead, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
 import {evalRoles, interpolate} from './rules.ts';
 
 const brase = JSON.parse(await Deno.readTextFile(new URL('../../../data/brase-2.json', import.meta.url)));
@@ -344,4 +344,24 @@ Deno.test('ponta a ponta: Meta → funil → Central, só tráfego pago e todo o
   assertEquals([row.meetings, row.met, row.won, row.inCrm, row.impressions, row.link_clicks, row.lpv], [2, 1, 1, 2, 1115, 12, 9]);
   assertEquals(Math.round(row.cpMet! * 100) / 100, 40.62);
   assertEquals(Math.round(row.ctr! * 10000) / 10000, 0.0108);
+});
+
+Deno.test('conta inteira: todo o gasto, visitas de todos os funis e leads da Central pela data de entrada', () => {
+  const facts = crmLeadFacts([
+    {col: 'leads', id: 'a', data: {source: 'Meta Ads', utm: {source: 'meta', adId: '111111', ad: 'Anúncio A'}, stage: 'feita', createdAt: '2026-10-18T13:00:00Z', bookedAt: '2026-10-18T15:00:00Z', meetingDoneAt: '2026-10-19T15:00:00Z', name: 'Fulano', phone: '31999990001'}},
+    {col: 'leads', id: 'b', data: {source: 'Meta Ads', utm: {source: 'meta'}, stage: 'fechado', createdAt: '2026-10-19T13:00:00Z', closedAt: '2026-10-19T20:00:00Z', value: 'R$ 997'}},
+    {col: 'leads', id: 'c', data: {source: 'Instagram (link na bio)', utm: {source: 'instagram'}, stage: 'novo', createdAt: '2026-10-19T14:00:00Z'}},
+  ]);
+  assertEquals(facts.length, 3);
+  assert(!('phone' in facts[0]) && !('name' in facts[0]));
+  assertEquals([facts[0].ad_id, facts[0].utm_source, facts[1].value, facts[1].closed_at], ['111111', 'meta', 997, '2026-10-19T20:00:00Z']);
+  assert(isMetaLead(facts[0]) && !isMetaLead(facts[2]));
+  const base = {answers: {}, steps: [], last_step: null, completed: false, interacted: true} as unknown as Session;
+  const sessions = [{...base, id: 's1', created_at: '2026-10-18T12:00:00Z', tracking: {utm_source: 'FB', utm_content: 'A|111111'}, clicks: {x: {name: 'Enviar'}}, phone: '5531999990001', crm: {stage: 'feita'}}] as Session[];
+  const r = aggregateAccount(sessions, facts, [{day: '2026-10-18', ad_id: '111111', spend: 50, impressions: 1000, link_clicks: 20, lpv: 15}, {day: '2026-10-19', ad_id: '222222', spend: 30}], {submitNames: ['Enviar']});
+  assertEquals([r.meta.spend, r.paid.visits, r.paid.submitted], [80, 1, 1]);
+  assertEquals([r.paid.inCrm, r.paid.booked, r.paid.met, r.paid.won, r.paid.revenue], [2, 2, 2, 1, 997]);
+  assertEquals(r.all.inCrm, 3);
+  assertEquals(r.stages.paid, {feita: 1, fechado: 1});
+  assertEquals(r.daily.map(d => [d.day, d.spend, d.inCrm]), [['2026-10-18', 50, 1], ['2026-10-19', 30, 1]]);
 });
