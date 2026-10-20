@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "61fa9b8719";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3b3f017397";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2857,6 +2857,7 @@ async function capiLoad(force){
   scheduleRender();
 }
 function capiSummary(op, r){
+  if (op === 'capi_ping') return r.ok ? `Conexão com a Meta funcionando (${r.eventsReceived ?? 0} evento recebido). Ele aparece como CRM_Teste em Eventos recebidos.` : 'A Meta recusou o teste: ' + (r.erro || r.status);
   if (op === 'capi_test') return r.ok ? `Evento de teste aceito pela Meta (${r.eventsReceived ?? 0} recebido). Confira em Eventos de teste.` : 'A Meta recusou o teste: ' + (r.erro || r.status);
   if (op === 'capi_backfill') return `${r.queued || 0} eventos na fila (${r.already || 0} já existiam)` + (r.flush ? ` · ${r.flush.sent || 0} enviados` : '');
   return `${(r.sent) || 0} enviados · ${(r.pending) || 0} na fila` + (r.bloqueio ? ' · ' + capiBloqueio(r.bloqueio) : '');
@@ -2869,7 +2870,7 @@ async function capiRun(op){
   try {
     const r = await HOSTCALL({op, days: 7});
     UI.capi.last = {op, r, at: Date.now()};
-    toast(capiSummary(op, r), (op === 'capi_test' && !r.ok) || r.access ? 'err' : '');
+    toast(capiSummary(op, r), ((op === 'capi_test' || op === 'capi_ping') && !r.ok) || r.access ? 'err' : '');
   } catch (e){ UI.capi.last = {op, err: (e && e.message) || String(e), at: Date.now()}; toast((e && e.message) || 'Erro', 'err') }
   UI.capi.busy = ''; await capiLoad(true); render();
 }
@@ -2902,13 +2903,14 @@ function capiConfigHTML(){
       <p class="hint">Telefone, nome do contato e o id do lead, sempre em hash (SHA-256, ninguém lê o número), mais o clique do anúncio (fbclid) quando o formulário o trouxe. Nos leads dos últimos 30 dias (${q.n}): com telefone <b>${pct(q.ph, q.n)}</b>, com clique do anúncio <b>${pct(q.fb, q.n)}</b>. O formulário não pede e-mail.</p>
     </div>
     <div class="actions">
+      <button class="btn" data-a="capi-ping" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_ping' ? 'Testando…' : 'Testar conexão'}</button>
       <button class="btn" data-a="capi-test" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_test' ? 'Enviando…' : 'Enviar evento de teste'}</button>
       <button class="btn" data-a="capi-backfill" data-confirm="Sim, enviar" ${busy || c.mode === 'off' || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_backfill' ? 'Enviando…' : 'Enviar os leads dos últimos 7 dias'}</button>
       <button class="btn ghost" data-a="capi-flush" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_flush' ? 'Enviando…' : 'Reenviar a fila'}</button>
       <button class="btn ghost" data-a="capi-refresh" ${busy ? 'disabled' : ''}>Atualizar a lista</button>
     </div>
-    <p class="hint" style="margin-top:-6px">O teste usa o lead mais recente (dados em hash) e o código de teste: aparece em "Eventos de teste" quase na hora. Os 7 dias são o limite da Meta para eventos de CRM.</p>
-    ${last ? `<div class="formula" style="font-size:13.5px">${last.err ? 'Erro: ' + esc(last.err) : last.op === 'capi_test' ? `Teste: ${L.ok ? 'aceito' : 'recusado'} (HTTP ${esc(L.status)}) · evento ${esc(L.eventName)} · dados enviados: ${esc((L.chaves || []).join(', '))} · recebidos: ${esc(L.eventsReceived ?? '–')}${L.fbtraceId ? ' · rastreio ' + esc(L.fbtraceId) : ''}${L.erro ? ' · ' + esc(L.erro) : ''}${(L.mensagens || []).length ? ' · ' + esc(L.mensagens.join('; ')) : ''}` : esc(capiSummary(last.op, L)) + (L.access ? ' · ' + esc(L.access) : '')}</div>` : ''}
+    <p class="hint" style="margin-top:-6px">"Testar conexão" manda um evento CRM_Teste sem nenhum dado de pessoa e sem código de teste (aparece em Eventos recebidos; nenhum anúncio usa esse nome). O evento de teste usa o lead mais recente (dados em hash) e o código de teste: aparece em "Eventos de teste" quase na hora. Os 7 dias são o limite da Meta para eventos de CRM.</p>
+    ${last ? `<div class="formula" style="font-size:13.5px">${last.err ? 'Erro: ' + esc(last.err) : (last.op === 'capi_test' || last.op === 'capi_ping') ? `${last.op === 'capi_ping' ? 'Conexão' : 'Teste'}: ${L.ok ? 'aceito' : 'recusado'} (HTTP ${esc(L.status)}) · evento ${esc(L.eventName)} · dados enviados: ${esc((L.chaves || []).join(', '))} · recebidos: ${esc(L.eventsReceived ?? '–')}${L.fbtraceId ? ' · rastreio ' + esc(L.fbtraceId) : ''}${L.erro ? ' · ' + esc(L.erro) : ''}${(L.mensagens || []).length ? ' · ' + esc(L.mensagens.join('; ')) : ''}` : esc(capiSummary(last.op, L)) + (L.access ? ' · ' + esc(L.access) : '')}</div>` : ''}
     <div><h3 style="margin-bottom:8px">Últimos eventos ${log && log.counts ? `<span class="hint">${log.counts.sent} enviados · ${log.counts.pending} na fila · ${log.counts.error} com erro</span>` : ''}</h3>
       ${!log ? '<p class="hint">Carregando…</p>' : log.error ? `<p class="hint">${esc(log.error)}</p>` : !log.events.length ? '<p class="hint">Ainda nenhum evento. Com a integração ligada, o próximo lead que entrar ou mudar de etapa aparece aqui.</p>' : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Quando</th><th>Lead</th><th>Evento</th><th>Situação</th></tr></thead><tbody>${log.events.map(e => { const ld = S.leads[e.lead_id]; return `<tr><td class="num">${esc(new Date(e.sent_at || e.created_at).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}))}</td><td>${ld ? `<a href="#" data-a="open-lead" data-id="${attr(e.lead_id)}">${esc(ld.name)}</a>` : esc(e.lead_id)}</td><td>${esc(e.event_name)}${e.test ? ' <span class="chip ex">teste</span>' : ''}</td><td><span class="chip ${e.status === 'sent' ? 'meet' : e.status === 'error' ? 'late' : 'today'}">${st[e.status] || esc(e.status)}</span>${e.last_error ? ` <span class="hint" title="${attr(e.last_error)}">${esc(String(e.last_error).slice(0, 60))}</span>` : ''}</td></tr>` }).join('')}</tbody></table></div>`}
     </div>
@@ -2960,6 +2962,7 @@ const ACT = {
   'install-later': () => { ls.set('brase.installDismiss', String(Date.now())); render() },
   'reload-app': async () => { try { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))) } catch {} location.reload() },
   'logout': () => { try { localStorage.removeItem(CODE_KEY) } catch {} location.reload() },
+  'capi-ping': () => { capiRun('capi_ping') },
   'capi-test': () => { capiRun('capi_test') },
   'capi-backfill': () => { capiRun('capi_backfill') },
   'capi-flush': () => { capiRun('capi_flush') },
