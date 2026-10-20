@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "06753c5cbe";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "61fa9b8719";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2596,7 +2596,7 @@ function viewConfig(){
 const PHONE = () => { try { return matchMedia('(max-width:600px)').matches } catch { return false } };
 const IS_APP = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } };
 const IS_IOS = (() => { try { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) } catch { return false } })();
-const IS_EMBED = (() => { try { return /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|; wv\)/i.test(navigator.userAgent || '') } catch { return false } })();
+const IS_EMBED = (() => { try { return /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|MiuiBrowser|HuaweiBrowser|UCBrowser|VivoBrowser|HeyTapBrowser|OppoBrowser|Quark\/|; wv\)/i.test(navigator.userAgent || '') } catch { return false } })();
 let INSTALL_EVT = null, VER_AT = Date.now();
 const svg = (d, fill) => `<svg viewBox="0 0 24 24" ${fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"'} aria-hidden="true">${d}</svg>`;
 const IC = {
@@ -2663,7 +2663,7 @@ function sheetHTML(){
     </section></div>`;
   }
   if (UI.sheet === 'install'){
-    const steps = IS_EMBED ? ['Você abriu dentro de outro app (WhatsApp, Instagram…), onde não dá para instalar.', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone).', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
+    const steps = IS_EMBED ? ['Você abriu em um navegador que não instala o app (o de dentro do WhatsApp ou do Instagram, ou o Mi Browser da Xiaomi).', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone). Se não achar, copie o endereço e cole no <b>Chrome</b>.', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
       : IS_IOS
       ? [`Abra este endereço no <b>Safari</b>.`, `Toque em <b>Compartilhar</b> ${IC.share} na barra de baixo.`, `Role e toque em <b>Adicionar à Tela de Início</b> ${IC.addbox}.`, `Toque em <b>Adicionar</b>. O ícone da Brase aparece na sua tela.`]
       : [`Toque nos <b>três pontinhos</b> ${IC.dots} do navegador (canto de cima).`, `Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.`, `Confirme. O ícone da Brase aparece na sua tela.`];
@@ -2808,7 +2808,8 @@ function pushConfigHTML(){
   return `<div><h3 style="margin-bottom:8px">Avisos com o app fechado</h3>
     <p class="hint">Lead novo, lead esperando e print vencido chegam como notificação no celular, mesmo com o app fechado. Vale para o vendedor escolhido em "Você está como" neste aparelho (a gestão recebe os de todos). Lead que entra fora do expediente avisa quando o expediente abre.</p>
     <div class="actions" style="margin-top:10px">${on ? '<button class="btn sm" data-a="push-test">Enviar um aviso de teste</button><button class="btn sm ghost" data-a="push-toggle">Desligar neste aparelho</button>' : `<button class="btn sm primary" data-a="push-toggle" ${PUSH_OK() && perm !== 'denied' ? '' : 'disabled'}>Ativar neste aparelho</button>`}</div>
-    <p class="hint" style="margin-top:8px">${state}</p></div>`;
+    <p class="hint" style="margin-top:8px">${state}</p>
+    <p class="hint" style="margin-top:6px">Não chega com o app fechado? No Xiaomi (e em outros celulares) a economia de bateria bloqueia: em Configurações › Apps › Gerenciar apps, escolha o Chrome e o Brase CRM, ligue o Início automático, deixe a Economia de bateria em "Sem restrições" e permita as notificações na tela de bloqueio.</p></div>`;
 }
 // Toque no aviso com o app fechado abre em /#lead=<id>: abre a ficha assim que os dados chegarem.
 function readLeadHash(){ const m = /^#lead=([\w-]+)$/.exec(location.hash || ''); if (m) UI.pendingLead = m[1] }

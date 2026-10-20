@@ -94,6 +94,17 @@ li svg,.card p svg{width:20px;height:20px;vertical-align:-4px;color:var(--accent
     <button class="btn ghost" type="button" data-copy>Copiar o link</button>
   </section>
 
+  <details class="card" id="bat" hidden>
+    <summary style="cursor:pointer;font-weight:800;font-size:17px">Para o aviso chegar com o app fechado (Xiaomi e outros)</summary>
+    <ol style="margin-top:14px">
+      <li><span>Abra <b>Configurações › Apps › Gerenciar apps</b> e escolha o <b>Chrome</b> (e o <b>Brase CRM</b>, se aparecer na lista).</span></li>
+      <li><span>Ligue o <b>Início automático</b> (Autostart).</span></li>
+      <li><span>Em <b>Economia de bateria</b>, escolha <b>Sem restrições</b>.</span></li>
+      <li><span>Em <b>Notificações</b>, deixe permitido e ligue <b>Mostrar na tela de bloqueio</b> e <b>Notificações flutuantes</b>.</span></li>
+    </ol>
+    <p class="note" style="margin-top:12px">Os nomes mudam um pouco entre as versões do MIUI/HyperOS. Sem isso, o Xiaomi costuma "dormir" o app e o aviso só chega quando você abre o CRM. Também ajuda travar o app na tela de apps recentes.</p>
+  </details>
+
   <section class="card">
     <h2>Na primeira vez que abrir</h2>
     <ol>
@@ -115,14 +126,17 @@ li svg,.card p svg{width:20px;height:20px;vertical-align:-4px;color:var(--accent
   const android = /android/i.test(ua), mobile = ios || android || /mobile/i.test(ua);
   // Navegadores embutidos em outros apps (WhatsApp, Instagram, Facebook…) não instalam: precisa abrir no Chrome ou no Safari.
   const embedded = /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|; wv\)/i.test(ua);
+  // Navegadores que vêm no celular de algumas marcas (Mi Browser da Xiaomi etc.) também não instalam: só o Chrome.
+  const mi = /MiuiBrowser/i.test(ua), oem = mi || /HuaweiBrowser|UCBrowser|VivoBrowser|HeyTapBrowser|OppoBrowser|Quark\/|Silk\//i.test(ua);
+  const xiaomi = mi || /Xiaomi|MIUI|HyperOS|Redmi|POCO/i.test(ua);
   const samsung = /SamsungBrowser/i.test(ua), firefox = /Firefox|FxiOS/i.test(ua), opera = /OPR\/|OPiOS|Opera/i.test(ua), edge = /EdgA|EdgiOS|Edg\//i.test(ua);
-  const chrome = /Chrome\/|CriOS/i.test(ua) && !samsung && !opera && !edge;
+  const chrome = /Chrome\/|CriOS/i.test(ua) && !samsung && !opera && !edge && !oem;
   const iosSafari = ios && /Safari/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA\//i.test(ua) && !embedded;
   const standalone = (() => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } })();
   const link = location.origin + '/instalar/';
   $('url').textContent = link;
 
-  const browserName = ios ? (iosSafari ? 'Safari' : firefox ? 'Firefox' : edge ? 'Edge' : chrome ? 'Chrome' : 'outro navegador') : samsung ? 'Samsung Internet' : firefox ? 'Firefox' : opera ? 'Opera' : edge ? 'Edge' : chrome ? 'Chrome' : 'outro navegador';
+  const browserName = ios ? (iosSafari ? 'Safari' : firefox ? 'Firefox' : edge ? 'Edge' : chrome ? 'Chrome' : 'outro navegador') : mi ? 'Mi Browser (Xiaomi)' : oem ? 'navegador do aparelho' : samsung ? 'Samsung Internet' : firefox ? 'Firefox' : opera ? 'Opera' : edge ? 'Edge' : chrome ? 'Chrome' : 'outro navegador';
   $('env').textContent = mobile ? 'Detectado: ' + browserName + (ios ? ' no iPhone' : android ? ' no Android' : '') + (embedded ? ' (dentro de outro app)' : '') : '';
 
   let evt = null;
@@ -156,6 +170,14 @@ li svg,.card p svg{width:20px;height:20px;vertical-align:-4px;color:var(--accent
     }
   } else $('desk').hidden = false;
 
+  // Navegador que vem no celular (Mi Browser da Xiaomi, por exemplo): não instala. Só o Chrome.
+  if (oem && !standalone && !ios) {
+    $('inapp').hidden = false; $('copy-all').hidden = false;
+    $('inapp-t').textContent = mi ? 'O navegador da Xiaomi não instala o app' : 'Este navegador não instala o app';
+    $('inapp-p').innerHTML = 'Abra o link no <b>Chrome</b>: toque em <b>Copiar o link</b> abaixo, abra o <b>Chrome</b> (ícone redondo vermelho, amarelo, verde e azul), cole na barra de endereço e entre. Aí aparece o botão de instalar. Se o Chrome não estiver no celular, baixe na loja de aplicativos.';
+  }
+  // Aviso com o app fechado: a economia de bateria do Android (muito forte no Xiaomi) pode bloquear.
+  if (android && !standalone) { $('bat').hidden = false; $('bat').open = true } // aberto para todo Android: o Xiaomi nem sempre se identifica pelo nome
   // Botão grande de instalar: com o aviso do navegador instala na hora; sem ele, leva para o passo a passo do aparelho.
   if (!standalone && mobile) go.hidden = false;
   window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); evt = e; $('go-t').textContent = 'Instalar o app agora' });
