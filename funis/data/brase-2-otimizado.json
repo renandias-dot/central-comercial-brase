@@ -1,11 +1,11 @@
 {
  "format": "brase-funil-export/1",
- "exportedAt": "2026-10-15T01:48:25.625Z",
+ "exportedAt": "2026-10-21T22:01:23.313Z",
  "slug": "brase-2-otimizado",
  "title": "BRASE 2 · otimizado",
  "source": {
   "basedOn": "brase-2",
-  "note": "Cópia do que está publicado em 15/10/2026 (com as edições feitas no editor): BRASE 2 com as decisões de 13/10, capa V1 para todos (sem teste A/B), formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio."
+  "note": "Cópia do que está publicado em 21/10/2026: BRASE 2 com as decisões de 13/10, teste A/B de capa v1 × v2 (v2 já começa com a pergunta de dor e pula a etapa Dor), formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio."
  },
  "draft": {
   "slug": "brase-2-otimizado",
@@ -15,8 +15,102 @@
     "title": "Capa",
     "layers": [
      {
+      "id": "QqJHpK",
+      "icon": "text",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {},
+      "content": {
+       "id": "VhEhnI",
+       "name": "dmGo3e",
+       "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>"
+      }
+     },
+     {
+      "id": "9Z567P",
+      "icon": "text",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {},
+      "content": {
+       "id": "i5ho8Y",
+       "name": "RBnItX",
+       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>"
+      }
+     },
+     {
+      "id": "rPJrLL",
+      "icon": "rectangleWide",
+      "type": "button",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "theme"
+      },
+      "content": {
+       "id": "YoScvS",
+       "name": "WTiTGM",
+       "type": "next",
+       "label": "INICIAR ANÁLISE ➔",
+       "pulse": false,
+       "target": false,
+       "destination": "next"
+      }
+     },
+     {
       "id": "huNzpc",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -30,6 +124,15 @@
      {
       "id": "7DehSC",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -37,12 +140,21 @@
       "content": {
        "id": "wYFTY6",
        "name": "mtKBit",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 2 minutos.</em></p>"
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
       }
      },
      {
       "id": "5a9wLk",
       "type": "button",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Botão",
       "design": {
        "basis": 100,
@@ -63,6 +175,15 @@
      {
       "id": "iTThVN",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -70,6 +191,155 @@
       "content": {
        "id": "Z3VnB7",
        "name": "Gtxbw3",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
+      }
+     },
+     {
+      "id": "uTxelG",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "hupeKB",
+       "name": "k3BNvW",
+       "text": "<h1 class=\"ql-align-center\">O que mais te <span style=\"color: rgb(245, 158, 11);\">incomoda</span> na sua loja hoje?</h1>"
+      }
+     },
+     {
+      "id": "6WlfeP",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "6XUc1l",
+       "name": "UE2PQc",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Escolha a que mais parece com a sua semana e veja <strong style=\"color: rgb(245, 158, 11);\">onde a sua loja está travando.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
+      }
+     },
+     {
+      "id": "SyDOxb",
+      "icon": "gameBoard",
+      "type": "options",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Opções",
+      "design": {
+       "gap": "gap-2",
+       "grid": "grid-cols-1",
+       "icon": "select",
+       "basis": 100,
+       "order": "default",
+       "border": "border-[2px]",
+       "shadow": "shadow-none",
+       "background": "contrast",
+       "aspectImage": "aspect-[1/1]",
+       "orientation": "vertical",
+       "iconPosition": "end",
+       "transparentImage": true
+      },
+      "content": {
+       "id": "ZXAhsg",
+       "name": "opcoes_sz3HdB",
+       "type": "options",
+       "options": [
+        {
+         "id": "SdYOjy",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>🔇&nbsp;<strong>Pedido sumiu:</strong>&nbsp;Vendia bem e, do nada, o movimento caiu.</p>",
+         "score": 1,
+         "value": "A",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "q2F74I",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>👀&nbsp;<strong>Visita sem pedido:</strong>&nbsp;Muita gente abre o cardápio e pouca gente compra.</p>",
+         "score": 2,
+         "value": "B",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "8r7yPf",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>📉&nbsp;<strong>Lucro baixo:</strong>&nbsp;Vendo bem, mas no fim do mês sobra pouco.</p>",
+         "score": 3,
+         "value": "C",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "nwRR18",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>🚀&nbsp;<strong>Estou começando:</strong>&nbsp;Quero crescer do jeito certo desde o início.</p>",
+         "score": 4,
+         "value": "D",
+         "destination": "Kqi5Pw"
+        }
+       ],
+       "required": true,
+       "introType": "none",
+       "introduction": null
+      }
+     },
+     {
+      "id": "barX2t",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "DC4NfK",
+       "name": "AnY5bV",
        "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
       }
      }
@@ -928,7 +1198,7 @@
       "content": {
        "id": "jx5yvu",
        "name": "jf59mi",
-       "text": "<h1 class=\"ql-align-center\">Bater <span style=\"color: rgb(245, 158, 11);\">R$ 10 mil por mês</span> no iFood não tem segredo.</h1>"
+       "text": "<h1 class=\"ql-align-center\">Todo pedido no iFood passa por <span style=\"color: rgb(245, 158, 11);\">5 portas.</span></h1>"
       }
      },
      {
@@ -941,7 +1211,7 @@
       "content": {
        "id": "1xiyt8",
        "name": "3sz86x",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">As lojas que chegam lá acertaram </span><strong style=\"color: rgb(245, 158, 11);\">4 coisas básicas.</strong><span style=\"color: rgb(255, 255, 255);\"> E dá pra arrumar todas pelo seu portal, sem gastar com anúncio.</span></p>"
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">O cliente chega na sua loja, se interessa, deseja, avança e fecha o pedido. </span><strong style=\"color: rgb(245, 158, 11);\">Se uma porta vaza, o pedido morre no caminho.</strong><span style=\"color: rgb(255, 255, 255);\"> E muita porta vaza por configuração da loja, que dá pra arrumar pelo seu portal, sem gastar com anúncio.</span></p>"
       }
      },
      {
@@ -956,36 +1226,44 @@
        "name": "u810tv",
        "items": [
         {
-         "id": "qrrb1t",
+         "id": "NmtwfM",
          "icon": {
           "type": "emoji",
-          "value": "⏱️"
+          "value": "👀"
          },
-         "text": "O <b>tempo de entrega</b> que aparece pro cliente"
+         "text": "<b>Atrair:</b> o cliente chega na sua loja"
         },
         {
-         "id": "8ctmmj",
+         "id": "TuSchT",
          "icon": {
           "type": "emoji",
-          "value": "🏷️"
+          "value": "📋"
          },
-         "text": "A <b>promoção certa</b> pra puxar cliente novo"
+         "text": "<b>Interessar:</b> ele abre algum produto"
         },
         {
-         "id": "z3ru0d",
+         "id": "JwPWP8",
          "icon": {
           "type": "emoji",
-          "value": "➕"
+          "value": "❤️"
          },
-         "text": "O <b>adicional</b> que aumenta cada pedido"
+         "text": "<b>Desejar:</b> ele coloca na sacola"
         },
         {
-         "id": "79p87w",
+         "id": "r4Bceb",
          "icon": {
           "type": "emoji",
-          "value": "🛵"
+          "value": "🛍️"
          },
-         "text": "A <b>entrega grátis</b> que não sai do seu bolso"
+         "text": "<b>Avançar:</b> ele vai revisar o pedido"
+        },
+        {
+         "id": "vCkI0p",
+         "icon": {
+          "type": "emoji",
+          "value": "✅"
+         },
+         "text": "<b>Fechar:</b> ele conclui o pedido"
         }
        ]
       }
@@ -1000,7 +1278,7 @@
       "content": {
        "id": "w65et9",
        "name": "22uud6",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Mais umas perguntas rápidas e você vê seu Score e qual dessas arrumar primeiro.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Mais umas perguntas rápidas e você vê quais portas da sua loja estão vazando.</em></p>"
       }
      },
      {
@@ -1018,7 +1296,7 @@
        "id": "QqF23D",
        "name": "KZkH5V",
        "type": "next",
-       "label": "Quero ver o que falta na minha loja ➔",
+       "label": "Quero ver onde a minha loja vaza ➔",
        "pulse": false,
        "target": false,
        "destination": "next"
@@ -1389,7 +1667,7 @@
       "content": {
        "id": "Jyyd1k",
        "name": "yNP29j",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Essa pesa mais do que parece.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 1 · Atrair. Pesa mais do que parece: o cliente vê esse tempo antes de entrar na loja.</em></p>"
       }
      },
      {
@@ -1495,7 +1773,7 @@
       "content": {
        "id": "aTrLUy",
        "name": "ou3SQg",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">Ex.: bacon extra, porção maior, acompanhamento.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 4 · Avançar. Ex.: bacon extra, porção maior, acompanhamento.</em></p>"
       }
      },
      {
@@ -1590,7 +1868,7 @@
       "content": {
        "id": "sxQyI9",
        "name": "1XOwQZ",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Aqui mora um dos conselhos mais caros do delivery.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 3 · Desejar. Aqui mora um dos conselhos mais caros do delivery.</em></p>"
       }
      },
      {
@@ -1696,7 +1974,7 @@
       "content": {
        "id": "PMM3MY",
        "name": "TAA77P",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🏁 Última pergunta.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 1 · Atrair. 🏁 Última pergunta.</em></p>"
       }
      },
      {
@@ -1781,7 +2059,7 @@
       "content": {
        "id": "51rFif",
        "name": "FCymAc",
-       "title": "Calculando o Score da sua loja com as suas respostas...",
+       "title": "Procurando as portas que vazam na sua loja...",
        "starts": 0,
        "seconds": 3,
        "show_title": true,
@@ -1810,7 +2088,7 @@
       "content": {
        "id": "82iRFk",
        "name": "pIm5mK",
-       "text": "<h1 class=\"ql-align-center\">📊 Seu resultado <span style=\"color: rgb(245, 158, 11);\">está pronto</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">🚪 As 5 portas <span style=\"color: rgb(245, 158, 11);\">da sua loja</span></h1>"
       }
      },
      {
@@ -1910,26 +2188,354 @@
       }
      },
      {
-      "id": "Zz6mnm",
-      "icon": "slidersH",
-      "type": "metric",
-      "title": "Nível",
+      "id": "U2W2qx",
+      "type": "text",
+      "title": "Texto",
       "design": {
-       "type": "default",
-       "basis": 100,
-       "color": "theme"
+       "basis": 100
       },
       "content": {
-       "id": "ExECnU",
-       "name": "score_da_sua_loja",
-       "title": "Score da sua loja:",
-       "legends": null,
-       "percent": "calc(({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}})/10)",
-       "tooltip": null,
-       "show_dot": true,
-       "subtitle": "calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000 · score prévio, calculado com 4 respostas",
-       "show_title": true,
-       "show_percent": true
+       "id": "IylSQy",
+       "name": "O98KC7",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Pelas suas respostas, sem abrir a sua loja:</em></p>"
+      }
+     },
+     {
+      "id": "6WL3CB",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "bolso",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "cliente",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "pub0zc",
+       "name": "vj5jKd",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "c1Hpnw",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "igual",
+         "compare": "==",
+         "variable": "@tempo"
+        },
+        {
+         "value": "noPreco",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Oayav9",
+       "name": "ADitwP",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "ibg1Q8",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "nunca",
+         "compare": "==",
+         "variable": "@tempo"
+        },
+        {
+         "value": "noPreco",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "AWVjZQ",
+       "name": "mF98fd",
+       "text": "<p class=\"ql-align-center\">⚪ <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(148, 163, 184);\">falta conferir o tempo de entrega</span></p>"
+      }
+     },
+     {
+      "id": "3O2jQK",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "OoIbBe",
+       "name": "7zeJ1z",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 2 · Interessar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "cNK8zI",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "gdJ1yf",
+       "name": "nl9P9u",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 2 · Interessar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "xS7zXk",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "barato",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "AWrkzy",
+       "name": "qzrNuC",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 3 · Desejar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "Oy2QWQ",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "carrochefe",
+         "compare": "==",
+         "variable": "@promo"
+        },
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        },
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "EuHUFU",
+       "name": "uPZo3L",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 3 · Desejar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "vIwTON",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "MdUIAg",
+       "name": "RIDKVy",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 4 · Avançar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "Kn8Mkx",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "maioria",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ziX1Xm",
+       "name": "iRWpXO",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 4 · Avançar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "SQK7se",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "p73pzz",
+       "name": "lYdIwL",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 5 · Fechar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "pJgOMO",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "cupom",
+         "compare": "!=",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "aC3YSe",
+       "name": "01YM82",
+       "text": "<p class=\"ql-align-center\">⚪ <strong>Porta 5 · Fechar</strong> <span style=\"color: rgb(148, 163, 184);\">só o diagnóstico completo mostra</span></p>"
+      }
+     },
+     {
+      "id": "raDCQX",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7GwQhH",
+       "name": "anyGMn",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">É um retrato rápido, só com as respostas daqui.</em></p>"
       }
      },
      {
@@ -2070,7 +2676,7 @@
       "content": {
        "id": "z1dn7p",
        "name": "xwRqxn",
-       "text": "<h2 class=\"ql-align-center\">O que tá <span style=\"color: rgb(245, 158, 11);\">tirando pedido</span> da sua loja:</h2>"
+       "text": "<h2 class=\"ql-align-center\">Por que essas portas <span style=\"color: rgb(245, 158, 11);\">estão vazando:</span></h2>"
       }
      },
      {
@@ -2080,8 +2686,15 @@
       "roles": [
        [
         {
-         "value": "igual",
-         "compare": "!=",
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
          "variable": "@tempo"
         }
        ]
@@ -2091,7 +2704,29 @@
       "content": {
        "id": "sjYkHu",
        "name": "ARsOFR",
-       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span></p>"
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
+      }
+     },
+     {
+      "id": "wuyhhB",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "nunca",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "egbOnn",
+       "name": "puDzn5",
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega sem conferir.</strong> <span style=\"color: rgb(255, 255, 255);\">Compare o tempo do app com o tempo real das últimas entregas.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -2101,8 +2736,8 @@
       "roles": [
        [
         {
-         "value": "maioria",
-         "compare": "!=",
+         "value": "nao",
+         "compare": "==",
          "variable": "@adicional"
         }
        ]
@@ -2112,7 +2747,29 @@
       "content": {
        "id": "aPDqS3",
        "name": "9shnLo",
-       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo, e adicional rende R$ 5 a R$ 10 a mais por pedido.</span></p>"
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 4 · Avançar</span></p>"
+      }
+     },
+     {
+      "id": "UGValr",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "q83S8S",
+       "name": "OtXTOA",
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Adicional pago só em alguns produtos.</strong> <span style=\"color: rgb(255, 255, 255);\">Coloque nos itens que mais vendem: é onde ele rende mais.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 4 · Avançar</span></p>"
       }
      },
      {
@@ -2133,7 +2790,7 @@
       "content": {
        "id": "rhFB7O",
        "name": "XsV98L",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
       }
      },
      {
@@ -2154,7 +2811,7 @@
       "content": {
        "id": "TZbrZi",
        "name": "qr2pf9",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 5 · Fechar</span></p>"
       }
      },
      {
@@ -2175,7 +2832,7 @@
       "content": {
        "id": "lNOcLY",
        "name": "Whuc3B",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
       }
      },
      {
@@ -2196,7 +2853,7 @@
       "content": {
        "id": "BkJkMR",
        "name": "VhFlAD",
-       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span></p>"
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -2217,7 +2874,7 @@
       "content": {
        "id": "qpPFUi",
        "name": "5wppwh",
-       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Cerca de 70% das listas que trazem pedido exigem entrega grátis.</span></p>"
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Entrega grátis é pré-requisito de muitas das listas que trazem pedido.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -2238,7 +2895,73 @@
       "content": {
        "id": "e3iyRj",
        "name": "JrzwDk",
-       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span></p>"
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
+      }
+     },
+     {
+      "id": "aQfCxL",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "4x1asi",
+       "name": "dx6Srj",
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Fotos fracas.</strong> <span style=\"color: rgb(255, 255, 255);\">Foto escura ou sem cuidado não dá vontade de pedir.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
+      }
+     },
+     {
+      "id": "opIkmH",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "qaZZFn",
+       "name": "5effAL",
+       "text": "<p class=\"ql-align-center\">📚 <strong style=\"color: rgb(245, 158, 11);\">Cardápio confuso.</strong> <span style=\"color: rgb(255, 255, 255);\">Quando o cliente se perde, ele sai sem abrir o produto.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 2 · Interessar</span></p>"
+      }
+     },
+     {
+      "id": "7Gq2l3",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "9ieTEE",
+       "name": "FqgdkQ",
+       "text": "<p class=\"ql-align-center\">🥇 <strong style=\"color: rgb(245, 158, 11);\">Cardápio sem estratégia.</strong> <span style=\"color: rgb(255, 255, 255);\">Sem produto de entrada e combos no topo, os seus campeões ficam escondidos.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 2 · Interessar</span></p>"
       }
      },
      {
@@ -2263,7 +2986,7 @@
       "content": {
        "id": "NMhk1U",
        "name": "wDd3Yl",
-       "text": "<p><strong>A causa é uma só:</strong> o cliente novo não tem um bom motivo pra fazer o primeiro pedido na sua loja. <span style=\"color: rgb(245, 158, 11);\">Sem esse primeiro pedido, sua loja não sobe na lista.</span></p>"
+       "text": "<p><strong>Cada porta que vaza derruba pedido no caminho.</strong> <span style=\"color: rgb(245, 158, 11);\">Mas qual delas pesa mais na sua loja, e quanto isso custa, só aparece olhando a loja inteira.</span></p>"
       }
      },
      {
@@ -2378,7 +3101,7 @@
       "content": {
        "id": "JhMD84",
        "name": "qiOt7o",
-       "text": "<h1 class=\"ql-align-center\">Agora <span style=\"color: rgb(245, 158, 11);\">imagine:</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">Agora imagine <span style=\"color: rgb(245, 158, 11);\">a porta que vaza, fechada:</span></h1>"
       }
      },
      {
@@ -2487,7 +3210,7 @@
       "content": {
        "id": "2iXdkQ",
        "name": "ZaOmE5",
-       "text": "<h1 class=\"ql-align-center\">E se você recebesse, no WhatsApp, <span style=\"color: rgb(245, 158, 11);\">o que está errado na sua loja</span> e o que fazer pra arrumar?</h1>"
+       "text": "<h1 class=\"ql-align-center\">E se você soubesse hoje <span style=\"color: rgb(245, 158, 11);\">qual porta da sua loja mais vaza</span>, quanto isso pode estar custando e o que fazer primeiro?</h1>"
       }
      },
      {
@@ -2509,7 +3232,7 @@
       "content": {
        "id": "rSvQTP",
        "name": "6Z1uUT",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do X-Bacon está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no X-Bacon.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o X-Bacon com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2531,7 +3254,7 @@
       "content": {
        "id": "9uhfA8",
        "name": "0Yr0il",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da pizza de calabresa está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na pizza de calabresa.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> a pizza de calabresa com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2553,7 +3276,7 @@
       "content": {
        "id": "TVpUXA",
        "name": "jm6vdm",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do açaí de 500 ml está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no açaí de 500 ml.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o açaí de 500 ml com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2575,7 +3298,7 @@
       "content": {
        "id": "vGOF6X",
        "name": "R7Zfhf",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da marmita de frango está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na marmita de frango.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> a marmita de frango com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2597,7 +3320,7 @@
       "content": {
        "id": "hh0D2K",
        "name": "CbmnA5",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do combinado de 20 peças está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no combinado de 20 peças.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o combinado de 20 peças com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2619,7 +3342,7 @@
       "content": {
        "id": "iD1wne",
        "name": "oAPGLc",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do bolo de pote está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no bolo de pote.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o bolo de pote com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2648,7 +3371,7 @@
       "content": {
        "id": "i7UzSb",
        "name": "lyBEfv",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do prato mais vendido está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no prato mais vendido.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o prato mais vendido com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -2809,6 +3532,99 @@
      {
       "id": "QugDFX",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "bolso",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "cliente",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "barato",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -2816,7 +3632,89 @@
       "content": {
        "id": "bl6Eyd",
        "name": "hjn7ab",
-       "text": "<h1 class=\"ql-align-center\">Seu Score está em <span style=\"color: rgb(245, 158, 11);\">calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000.</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">A sua loja tem <span style=\"color: rgb(245, 158, 11);\">porta vazando.</span></h1>"
+      }
+     },
+     {
+      "id": "XabxPW",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "!=",
+         "variable": "@tempo"
+        },
+        {
+         "value": "mais10",
+         "compare": "!=",
+         "variable": "@tempo"
+        },
+        {
+         "value": "bolso",
+         "compare": "!=",
+         "variable": "@entrega"
+        },
+        {
+         "value": "cliente",
+         "compare": "!=",
+         "variable": "@entrega"
+        },
+        {
+         "value": "B",
+         "compare": "!=",
+         "variable": "@opcoes_V8j0wv"
+        },
+        {
+         "value": "C",
+         "compare": "!=",
+         "variable": "@opcoes_V8j0wv"
+        },
+        {
+         "value": "barato",
+         "compare": "!=",
+         "variable": "@promo"
+        },
+        {
+         "value": "nao",
+         "compare": "!=",
+         "variable": "@promo"
+        },
+        {
+         "value": "B",
+         "compare": "!=",
+         "variable": "@opcoes_BAoGLH"
+        },
+        {
+         "value": "C",
+         "compare": "!=",
+         "variable": "@opcoes_BAoGLH"
+        },
+        {
+         "value": "alguns",
+         "compare": "!=",
+         "variable": "@adicional"
+        },
+        {
+         "value": "nao",
+         "compare": "!=",
+         "variable": "@adicional"
+        },
+        {
+         "value": "cupom",
+         "compare": "!=",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "eIwHPz",
+       "name": "tA2vXZ",
+       "text": "<h1 class=\"ql-align-center\">As suas respostas <span style=\"color: rgb(245, 158, 11);\">não mostram porta vazando.</span></h1>"
       }
      },
      {
@@ -2829,36 +3727,36 @@
       "content": {
        "id": "3wBgjV",
        "name": "nUJCRs",
-       "text": "<h3 class=\"ql-align-center\">O que sobe primeiro está aqui: o ZapFood é o Scanner de Algoritmo da Brase. Ele aponta o que está travando sua loja, em vermelho, e diz o que fazer pra ficar verde.</h3>"
+       "text": "<h3 class=\"ql-align-center\">O ZapFood é o diagnóstico da Brase que olha as 5 portas da sua loja. Você responde sobre ela, uma pergunta por vez, e descobre qual porta mais vaza, o principal motivo, quanto isso pode estar custando e o plano pronto para arrumar.</h3>"
       }
      },
      {
-      "id": "hytM1Z",
+      "id": "2bmYtT",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "VXwJWj",
-       "name": "FmApkE",
-       "text": "<p class=\"ql-align-center\">👇 Veja em 1 minuto como funciona:</p>"
+       "id": "2C6CCi",
+       "name": "l0yGch",
+       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja como funciona, com as telas do app:</strong></p>"
       }
      },
      {
-      "id": "1mTRUj",
+      "id": "6SWVwQ",
       "icon": "film",
       "type": "video",
       "title": "Vídeo",
       "design": {
        "basis": 100,
-       "ratio": "mobile"
+       "ratio": "square"
       },
       "content": {
-       "id": "3u3mbD",
-       "name": "TrXcpL",
+       "id": "feTnFQ",
+       "name": "yY1xUr",
        "title": null,
-       "video": "<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/yQSmhjs3USM?si=XElBsOM-CiWRIVli&amp;controls=0\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
+       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/oC7AybrRhFM?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
        "description": null
       }
      },
@@ -2872,7 +3770,7 @@
       "content": {
        "id": "8uGuBJ",
        "name": "FTiQE9",
-       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês usando o Scanner:</p>"
+       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês:</p>"
       }
      },
      {
@@ -2936,25 +3834,25 @@
          "id": "p0aqji",
          "icon": {
           "type": "emoji",
-          "value": "🔴"
+          "value": "🚪"
          },
-         "text": "O Scanner aponta <b>o que trava</b> a sua loja, em vermelho"
+         "text": "Mostra <b>qual porta mais vaza</b> e o principal motivo, com a conta"
         },
         {
          "id": "635mcu",
          "icon": {
           "type": "emoji",
-          "value": "🟢"
+          "value": "🎯"
          },
-         "text": "Diz <b>o que fazer</b> pra cada ponto ficar verde"
+         "text": "Entrega <b>o produto isca</b> pronto e as 5 primeiras missões"
         },
         {
          "id": "px9zrv",
          "icon": {
           "type": "emoji",
-          "value": "📈"
+          "value": "📱"
          },
-         "text": "Você arruma no Portal e acompanha o <b>Score subir</b>"
+         "text": "Tudo no celular, <b>em poucos minutos</b>, sem instalar nada"
         }
        ]
       }
@@ -2978,7 +3876,7 @@
       "content": {
        "id": "7pR5qW",
        "name": "DmxeVl",
-       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o acesso é vitalício, você usa quando quiser.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
       }
      },
      {
@@ -3001,26 +3899,6 @@
        "id": "omrmyT",
        "name": "nwaTFH",
        "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
-      }
-     },
-     {
-      "id": "m6rw3a",
-      "type": "alert",
-      "title": "Alerta",
-      "design": {
-       "basis": 100,
-       "style": "theme",
-       "padding": "14",
-       "borderWidth": 1
-      },
-      "content": {
-       "id": "s50tzr",
-       "icon": {
-        "type": "emoji",
-        "value": "💡"
-       },
-       "name": "o1tpsd",
-       "text": "O acompanhamento completo da Brase começa em <b>R$ 797 por mês</b>. O Scanner sai por <b>R$ 97, uma vez só</b>."
       }
      },
      {
@@ -3078,10 +3956,10 @@
        "id": "AJXGxc",
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "Quero destravar minhas vendas ➔",
+       "label": "Quero achar a porta que vaza ➔",
        "pulse": false,
        "target": false,
-       "destination": "https://pay.kirvano.com/75eef98a-0ae5-4761-8952-5912f0942c86"
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
       }
      },
      {
@@ -3122,23 +4000,28 @@
        "questions": [
         {
          "id": "hD59Gv",
-         "answer": "<p>Sim.&nbsp;O&nbsp;algoritmo&nbsp;do&nbsp;iFood&nbsp;funciona&nbsp;igual&nbsp;para&nbsp;todos&nbsp;os&nbsp;nichos.&nbsp;Os&nbsp;sensores&nbsp;de&nbsp;Foto,&nbsp;Texto&nbsp;e&nbsp;Estrutura&nbsp;são&nbsp;universais.&nbsp;O&nbsp;Scanner&nbsp;identifica&nbsp;os&nbsp;erros&nbsp;independente&nbsp;do&nbsp;que&nbsp;você&nbsp;vende.</p>",
+         "answer": "<p>Sim. O diagnóstico foi feito para delivery no iFood. Hamburgueria, pizzaria, açaí e confeitaria têm dicas próprias do nicho, e os outros tipos de loja recebem o diagnóstico completo, com as dicas gerais. O resultado sai do que você conta da sua loja, não de uma média.</p>",
          "question": "Funciona para o meu nicho (Hamburgueria, Pizza, Açaí, Sushi)?"
         },
         {
          "id": "I6tpXi",
-         "answer": "<p>Não.&nbsp;A&nbsp;ferramenta&nbsp;foi&nbsp;feita&nbsp;para&nbsp;donos&nbsp;de&nbsp;restaurante,&nbsp;não&nbsp;para&nbsp;programadores.&nbsp;É&nbsp;visual:&nbsp;ela&nbsp;mostra&nbsp;o&nbsp;erro&nbsp;em&nbsp;vermelho&nbsp;e&nbsp;diz&nbsp;o&nbsp;que&nbsp;fazer&nbsp;para&nbsp;ficar&nbsp;verde.&nbsp;Se&nbsp;você&nbsp;sabe&nbsp;mexer&nbsp;no&nbsp;WhatsApp,&nbsp;sabe&nbsp;usar&nbsp;o&nbsp;ZapFood!</p>",
+         "answer": "<p>Não. Você responde perguntas simples no celular, uma por vez, e no fim vê o principal motivo de a sua loja não vender como deveria e o que fazer primeiro, passo a passo. Abre direto pelo link do e-mail, sem instalar nada.</p>",
          "question": "É difícil de usar? Não entendo nada de computador."
         },
         {
          "id": "L4cIhC",
-         "answer": "<p>Nenhuma.&nbsp;Nesta&nbsp;oferta&nbsp;especial&nbsp;de&nbsp;diagnóstico,&nbsp;o&nbsp;acesso&nbsp;é&nbsp;VITALÍCIO&nbsp;com&nbsp;pagamento&nbsp;ÚNICO&nbsp;de&nbsp;R$&nbsp;97,00.&nbsp;Você&nbsp;nunca&nbsp;mais&nbsp;paga&nbsp;nada&nbsp;e&nbsp;usa&nbsp;para&nbsp;sempre.</p>",
+         "answer": "<p>Nenhuma. É pagamento único de R$ 97. O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
          "question": "Tem mensalidade ou pegadinha?"
         },
         {
          "id": "8hTexh",
-         "answer": "<p>Sim!&nbsp;Você&nbsp;receberá&nbsp;um&nbsp;contato&nbsp;de&nbsp;suporte&nbsp;caso&nbsp;haja&nbsp;dúvidas&nbsp;onde&nbsp;o&nbsp;próprio&nbsp;Renan&nbsp;irá&nbsp;te&nbsp;auxiliar</p>",
+         "answer": "<p>Sim! É só chamar no WhatsApp de suporte, (21) 95905-5007, que o próprio Renan te ajuda.</p>",
          "question": "Se eu tiver dúvida, tenho suporte do Renan?"
+        },
+        {
+         "id": "weFcCX",
+         "answer": "<p>Na hora, no e-mail que você usar na compra. Procure \"Seu diagnóstico do ZapFood está liberado\" e toque em \"Abrir meu diagnóstico\". Se não achar, olhe no spam e na aba Promoções.</p>",
+         "question": "Como eu recebo o acesso?"
         }
        ],
        "firstQuestionOpened": false
@@ -3187,7 +4070,13 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [],
+   "ab": [
+    {
+     "name": "capa",
+     "enabled": true,
+     "variants": "v1, v2"
+    }
+   ],
    "seo": {},
    "leads": {
     "hot": 70,
@@ -3455,8 +4344,102 @@
     "title": "Capa",
     "layers": [
      {
+      "id": "QqJHpK",
+      "icon": "text",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {},
+      "content": {
+       "id": "VhEhnI",
+       "name": "dmGo3e",
+       "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>"
+      }
+     },
+     {
+      "id": "9Z567P",
+      "icon": "text",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {},
+      "content": {
+       "id": "i5ho8Y",
+       "name": "RBnItX",
+       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>"
+      }
+     },
+     {
+      "id": "rPJrLL",
+      "icon": "rectangleWide",
+      "type": "button",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        },
+        {
+         "value": "v2",
+         "compare": "!=",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "theme"
+      },
+      "content": {
+       "id": "YoScvS",
+       "name": "WTiTGM",
+       "type": "next",
+       "label": "INICIAR ANÁLISE ➔",
+       "pulse": false,
+       "target": false,
+       "destination": "next"
+      }
+     },
+     {
       "id": "huNzpc",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -3470,6 +4453,15 @@
      {
       "id": "7DehSC",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -3477,12 +4469,21 @@
       "content": {
        "id": "wYFTY6",
        "name": "mtKBit",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 2 minutos.</em></p>"
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
       }
      },
      {
       "id": "5a9wLk",
       "type": "button",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Botão",
       "design": {
        "basis": 100,
@@ -3503,6 +4504,15 @@
      {
       "id": "iTThVN",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v1",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -3510,6 +4520,155 @@
       "content": {
        "id": "Z3VnB7",
        "name": "Gtxbw3",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
+      }
+     },
+     {
+      "id": "uTxelG",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "hupeKB",
+       "name": "k3BNvW",
+       "text": "<h1 class=\"ql-align-center\">O que mais te <span style=\"color: rgb(245, 158, 11);\">incomoda</span> na sua loja hoje?</h1>"
+      }
+     },
+     {
+      "id": "6WlfeP",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "6XUc1l",
+       "name": "UE2PQc",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Escolha a que mais parece com a sua semana e veja <strong style=\"color: rgb(245, 158, 11);\">onde a sua loja está travando.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
+      }
+     },
+     {
+      "id": "SyDOxb",
+      "icon": "gameBoard",
+      "type": "options",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Opções",
+      "design": {
+       "gap": "gap-2",
+       "grid": "grid-cols-1",
+       "icon": "select",
+       "basis": 100,
+       "order": "default",
+       "border": "border-[2px]",
+       "shadow": "shadow-none",
+       "background": "contrast",
+       "aspectImage": "aspect-[1/1]",
+       "orientation": "vertical",
+       "iconPosition": "end",
+       "transparentImage": true
+      },
+      "content": {
+       "id": "ZXAhsg",
+       "name": "opcoes_sz3HdB",
+       "type": "options",
+       "options": [
+        {
+         "id": "SdYOjy",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>🔇&nbsp;<strong>Pedido sumiu:</strong>&nbsp;Vendia bem e, do nada, o movimento caiu.</p>",
+         "score": 1,
+         "value": "A",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "q2F74I",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>👀&nbsp;<strong>Visita sem pedido:</strong>&nbsp;Muita gente abre o cardápio e pouca gente compra.</p>",
+         "score": 2,
+         "value": "B",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "8r7yPf",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>📉&nbsp;<strong>Lucro baixo:</strong>&nbsp;Vendo bem, mas no fim do mês sobra pouco.</p>",
+         "score": 3,
+         "value": "C",
+         "destination": "Kqi5Pw"
+        },
+        {
+         "id": "nwRR18",
+         "image": {
+          "src": null,
+          "type": "image"
+         },
+         "label": "<p>🚀&nbsp;<strong>Estou começando:</strong>&nbsp;Quero crescer do jeito certo desde o início.</p>",
+         "score": 4,
+         "value": "D",
+         "destination": "Kqi5Pw"
+        }
+       ],
+       "required": true,
+       "introType": "none",
+       "introduction": null
+      }
+     },
+     {
+      "id": "barX2t",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "v2",
+         "compare": "==",
+         "variable": "@teste.capa"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "DC4NfK",
+       "name": "AnY5bV",
        "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
       }
      }
@@ -4368,7 +5527,7 @@
       "content": {
        "id": "jx5yvu",
        "name": "jf59mi",
-       "text": "<h1 class=\"ql-align-center\">Bater <span style=\"color: rgb(245, 158, 11);\">R$ 10 mil por mês</span> no iFood não tem segredo.</h1>"
+       "text": "<h1 class=\"ql-align-center\">Todo pedido no iFood passa por <span style=\"color: rgb(245, 158, 11);\">5 portas.</span></h1>"
       }
      },
      {
@@ -4381,7 +5540,7 @@
       "content": {
        "id": "1xiyt8",
        "name": "3sz86x",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">As lojas que chegam lá acertaram </span><strong style=\"color: rgb(245, 158, 11);\">4 coisas básicas.</strong><span style=\"color: rgb(255, 255, 255);\"> E dá pra arrumar todas pelo seu portal, sem gastar com anúncio.</span></p>"
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">O cliente chega na sua loja, se interessa, deseja, avança e fecha o pedido. </span><strong style=\"color: rgb(245, 158, 11);\">Se uma porta vaza, o pedido morre no caminho.</strong><span style=\"color: rgb(255, 255, 255);\"> E muita porta vaza por configuração da loja, que dá pra arrumar pelo seu portal, sem gastar com anúncio.</span></p>"
       }
      },
      {
@@ -4396,36 +5555,44 @@
        "name": "u810tv",
        "items": [
         {
-         "id": "qrrb1t",
+         "id": "NmtwfM",
          "icon": {
           "type": "emoji",
-          "value": "⏱️"
+          "value": "👀"
          },
-         "text": "O <b>tempo de entrega</b> que aparece pro cliente"
+         "text": "<b>Atrair:</b> o cliente chega na sua loja"
         },
         {
-         "id": "8ctmmj",
+         "id": "TuSchT",
          "icon": {
           "type": "emoji",
-          "value": "🏷️"
+          "value": "📋"
          },
-         "text": "A <b>promoção certa</b> pra puxar cliente novo"
+         "text": "<b>Interessar:</b> ele abre algum produto"
         },
         {
-         "id": "z3ru0d",
+         "id": "JwPWP8",
          "icon": {
           "type": "emoji",
-          "value": "➕"
+          "value": "❤️"
          },
-         "text": "O <b>adicional</b> que aumenta cada pedido"
+         "text": "<b>Desejar:</b> ele coloca na sacola"
         },
         {
-         "id": "79p87w",
+         "id": "r4Bceb",
          "icon": {
           "type": "emoji",
-          "value": "🛵"
+          "value": "🛍️"
          },
-         "text": "A <b>entrega grátis</b> que não sai do seu bolso"
+         "text": "<b>Avançar:</b> ele vai revisar o pedido"
+        },
+        {
+         "id": "vCkI0p",
+         "icon": {
+          "type": "emoji",
+          "value": "✅"
+         },
+         "text": "<b>Fechar:</b> ele conclui o pedido"
         }
        ]
       }
@@ -4440,7 +5607,7 @@
       "content": {
        "id": "w65et9",
        "name": "22uud6",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Mais umas perguntas rápidas e você vê seu Score e qual dessas arrumar primeiro.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Mais umas perguntas rápidas e você vê quais portas da sua loja estão vazando.</em></p>"
       }
      },
      {
@@ -4458,7 +5625,7 @@
        "id": "QqF23D",
        "name": "KZkH5V",
        "type": "next",
-       "label": "Quero ver o que falta na minha loja ➔",
+       "label": "Quero ver onde a minha loja vaza ➔",
        "pulse": false,
        "target": false,
        "destination": "next"
@@ -4829,7 +5996,7 @@
       "content": {
        "id": "Jyyd1k",
        "name": "yNP29j",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Essa pesa mais do que parece.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 1 · Atrair. Pesa mais do que parece: o cliente vê esse tempo antes de entrar na loja.</em></p>"
       }
      },
      {
@@ -4935,7 +6102,7 @@
       "content": {
        "id": "aTrLUy",
        "name": "ou3SQg",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">Ex.: bacon extra, porção maior, acompanhamento.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 4 · Avançar. Ex.: bacon extra, porção maior, acompanhamento.</em></p>"
       }
      },
      {
@@ -5030,7 +6197,7 @@
       "content": {
        "id": "sxQyI9",
        "name": "1XOwQZ",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">⚠️ Aqui mora um dos conselhos mais caros do delivery.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 3 · Desejar. Aqui mora um dos conselhos mais caros do delivery.</em></p>"
       }
      },
      {
@@ -5136,7 +6303,7 @@
       "content": {
        "id": "PMM3MY",
        "name": "TAA77P",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🏁 Última pergunta.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(255, 255, 255);\">🚪 Porta 1 · Atrair. 🏁 Última pergunta.</em></p>"
       }
      },
      {
@@ -5221,7 +6388,7 @@
       "content": {
        "id": "51rFif",
        "name": "FCymAc",
-       "title": "Calculando o Score da sua loja com as suas respostas...",
+       "title": "Procurando as portas que vazam na sua loja...",
        "starts": 0,
        "seconds": 3,
        "show_title": true,
@@ -5250,7 +6417,7 @@
       "content": {
        "id": "82iRFk",
        "name": "pIm5mK",
-       "text": "<h1 class=\"ql-align-center\">📊 Seu resultado <span style=\"color: rgb(245, 158, 11);\">está pronto</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">🚪 As 5 portas <span style=\"color: rgb(245, 158, 11);\">da sua loja</span></h1>"
       }
      },
      {
@@ -5350,26 +6517,354 @@
       }
      },
      {
-      "id": "Zz6mnm",
-      "icon": "slidersH",
-      "type": "metric",
-      "title": "Nível",
+      "id": "U2W2qx",
+      "type": "text",
+      "title": "Texto",
       "design": {
-       "type": "default",
-       "basis": 100,
-       "color": "theme"
+       "basis": 100
       },
       "content": {
-       "id": "ExECnU",
-       "name": "score_da_sua_loja",
-       "title": "Score da sua loja:",
-       "legends": null,
-       "percent": "calc(({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}})/10)",
-       "tooltip": null,
-       "show_dot": true,
-       "subtitle": "calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000 · score prévio, calculado com 4 respostas",
-       "show_title": true,
-       "show_percent": true
+       "id": "IylSQy",
+       "name": "O98KC7",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Pelas suas respostas, sem abrir a sua loja:</em></p>"
+      }
+     },
+     {
+      "id": "6WL3CB",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "bolso",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "cliente",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "pub0zc",
+       "name": "vj5jKd",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "c1Hpnw",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "igual",
+         "compare": "==",
+         "variable": "@tempo"
+        },
+        {
+         "value": "noPreco",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Oayav9",
+       "name": "ADitwP",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "ibg1Q8",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "nunca",
+         "compare": "==",
+         "variable": "@tempo"
+        },
+        {
+         "value": "noPreco",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "AWVjZQ",
+       "name": "mF98fd",
+       "text": "<p class=\"ql-align-center\">⚪ <strong>Porta 1 · Atrair</strong> <span style=\"color: rgb(148, 163, 184);\">falta conferir o tempo de entrega</span></p>"
+      }
+     },
+     {
+      "id": "3O2jQK",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "OoIbBe",
+       "name": "7zeJ1z",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 2 · Interessar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "cNK8zI",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "gdJ1yf",
+       "name": "nl9P9u",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 2 · Interessar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "xS7zXk",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "barato",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "AWrkzy",
+       "name": "qzrNuC",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 3 · Desejar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "Oy2QWQ",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "carrochefe",
+         "compare": "==",
+         "variable": "@promo"
+        },
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        },
+        {
+         "value": "A",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "EuHUFU",
+       "name": "uPZo3L",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 3 · Desejar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "vIwTON",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "MdUIAg",
+       "name": "RIDKVy",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 4 · Avançar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "Kn8Mkx",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "maioria",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "ziX1Xm",
+       "name": "iRWpXO",
+       "text": "<p class=\"ql-align-center\">🟢 <strong>Porta 4 · Avançar</strong> <span style=\"color: rgb(34, 197, 94);\">ok nas suas respostas</span></p>"
+      }
+     },
+     {
+      "id": "SQK7se",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "p73pzz",
+       "name": "lYdIwL",
+       "text": "<p class=\"ql-align-center\">🔴 <strong>Porta 5 · Fechar</strong> <span style=\"color: rgb(239, 68, 68);\">vazando</span></p>"
+      }
+     },
+     {
+      "id": "pJgOMO",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "cupom",
+         "compare": "!=",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "aC3YSe",
+       "name": "01YM82",
+       "text": "<p class=\"ql-align-center\">⚪ <strong>Porta 5 · Fechar</strong> <span style=\"color: rgb(148, 163, 184);\">só o diagnóstico completo mostra</span></p>"
+      }
+     },
+     {
+      "id": "raDCQX",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "7GwQhH",
+       "name": "anyGMn",
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">É um retrato rápido, só com as respostas daqui.</em></p>"
       }
      },
      {
@@ -5510,7 +7005,7 @@
       "content": {
        "id": "z1dn7p",
        "name": "xwRqxn",
-       "text": "<h2 class=\"ql-align-center\">O que tá <span style=\"color: rgb(245, 158, 11);\">tirando pedido</span> da sua loja:</h2>"
+       "text": "<h2 class=\"ql-align-center\">Por que essas portas <span style=\"color: rgb(245, 158, 11);\">estão vazando:</span></h2>"
       }
      },
      {
@@ -5520,8 +7015,15 @@
       "roles": [
        [
         {
-         "value": "igual",
-         "compare": "!=",
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
          "variable": "@tempo"
         }
        ]
@@ -5531,7 +7033,29 @@
       "content": {
        "id": "sjYkHu",
        "name": "ARsOFR",
-       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span></p>"
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega acima do real.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente escolhe a loja mais rápida da lista.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
+      }
+     },
+     {
+      "id": "wuyhhB",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "nunca",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "egbOnn",
+       "name": "puDzn5",
+       "text": "<p class=\"ql-align-center\">⏱️ <strong style=\"color: rgb(245, 158, 11);\">Tempo de entrega sem conferir.</strong> <span style=\"color: rgb(255, 255, 255);\">Compare o tempo do app com o tempo real das últimas entregas.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -5541,8 +7065,8 @@
       "roles": [
        [
         {
-         "value": "maioria",
-         "compare": "!=",
+         "value": "nao",
+         "compare": "==",
          "variable": "@adicional"
         }
        ]
@@ -5552,7 +7076,29 @@
       "content": {
        "id": "aPDqS3",
        "name": "9shnLo",
-       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo, e adicional rende R$ 5 a R$ 10 a mais por pedido.</span></p>"
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Sem adicional pago.</strong> <span style=\"color: rgb(255, 255, 255);\">Cada pedido sai no valor mínimo.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 4 · Avançar</span></p>"
+      }
+     },
+     {
+      "id": "UGValr",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "q83S8S",
+       "name": "OtXTOA",
+       "text": "<p class=\"ql-align-center\">💰 <strong style=\"color: rgb(245, 158, 11);\">Adicional pago só em alguns produtos.</strong> <span style=\"color: rgb(255, 255, 255);\">Coloque nos itens que mais vendem: é onde ele rende mais.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 4 · Avançar</span></p>"
       }
      },
      {
@@ -5573,7 +7119,7 @@
       "content": {
        "id": "rhFB7O",
        "name": "XsV98L",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Isca fraca.</strong> <span style=\"color: rgb(255, 255, 255);\">Produto barato que sai pouco não puxa ninguém.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
       }
      },
      {
@@ -5594,7 +7140,7 @@
       "content": {
        "id": "TZbrZi",
        "name": "qr2pf9",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Cupom em tudo.</strong> <span style=\"color: rgb(255, 255, 255);\">O cliente acostuma a só pedir com desconto.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 5 · Fechar</span></p>"
       }
      },
      {
@@ -5615,7 +7161,7 @@
       "content": {
        "id": "lNOcLY",
        "name": "Whuc3B",
-       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span></p>"
+       "text": "<p class=\"ql-align-center\">🏷️ <strong style=\"color: rgb(245, 158, 11);\">Sem produto isca.</strong> <span style=\"color: rgb(255, 255, 255);\">Falta o que puxa cliente novo pra dentro da loja.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
       }
      },
      {
@@ -5636,7 +7182,7 @@
       "content": {
        "id": "BkJkMR",
        "name": "VhFlAD",
-       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span></p>"
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Entrega grátis do seu bolso.</strong> <span style=\"color: rgb(255, 255, 255);\">Sai do lucro de cada pedido.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -5657,7 +7203,7 @@
       "content": {
        "id": "qpPFUi",
        "name": "5wppwh",
-       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Cerca de 70% das listas que trazem pedido exigem entrega grátis.</span></p>"
+       "text": "<p class=\"ql-align-center\">🛵 <strong style=\"color: rgb(245, 158, 11);\">Taxa de entrega pro cliente.</strong> <span style=\"color: rgb(255, 255, 255);\">Entrega grátis é pré-requisito de muitas das listas que trazem pedido.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 1 · Atrair</span></p>"
       }
      },
      {
@@ -5678,7 +7224,73 @@
       "content": {
        "id": "e3iyRj",
        "name": "JrzwDk",
-       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span></p>"
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Produto sem foto.</strong> <span style=\"color: rgb(255, 255, 255);\">Vende bem menos que produto com foto real e iluminada.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
+      }
+     },
+     {
+      "id": "aQfCxL",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "4x1asi",
+       "name": "dx6Srj",
+       "text": "<p class=\"ql-align-center\">📸 <strong style=\"color: rgb(245, 158, 11);\">Fotos fracas.</strong> <span style=\"color: rgb(255, 255, 255);\">Foto escura ou sem cuidado não dá vontade de pedir.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 3 · Desejar</span></p>"
+      }
+     },
+     {
+      "id": "opIkmH",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "qaZZFn",
+       "name": "5effAL",
+       "text": "<p class=\"ql-align-center\">📚 <strong style=\"color: rgb(245, 158, 11);\">Cardápio confuso.</strong> <span style=\"color: rgb(255, 255, 255);\">Quando o cliente se perde, ele sai sem abrir o produto.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 2 · Interessar</span></p>"
+      }
+     },
+     {
+      "id": "7Gq2l3",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "9ieTEE",
+       "name": "FqgdkQ",
+       "text": "<p class=\"ql-align-center\">🥇 <strong style=\"color: rgb(245, 158, 11);\">Cardápio sem estratégia.</strong> <span style=\"color: rgb(255, 255, 255);\">Sem produto de entrada e combos no topo, os seus campeões ficam escondidos.</span><br><span style=\"color: rgb(148, 163, 184);\">Porta 2 · Interessar</span></p>"
       }
      },
      {
@@ -5703,7 +7315,7 @@
       "content": {
        "id": "NMhk1U",
        "name": "wDd3Yl",
-       "text": "<p><strong>A causa é uma só:</strong> o cliente novo não tem um bom motivo pra fazer o primeiro pedido na sua loja. <span style=\"color: rgb(245, 158, 11);\">Sem esse primeiro pedido, sua loja não sobe na lista.</span></p>"
+       "text": "<p><strong>Cada porta que vaza derruba pedido no caminho.</strong> <span style=\"color: rgb(245, 158, 11);\">Mas qual delas pesa mais na sua loja, e quanto isso custa, só aparece olhando a loja inteira.</span></p>"
       }
      },
      {
@@ -5818,7 +7430,7 @@
       "content": {
        "id": "JhMD84",
        "name": "qiOt7o",
-       "text": "<h1 class=\"ql-align-center\">Agora <span style=\"color: rgb(245, 158, 11);\">imagine:</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">Agora imagine <span style=\"color: rgb(245, 158, 11);\">a porta que vaza, fechada:</span></h1>"
       }
      },
      {
@@ -5927,7 +7539,7 @@
       "content": {
        "id": "2iXdkQ",
        "name": "ZaOmE5",
-       "text": "<h1 class=\"ql-align-center\">E se você recebesse, no WhatsApp, <span style=\"color: rgb(245, 158, 11);\">o que está errado na sua loja</span> e o que fazer pra arrumar?</h1>"
+       "text": "<h1 class=\"ql-align-center\">E se você soubesse hoje <span style=\"color: rgb(245, 158, 11);\">qual porta da sua loja mais vaza</span>, quanto isso pode estar custando e o que fazer primeiro?</h1>"
       }
      },
      {
@@ -5949,7 +7561,7 @@
       "content": {
        "id": "rSvQTP",
        "name": "6Z1uUT",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do X-Bacon está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no X-Bacon.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o X-Bacon com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -5971,7 +7583,7 @@
       "content": {
        "id": "9uhfA8",
        "name": "0Yr0il",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da pizza de calabresa está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na pizza de calabresa.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> a pizza de calabresa com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -5993,7 +7605,7 @@
       "content": {
        "id": "TVpUXA",
        "name": "jm6vdm",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do açaí de 500 ml está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no açaí de 500 ml.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o açaí de 500 ml com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -6015,7 +7627,7 @@
       "content": {
        "id": "vGOF6X",
        "name": "R7Zfhf",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto da marmita de frango está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem na marmita de frango.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> a marmita de frango com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -6037,7 +7649,7 @@
       "content": {
        "id": "hh0D2K",
        "name": "CbmnA5",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do combinado de 20 peças está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no combinado de 20 peças.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o combinado de 20 peças com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -6059,7 +7671,7 @@
       "content": {
        "id": "iD1wne",
        "name": "oAPGLc",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do bolo de pote está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no bolo de pote.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o bolo de pote com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -6088,7 +7700,7 @@
       "content": {
        "id": "i7UzSb",
        "name": "lyBEfv",
-       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🔴 <strong>Foto:</strong> a foto do prato mais vendido está escura e de longe.<br>🟢 <strong>Pra ficar verde:</strong> foto de dia, de perto, com o produto bem à mostra.</p><p>🔴 <strong>Texto:</strong> o nome não diz o que vem no prato mais vendido.<br>🟢 <strong>Pra ficar verde:</strong> nome com o ingrediente principal e o tamanho.</p><p>🔴 <strong>Estrutura:</strong> o cardápio não tem combo nem produto de entrada.<br>🟢 <strong>Pra ficar verde:</strong> um combo de entrada no topo, com adicional.</p>"
+       "text": "<p><em>Exemplo ilustrativo, para uma loja fictícia:</em></p><p>🚪 <strong>A porta que mais vaza:</strong> Desejar.<br>🔎 <strong>O motivo:</strong> falta uma porta de entrada para quem ainda não conhece a loja.</p><p>🎣 <strong>O produto isca:</strong> o prato mais vendido com desconto de verdade, e a conta de quanto sobra em cada pedido.</p><p>✅ <strong>Missão 1:</strong> montar o produto isca, com o passo a passo no Portal.</p>"
       }
      },
      {
@@ -6249,6 +7861,99 @@
      {
       "id": "QugDFX",
       "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "mais10",
+         "compare": "==",
+         "variable": "@tempo"
+        }
+       ],
+       [
+        {
+         "value": "bolso",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "cliente",
+         "compare": "==",
+         "variable": "@entrega"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_V8j0wv"
+        }
+       ],
+       [
+        {
+         "value": "barato",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ],
+       [
+        {
+         "value": "B",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "C",
+         "compare": "==",
+         "variable": "@opcoes_BAoGLH"
+        }
+       ],
+       [
+        {
+         "value": "alguns",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "nao",
+         "compare": "==",
+         "variable": "@adicional"
+        }
+       ],
+       [
+        {
+         "value": "cupom",
+         "compare": "==",
+         "variable": "@promo"
+        }
+       ]
+      ],
       "title": "Texto",
       "design": {
        "basis": 100
@@ -6256,7 +7961,89 @@
       "content": {
        "id": "bl6Eyd",
        "name": "hjn7ab",
-       "text": "<h1 class=\"ql-align-center\">Seu Score está em <span style=\"color: rgb(245, 158, 11);\">calc({{score.tempo}}+{{score.adicional}}+{{score.promo}}+{{score.entrega}}) de 1000.</span></h1>"
+       "text": "<h1 class=\"ql-align-center\">A sua loja tem <span style=\"color: rgb(245, 158, 11);\">porta vazando.</span></h1>"
+      }
+     },
+     {
+      "id": "XabxPW",
+      "type": "text",
+      "roles": [
+       [
+        {
+         "value": "5a10",
+         "compare": "!=",
+         "variable": "@tempo"
+        },
+        {
+         "value": "mais10",
+         "compare": "!=",
+         "variable": "@tempo"
+        },
+        {
+         "value": "bolso",
+         "compare": "!=",
+         "variable": "@entrega"
+        },
+        {
+         "value": "cliente",
+         "compare": "!=",
+         "variable": "@entrega"
+        },
+        {
+         "value": "B",
+         "compare": "!=",
+         "variable": "@opcoes_V8j0wv"
+        },
+        {
+         "value": "C",
+         "compare": "!=",
+         "variable": "@opcoes_V8j0wv"
+        },
+        {
+         "value": "barato",
+         "compare": "!=",
+         "variable": "@promo"
+        },
+        {
+         "value": "nao",
+         "compare": "!=",
+         "variable": "@promo"
+        },
+        {
+         "value": "B",
+         "compare": "!=",
+         "variable": "@opcoes_BAoGLH"
+        },
+        {
+         "value": "C",
+         "compare": "!=",
+         "variable": "@opcoes_BAoGLH"
+        },
+        {
+         "value": "alguns",
+         "compare": "!=",
+         "variable": "@adicional"
+        },
+        {
+         "value": "nao",
+         "compare": "!=",
+         "variable": "@adicional"
+        },
+        {
+         "value": "cupom",
+         "compare": "!=",
+         "variable": "@promo"
+        }
+       ]
+      ],
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "eIwHPz",
+       "name": "tA2vXZ",
+       "text": "<h1 class=\"ql-align-center\">As suas respostas <span style=\"color: rgb(245, 158, 11);\">não mostram porta vazando.</span></h1>"
       }
      },
      {
@@ -6269,36 +8056,36 @@
       "content": {
        "id": "3wBgjV",
        "name": "nUJCRs",
-       "text": "<h3 class=\"ql-align-center\">O que sobe primeiro está aqui: o ZapFood é o Scanner de Algoritmo da Brase. Ele aponta o que está travando sua loja, em vermelho, e diz o que fazer pra ficar verde.</h3>"
+       "text": "<h3 class=\"ql-align-center\">O ZapFood é o diagnóstico da Brase que olha as 5 portas da sua loja. Você responde sobre ela, uma pergunta por vez, e descobre qual porta mais vaza, o principal motivo, quanto isso pode estar custando e o plano pronto para arrumar.</h3>"
       }
      },
      {
-      "id": "hytM1Z",
+      "id": "2bmYtT",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "VXwJWj",
-       "name": "FmApkE",
-       "text": "<p class=\"ql-align-center\">👇 Veja em 1 minuto como funciona:</p>"
+       "id": "2C6CCi",
+       "name": "l0yGch",
+       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja como funciona, com as telas do app:</strong></p>"
       }
      },
      {
-      "id": "1mTRUj",
+      "id": "6SWVwQ",
       "icon": "film",
       "type": "video",
       "title": "Vídeo",
       "design": {
        "basis": 100,
-       "ratio": "mobile"
+       "ratio": "square"
       },
       "content": {
-       "id": "3u3mbD",
-       "name": "TrXcpL",
+       "id": "feTnFQ",
+       "name": "yY1xUr",
        "title": null,
-       "video": "<iframe width=\"560\" height=\"315\" src=\"https://www.youtube.com/embed/yQSmhjs3USM?si=XElBsOM-CiWRIVli&amp;controls=0\" title=\"YouTube video player\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
+       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/oC7AybrRhFM?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
        "description": null
       }
      },
@@ -6312,7 +8099,7 @@
       "content": {
        "id": "8uGuBJ",
        "name": "FTiQE9",
-       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês usando o Scanner:</p>"
+       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês:</p>"
       }
      },
      {
@@ -6376,25 +8163,25 @@
          "id": "p0aqji",
          "icon": {
           "type": "emoji",
-          "value": "🔴"
+          "value": "🚪"
          },
-         "text": "O Scanner aponta <b>o que trava</b> a sua loja, em vermelho"
+         "text": "Mostra <b>qual porta mais vaza</b> e o principal motivo, com a conta"
         },
         {
          "id": "635mcu",
          "icon": {
           "type": "emoji",
-          "value": "🟢"
+          "value": "🎯"
          },
-         "text": "Diz <b>o que fazer</b> pra cada ponto ficar verde"
+         "text": "Entrega <b>o produto isca</b> pronto e as 5 primeiras missões"
         },
         {
          "id": "px9zrv",
          "icon": {
           "type": "emoji",
-          "value": "📈"
+          "value": "📱"
          },
-         "text": "Você arruma no Portal e acompanha o <b>Score subir</b>"
+         "text": "Tudo no celular, <b>em poucos minutos</b>, sem instalar nada"
         }
        ]
       }
@@ -6418,7 +8205,7 @@
       "content": {
        "id": "7pR5qW",
        "name": "DmxeVl",
-       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o acesso é vitalício, você usa quando quiser.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
       }
      },
      {
@@ -6441,26 +8228,6 @@
        "id": "omrmyT",
        "name": "nwaTFH",
        "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
-      }
-     },
-     {
-      "id": "m6rw3a",
-      "type": "alert",
-      "title": "Alerta",
-      "design": {
-       "basis": 100,
-       "style": "theme",
-       "padding": "14",
-       "borderWidth": 1
-      },
-      "content": {
-       "id": "s50tzr",
-       "icon": {
-        "type": "emoji",
-        "value": "💡"
-       },
-       "name": "o1tpsd",
-       "text": "O acompanhamento completo da Brase começa em <b>R$ 797 por mês</b>. O Scanner sai por <b>R$ 97, uma vez só</b>."
       }
      },
      {
@@ -6518,10 +8285,10 @@
        "id": "AJXGxc",
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "Quero destravar minhas vendas ➔",
+       "label": "Quero achar a porta que vaza ➔",
        "pulse": false,
        "target": false,
-       "destination": "https://pay.kirvano.com/75eef98a-0ae5-4761-8952-5912f0942c86"
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
       }
      },
      {
@@ -6562,23 +8329,28 @@
        "questions": [
         {
          "id": "hD59Gv",
-         "answer": "<p>Sim.&nbsp;O&nbsp;algoritmo&nbsp;do&nbsp;iFood&nbsp;funciona&nbsp;igual&nbsp;para&nbsp;todos&nbsp;os&nbsp;nichos.&nbsp;Os&nbsp;sensores&nbsp;de&nbsp;Foto,&nbsp;Texto&nbsp;e&nbsp;Estrutura&nbsp;são&nbsp;universais.&nbsp;O&nbsp;Scanner&nbsp;identifica&nbsp;os&nbsp;erros&nbsp;independente&nbsp;do&nbsp;que&nbsp;você&nbsp;vende.</p>",
+         "answer": "<p>Sim. O diagnóstico foi feito para delivery no iFood. Hamburgueria, pizzaria, açaí e confeitaria têm dicas próprias do nicho, e os outros tipos de loja recebem o diagnóstico completo, com as dicas gerais. O resultado sai do que você conta da sua loja, não de uma média.</p>",
          "question": "Funciona para o meu nicho (Hamburgueria, Pizza, Açaí, Sushi)?"
         },
         {
          "id": "I6tpXi",
-         "answer": "<p>Não.&nbsp;A&nbsp;ferramenta&nbsp;foi&nbsp;feita&nbsp;para&nbsp;donos&nbsp;de&nbsp;restaurante,&nbsp;não&nbsp;para&nbsp;programadores.&nbsp;É&nbsp;visual:&nbsp;ela&nbsp;mostra&nbsp;o&nbsp;erro&nbsp;em&nbsp;vermelho&nbsp;e&nbsp;diz&nbsp;o&nbsp;que&nbsp;fazer&nbsp;para&nbsp;ficar&nbsp;verde.&nbsp;Se&nbsp;você&nbsp;sabe&nbsp;mexer&nbsp;no&nbsp;WhatsApp,&nbsp;sabe&nbsp;usar&nbsp;o&nbsp;ZapFood!</p>",
+         "answer": "<p>Não. Você responde perguntas simples no celular, uma por vez, e no fim vê o principal motivo de a sua loja não vender como deveria e o que fazer primeiro, passo a passo. Abre direto pelo link do e-mail, sem instalar nada.</p>",
          "question": "É difícil de usar? Não entendo nada de computador."
         },
         {
          "id": "L4cIhC",
-         "answer": "<p>Nenhuma.&nbsp;Nesta&nbsp;oferta&nbsp;especial&nbsp;de&nbsp;diagnóstico,&nbsp;o&nbsp;acesso&nbsp;é&nbsp;VITALÍCIO&nbsp;com&nbsp;pagamento&nbsp;ÚNICO&nbsp;de&nbsp;R$&nbsp;97,00.&nbsp;Você&nbsp;nunca&nbsp;mais&nbsp;paga&nbsp;nada&nbsp;e&nbsp;usa&nbsp;para&nbsp;sempre.</p>",
+         "answer": "<p>Nenhuma. É pagamento único de R$ 97. O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
          "question": "Tem mensalidade ou pegadinha?"
         },
         {
          "id": "8hTexh",
-         "answer": "<p>Sim!&nbsp;Você&nbsp;receberá&nbsp;um&nbsp;contato&nbsp;de&nbsp;suporte&nbsp;caso&nbsp;haja&nbsp;dúvidas&nbsp;onde&nbsp;o&nbsp;próprio&nbsp;Renan&nbsp;irá&nbsp;te&nbsp;auxiliar</p>",
+         "answer": "<p>Sim! É só chamar no WhatsApp de suporte, (21) 95905-5007, que o próprio Renan te ajuda.</p>",
          "question": "Se eu tiver dúvida, tenho suporte do Renan?"
+        },
+        {
+         "id": "weFcCX",
+         "answer": "<p>Na hora, no e-mail que você usar na compra. Procure \"Seu diagnóstico do ZapFood está liberado\" e toque em \"Abrir meu diagnóstico\". Se não achar, olhe no spam e na aba Promoções.</p>",
+         "question": "Como eu recebo o acesso?"
         }
        ],
        "firstQuestionOpened": false
@@ -6627,7 +8399,13 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [],
+   "ab": [
+    {
+     "name": "capa",
+     "enabled": true,
+     "variants": "v1, v2"
+    }
+   ],
    "seo": {},
    "leads": {
     "hot": 70,
