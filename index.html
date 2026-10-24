@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "6e25492f3e";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3b3f017397";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -306,6 +306,7 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .pt-ban{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--warn-soft);border:1px solid color-mix(in srgb,var(--warn) 40%,transparent)}
 .pt-ban small{display:block;color:var(--ink-2);font-size:12.5px;margin-top:2px}.pt-ban.late{background:var(--crit-soft);border-color:color-mix(in srgb,var(--crit) 45%,transparent)}
 .pt-act{display:flex;gap:6px;flex-wrap:wrap}
+.pt-ban.off{background:var(--sunken);border-color:var(--line)}
 .pt-panel{border-color:color-mix(in srgb,var(--warn) 45%,var(--line))}
 .al-bar{position:sticky;top:0;z-index:35;display:flex;gap:12px;align-items:flex-start;padding:11px 14px;margin:0 0 14px;border-radius:12px;background:var(--accent);color:#fff;box-shadow:var(--shadow);animation:alPulse 1.6s ease-in-out infinite}
 .al-bar.hot{background:#c92a2a;animation-name:alPulseHot}
@@ -728,9 +729,9 @@ const UI = {
 UI.owner = UI.me;
 let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
-let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null;
+let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null, HOSTCAPI = null;
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -823,7 +824,7 @@ function moveLead(id, stage){
   l.stage = stage; l.stageAt = now; l.updatedAt = now;
   l.history = [...(l.history || []), {s: stage, at: now}].slice(-80);
   applyMilestones(l, stage, now);
-  if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
+  if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on && !l.noPowerDataAt) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
   else if (l.printDue) delete l.printDue;
   if (stage === 'print' && !l.printSentAt) l.printSentAt = now;
   let handed = false;
@@ -1032,7 +1033,7 @@ function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = l.touches || [], dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = freshChip(l) + printChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card ${freshOf(l) ? 'fresh' : ''}" ${PHONE() ? '' : `draggable="true" data-drag="${l.id}"`} data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -1041,7 +1042,7 @@ function cardHTML(l){
 }
 function boardHTML(){
   const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
-  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad].some(v => String(v || '').toLowerCase().includes(qq))));
+  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad, l.noPowerDataAt && 'fora do PowerData'].some(v => String(v || '').toLowerCase().includes(qq))));
   const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
   let html = '';
   STAGES.forEach(s => {
@@ -1904,10 +1905,12 @@ function printChip(l){
 function printBanner(l, id){
   const c = ptCfg(); if (!c.on) return '';
   if (l.stage === 'novo') return `<div class="pt-ban"><div><b>O lead mandou o link?</b><small>Marque agora: se ele não responder sobre o momento atual, o print fica programado para ${c.minutes >= 60 && c.minutes % 60 === 0 ? c.minutes / 60 + ' h' : c.minutes + ' min'} depois.</small></div><button class="btn primary sm" data-a="link-received" data-id="${attr(id)}">Link recebido</button></div>`;
+  if (l.stage === 'link' && l.noPowerDataAt) return `<div class="pt-ban off"><div><b>Loja fora do PowerData</b><small>Sem print com os concorrentes: o timer foi cancelado. Siga a cadência e, quando o lead responder, clique em “Lead respondeu”.</small></div>
+    <div class="pt-act"><button class="btn primary sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm" data-a="print-sent" data-id="${attr(id)}" title="Montou o print de outro jeito">Print enviado</button><button class="btn sm ghost" data-a="pd-undo" data-id="${attr(id)}" title="A loja apareceu no PowerData: volta a programar o print">Desfazer</button></div></div>`;
   if (!isPrintWait(l)) return '';
   const ms = printMs(l);
   return `<div class="pt-ban ${ms <= 0 ? 'late' : ''}"><div><b>${ms <= 0 ? 'Hora de enviar o print' : 'Print programado para ' + clockOf(l.printDue)}</b><small>${ms <= 0 ? 'O prazo venceu às ' + clockOf(l.printDue) + '. Envie o print com os concorrentes.' : 'Faltam ' + durTxt(ms) + '. Se o lead responder antes, clique em “Lead respondeu”.'}</small></div>
-    <div class="pt-act"><button class="btn primary sm" data-a="print-sent" data-id="${attr(id)}">Print enviado</button><button class="btn sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm ghost" data-a="print-snooze" data-id="${attr(id)}" title="Adia o aviso em 30 minutos">+30 min</button></div></div>`;
+    <div class="pt-act"><button class="btn primary sm" data-a="print-sent" data-id="${attr(id)}">Print enviado</button><button class="btn sm" data-a="lead-replied" data-id="${attr(id)}">Lead respondeu</button><button class="btn sm" data-a="no-powerdata" data-id="${attr(id)}" title="A loja do lead não aparece no PowerData: cancela o timer do print e marca o lead">Não está no PowerData</button><button class="btn sm ghost" data-a="print-snooze" data-id="${attr(id)}" title="Adia o aviso em 30 minutos">+30 min</button></div></div>`;
 }
 function printPanelHTML(leads){
   const list = leads.filter(isPrintWait).sort((a, b) => a.printDue.localeCompare(b.printDue));
@@ -1916,8 +1919,8 @@ function printPanelHTML(leads){
   return `<section class="panel pt-panel"><div class="panel-h"><h2>Print para enviar</h2><span class="sub">${late ? late + ' na hora de enviar · ' : ''}${list.length} lead${list.length > 1 ? 's' : ''} em “Link recebido”</span>${canNotify ? '<button class="btn sm ghost" data-a="al-unlock" title="Libera o som e as notificações do navegador">Ativar som e avisos</button>' : ''}</div><div class="panel-b"><div class="rows">
     ${list.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${attr(l.id)}"><div class="row-t">${esc(l.name)} ${printChip(l)}</div><div class="row-s">${l.linkAt ? 'link recebido há ' + minsAgo(l.linkAt) : 'link recebido'}${l.contact ? ' · ' + esc(l.contact) : ''}</div></div>
       ${l.phone ? `<a class="btn sm ghost hide-sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp">WhatsApp</a>` : ''}
-      <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button></div>`).join('')}
-    </div><p class="hint" style="margin-top:8px">O lead mandou o link e não respondeu sobre o momento atual? No prazo, envie o print com os concorrentes. Se ele responder, clique em “Lead respondeu”.</p></div></section>`;
+      <button class="btn sm primary" data-a="print-sent" data-id="${attr(l.id)}">Print enviado</button><button class="btn sm hide-sm" data-a="lead-replied" data-id="${attr(l.id)}" title="O lead respondeu: cancela o timer e segue a conversa">Lead respondeu</button><button class="btn sm hide-sm" data-a="no-powerdata" data-id="${attr(l.id)}" title="A loja do lead não aparece no PowerData: cancela o timer do print e marca o lead">Não está no PowerData</button></div>`).join('')}
+    </div><p class="hint" style="margin-top:8px">O lead mandou o link e não respondeu sobre o momento atual? No prazo, envie o print com os concorrentes. Se ele responder, clique em “Lead respondeu”. Se a loja não aparece no PowerData, clique em “Não está no PowerData”.</p></div></section>`;
 }
 async function linkReceived(id){ if (S.leads[id] && S.leads[id].stage === 'novo') moveLead(id, 'link') }
 function printSent(id){ if (S.leads[id]) moveLead(id, 'print') }
@@ -1927,6 +1930,20 @@ async function leadReplied(id){
   await put('leads', id, l);
   moveLead(id, 'qualificando');
 }
+// A loja do lead não aparece no PowerData, então não dá para montar o print: marca o lead e cancela o timer (e os avisos).
+function noPowerData(id){
+  const cur = S.leads[id]; if (!cur) return;
+  const l = clone(cur); l.noPowerDataAt = iso(); delete l.printDue; l.updatedAt = iso(); put('leads', id, l);
+  toast('Loja fora do PowerData · timer do print cancelado');
+}
+function powerDataUndo(id){
+  const cur = S.leads[id]; if (!cur || !cur.noPowerDataAt) return;
+  const l = clone(cur); delete l.noPowerDataAt; l.updatedAt = iso();
+  if (l.stage === 'link' && ptCfg().on) l.printDue = new Date(printDueFrom(Date.now())).toISOString();
+  put('leads', id, l);
+  toast(l.printDue ? 'Desfeito · print programado para ' + clockOf(l.printDue) : 'Desfeito');
+}
+const pdChip = l => l.noPowerDataAt ? `<span class="chip" title="A loja não aparece no PowerData (marcado em ${fmtDM(localDay(l.noPowerDataAt))})">fora do PowerData</span>` : '';
 function printSnooze(id){
   const cur = S.leads[id]; if (!cur || !isPrintWait(cur)) return;
   const l = clone(cur), at = Math.max(Date.now(), +new Date(l.printDue)) + 30 * 60e3; l.printDue = new Date(at).toISOString(); l.updatedAt = iso(); put('leads', id, l);
@@ -2440,7 +2457,7 @@ async function runDistribution(btn){
 }
 function viewConfig(){
   if (!loaded()) return loading();
-  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['avisos', 'Avisos'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['dados', 'Dados']];
+  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['avisos', 'Avisos'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['meta', 'Meta (anúncios)'], ['dados', 'Dados']];
   const c = cfg(); let body = '';
   if (UI.cfgTab === 'distribuir'){
     const d = UI.dist, cands = distCandidates(), qty = Math.min(Math.max(1, +d.qty || 1), 100, cands.length);
@@ -2556,6 +2573,8 @@ function viewConfig(){
       <p class="hint">${HOST ? 'Usa a chave de API do ClickUp guardada no servidor e lê a lista inteira, com os detalhes, em um clique.' : `O ClickUp gratuito libera 100 consultas por dia. Cada clique usa cerca de 6 para ler a lista e até ${CU_DETAIL_MAX} para os detalhes; o que faltar continua no clique seguinte. Usa a sua conexão do ClickUp no Claude.`}</p>
       <div class="actions">${MCP ? '<button class="btn primary" data-a="sync-cu">Atualizar do ClickUp</button>' : HOST ? '<span class="hint">Falta guardar a chave de API do ClickUp no servidor (segredo CLICKUP_TOKEN).</span>' : '<span class="hint">Disponível para quem tem o ClickUp conectado em claude.ai › Configurações › Conectores.</span>'}</div>
     </div></section>`;
+  } else if (UI.cfgTab === 'meta'){
+    body = capiConfigHTML(); capiLoad();
   } else if (UI.cfgTab === 'dados'){
     const counts = COLS.map(k => [k, Object.keys(S[k] || {}).length]), total = sum(counts.map(x => x[1]));
     const ex = leadsArr().filter(l => l.example).length;
@@ -2577,7 +2596,7 @@ function viewConfig(){
 const PHONE = () => { try { return matchMedia('(max-width:600px)').matches } catch { return false } };
 const IS_APP = () => { try { return matchMedia('(display-mode: standalone)').matches || navigator.standalone === true } catch { return false } };
 const IS_IOS = (() => { try { return /iphone|ipad|ipod/i.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) } catch { return false } })();
-const IS_EMBED = (() => { try { return /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|; wv\)/i.test(navigator.userAgent || '') } catch { return false } })();
+const IS_EMBED = (() => { try { return /FBAN|FBAV|FB_IAB|Instagram|WhatsApp|Line\/|TikTok|musical_ly|Snapchat|Telegram|MicroMessenger|Messenger|MiuiBrowser|HuaweiBrowser|UCBrowser|VivoBrowser|HeyTapBrowser|OppoBrowser|Quark\/|; wv\)/i.test(navigator.userAgent || '') } catch { return false } })();
 let INSTALL_EVT = null, VER_AT = Date.now();
 const svg = (d, fill) => `<svg viewBox="0 0 24 24" ${fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"'} aria-hidden="true">${d}</svg>`;
 const IC = {
@@ -2644,7 +2663,7 @@ function sheetHTML(){
     </section></div>`;
   }
   if (UI.sheet === 'install'){
-    const steps = IS_EMBED ? ['Você abriu dentro de outro app (WhatsApp, Instagram…), onde não dá para instalar.', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone).', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
+    const steps = IS_EMBED ? ['Você abriu em um navegador que não instala o app (o de dentro do WhatsApp ou do Instagram, ou o Mi Browser da Xiaomi).', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone). Se não achar, copie o endereço e cole no <b>Chrome</b>.', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
       : IS_IOS
       ? [`Abra este endereço no <b>Safari</b>.`, `Toque em <b>Compartilhar</b> ${IC.share} na barra de baixo.`, `Role e toque em <b>Adicionar à Tela de Início</b> ${IC.addbox}.`, `Toque em <b>Adicionar</b>. O ícone da Brase aparece na sua tela.`]
       : [`Toque nos <b>três pontinhos</b> ${IC.dots} do navegador (canto de cima).`, `Toque em <b>Instalar app</b> ou <b>Adicionar à tela inicial</b>.`, `Confirme. O ícone da Brase aparece na sua tela.`];
@@ -2682,7 +2701,7 @@ function alNotify(i){
 // Lista do Pipeline no celular: uma etapa por vez.
 function phoneStageParts(){
   const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
-  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad].some(v => String(v || '').toLowerCase().includes(qq))));
+  const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad, l.noPowerDataAt && 'fora do PowerData'].some(v => String(v || '').toLowerCase().includes(qq))));
   const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
   if (!STAGE[UI.stage]) UI.stage = 'novo';
   const cur = UI.stage, items = sortCol(by[cur], cur);
@@ -2789,7 +2808,8 @@ function pushConfigHTML(){
   return `<div><h3 style="margin-bottom:8px">Avisos com o app fechado</h3>
     <p class="hint">Lead novo, lead esperando e print vencido chegam como notificação no celular, mesmo com o app fechado. Vale para o vendedor escolhido em "Você está como" neste aparelho (a gestão recebe os de todos). Lead que entra fora do expediente avisa quando o expediente abre.</p>
     <div class="actions" style="margin-top:10px">${on ? '<button class="btn sm" data-a="push-test">Enviar um aviso de teste</button><button class="btn sm ghost" data-a="push-toggle">Desligar neste aparelho</button>' : `<button class="btn sm primary" data-a="push-toggle" ${PUSH_OK() && perm !== 'denied' ? '' : 'disabled'}>Ativar neste aparelho</button>`}</div>
-    <p class="hint" style="margin-top:8px">${state}</p></div>`;
+    <p class="hint" style="margin-top:8px">${state}</p>
+    <p class="hint" style="margin-top:6px">Não chega com o app fechado? No Xiaomi (e em outros celulares) a economia de bateria bloqueia: em Configurações › Apps › Gerenciar apps, escolha o Chrome e o Brase CRM, ligue o Início automático, deixe a Economia de bateria em "Sem restrições" e permita as notificações na tela de bloqueio.</p></div>`;
 }
 // Toque no aviso com o app fechado abre em /#lead=<id>: abre a ficha assim que os dados chegarem.
 function readLeadHash(){ const m = /^#lead=([\w-]+)$/.exec(location.hash || ''); if (m) UI.pendingLead = m[1] }
@@ -2814,6 +2834,88 @@ function applyTheme(){
 try { matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (themePref() === 'auto') applyTheme() }) } catch {}
 const MOON = svg('<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>');
 applyTheme();
+
+/* ---------- Meta: API de Conversões (eventos de CRM) ----------
+   Cada mudança de etapa do lead vira um evento enviado ao conjunto de dados da Meta (fila e envio no servidor: crm-api e webhooks).
+   Aqui: ligar/desligar, escolher as etapas e os nomes dos eventos, testar e ver o que já foi enviado. */
+const DEFAULT_CAPI_STAGES = {
+  novo: {on: true, name: 'CRM_Lead'}, link: {on: false, name: 'CRM_LinkRecebido'}, print: {on: false, name: 'CRM_PrintEnviado'},
+  qualificando: {on: true, name: 'CRM_Qualificando'}, agendando: {on: false, name: 'CRM_Agendando'}, marcada: {on: true, name: 'CRM_ReuniaoMarcada'},
+  feita: {on: true, name: 'CRM_ReuniaoFeita'}, fechado: {on: true, name: 'CRM_Fechado'}, desqualificado: {on: false, name: 'CRM_Desqualificado'},
+  perdido: {on: false, name: 'CRM_Perdido'}, frio: {on: false, name: 'CRM_Frio'}, morno: {on: false, name: 'CRM_Morno'},
+};
+function capiMerge(raw){
+  const c = raw && typeof raw === 'object' ? raw : {}, st = c.stages && typeof c.stages === 'object' ? c.stages : {}, stages = {};
+  Object.keys(DEFAULT_CAPI_STAGES).forEach(k => { const d = DEFAULT_CAPI_STAGES[k], o = st[k] && typeof st[k] === 'object' ? st[k] : {}; stages[k] = {on: typeof o.on === 'boolean' ? o.on : d.on, name: (typeof o.name === 'string' && o.name.trim()) || d.name} });
+  return {mode: c.mode === 'on' || c.mode === 'test' ? c.mode : 'off', testCode: String(c.testCode || ''), stages};
+}
+UI.capi = {loaded: false, log: null, busy: '', last: null};
+async function capiLoad(force){
+  if (!HOSTCALL || (UI.capi.loaded && !force)) return;
+  UI.capi.loaded = true;
+  try { UI.capi.log = await HOSTCALL({op: 'capi_log', limit: 25}) } catch (e){ UI.capi.log = {error: (e && e.message) || 'Erro'} }
+  scheduleRender();
+}
+function capiSummary(op, r){
+  if (op === 'capi_ping') return r.ok ? `Conexão com a Meta funcionando (${r.eventsReceived ?? 0} evento recebido). Ele aparece como CRM_Teste em Eventos recebidos.` : 'A Meta recusou o teste: ' + (r.erro || r.status);
+  if (op === 'capi_test') return r.ok ? `Evento de teste aceito pela Meta (${r.eventsReceived ?? 0} recebido). Confira em Eventos de teste.` : 'A Meta recusou o teste: ' + (r.erro || r.status);
+  if (op === 'capi_backfill') return `${r.queued || 0} eventos na fila (${r.already || 0} já existiam)` + (r.flush ? ` · ${r.flush.sent || 0} enviados` : '');
+  return `${(r.sent) || 0} enviados · ${(r.pending) || 0} na fila` + (r.bloqueio ? ' · ' + capiBloqueio(r.bloqueio) : '');
+}
+const capiBloqueio = b => ({sem_token: 'falta guardar o token no servidor', desligado: 'a integração está desligada', sem_codigo_de_teste: 'falta o código de teste'})[b] || b;
+async function capiRun(op){
+  if (!HOSTCALL){ toast('Disponível só no site da Brase.', 'err'); return }
+  if (UI.capi.busy) return;
+  UI.capi.busy = op; render();
+  try {
+    const r = await HOSTCALL({op, days: 7});
+    UI.capi.last = {op, r, at: Date.now()};
+    toast(capiSummary(op, r), ((op === 'capi_test' || op === 'capi_ping') && !r.ok) || r.access ? 'err' : '');
+  } catch (e){ UI.capi.last = {op, err: (e && e.message) || String(e), at: Date.now()}; toast((e && e.message) || 'Erro', 'err') }
+  UI.capi.busy = ''; await capiLoad(true); render();
+}
+function capiQuality(){
+  const lim = Date.now() - 30 * 864e5, L = leadsArr().filter(l => !l.example && l.createdAt && +new Date(l.createdAt) >= lim);
+  return {n: L.length, ph: L.filter(l => String(l.phone || '').replace(/\D/g, '').length >= 10).length, fb: L.filter(l => (l.meta && l.meta.fbclid) || /(?:^|\n)fbclid: \S+/.test(l.notes || '')).length};
+}
+function capiConfigHTML(){
+  const c = cfg().capi, H = HOSTCAPI, busy = UI.capi.busy, log = UI.capi.log, q = capiQuality();
+  const pct = (a, b) => b ? Math.round(100 * a / b) + '%' : '–';
+  if (!HOST) return `<section class="panel"><div class="panel-b" style="padding-top:14px"><p class="hint">A integração com a Meta funciona no site da Brase (a versão hospedada), não aqui.</p></div></section>`;
+  const modeTxt = {off: 'Nada é enviado à Meta.', test: 'Os eventos vão só para a aba "Eventos de teste" do Gerenciador de Eventos (com o código de teste) e não afetam os anúncios.', on: 'Cada mudança de etapa é enviada à Meta como evento de CRM e passa a valer para a otimização dos anúncios.'}[c.mode];
+  const st = ({sent: 'enviado', pending: 'na fila', error: 'erro'});
+  const last = UI.capi.last, L = last && last.r;
+  return `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:18px;max-width:860px">
+    <p class="hint">Manda para a Meta o que acontece com cada lead no CRM (entrou, está qualificando, reunião marcada, reunião feita, fechou). A Meta usa isso para mostrar os anúncios a quem tem mais chance de virar cliente de verdade, não só de preencher o formulário. Conjunto de dados: <b>${esc((H && H.dataset) || '1696577860982247')}</b>.</p>
+    ${H && H.configured ? '<div class="banner" style="background:var(--good-soft);color:var(--good)">Token da API de Conversões guardado no servidor.</div>' : `<div class="banner warn"><div><b>Falta guardar o token da API de Conversões no servidor.</b><br>1) No Gerenciador de Eventos, abra o conjunto de dados › Configurações › API de Conversões › <i>Gerar token de acesso</i>. 2) No terminal do seu computador, rode o comando abaixo trocando o texto pelo token (não cole o token em conversas):<br><code style="user-select:all;display:block;margin-top:6px;white-space:pre-wrap;word-break:break-all">supabase secrets set META_CAPI_TOKEN=COLE_O_TOKEN_AQUI --project-ref wndgqvkeguampmtmkmhq</code></div></div>`}
+    <div class="fgrid">
+      <label class="f">Modo<select class="in" data-c="capi-mode" id="capi-mode"><option value="off" ${c.mode === 'off' ? 'selected' : ''}>Desligado</option><option value="test" ${c.mode === 'test' ? 'selected' : ''}>Teste (não afeta os anúncios)</option><option value="on" ${c.mode === 'on' ? 'selected' : ''}>Ligado (produção)</option></select></label>
+      <label class="f">Código de teste<input class="in" data-c="capi-code" id="capi-code" value="${attr(c.testCode)}" placeholder="TEST12345 (Gerenciador de Eventos › Eventos de teste)" autocomplete="off"></label>
+    </div>
+    <p class="hint" style="margin-top:-8px">${modeTxt}${c.mode === 'test' && !c.testCode ? ' <b>Informe o código de teste: sem ele nada é enviado.</b>' : ''}</p>
+    <div><h3 style="margin-bottom:8px">Quais etapas viram evento</h3>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Enviar</th><th>Etapa do CRM</th><th>Nome do evento na Meta</th></tr></thead><tbody>
+      ${STAGES.map(s => { const x = c.stages[s.id]; return `<tr><td><input type="checkbox" class="ck" data-c="capi-st" data-k="on" data-id="${s.id}" id="capi-on-${s.id}" ${x.on ? 'checked' : ''} aria-label="Enviar ${attr(s.name)}"></td><td>${esc(s.name)}</td><td><input class="in" data-c="capi-st" data-k="name" data-id="${s.id}" id="capi-n-${s.id}" value="${attr(x.name)}" maxlength="50" aria-label="Nome do evento de ${attr(s.name)}" style="min-width:210px"></td></tr>` }).join('')}
+      </tbody></table></div>
+      <p class="hint" style="margin-top:8px">Cada lead gera cada evento uma vez só (arrastar o card para trás e para frente não repete). Os nomes começam com CRM_ para não se misturarem com os eventos do pixel (Lead, LeadQualificado) que já estão no mesmo conjunto de dados.</p>
+    </div>
+    <div><h3 style="margin-bottom:8px">Dados que a Meta recebe de cada lead</h3>
+      <p class="hint">Telefone, nome do contato e o id do lead, sempre em hash (SHA-256, ninguém lê o número), mais o clique do anúncio (fbclid) quando o formulário o trouxe. Nos leads dos últimos 30 dias (${q.n}): com telefone <b>${pct(q.ph, q.n)}</b>, com clique do anúncio <b>${pct(q.fb, q.n)}</b>. O formulário não pede e-mail.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" data-a="capi-ping" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_ping' ? 'Testando…' : 'Testar conexão'}</button>
+      <button class="btn" data-a="capi-test" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_test' ? 'Enviando…' : 'Enviar evento de teste'}</button>
+      <button class="btn" data-a="capi-backfill" data-confirm="Sim, enviar" ${busy || c.mode === 'off' || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_backfill' ? 'Enviando…' : 'Enviar os leads dos últimos 7 dias'}</button>
+      <button class="btn ghost" data-a="capi-flush" ${busy || !(H && H.configured) ? 'disabled' : ''}>${busy === 'capi_flush' ? 'Enviando…' : 'Reenviar a fila'}</button>
+      <button class="btn ghost" data-a="capi-refresh" ${busy ? 'disabled' : ''}>Atualizar a lista</button>
+    </div>
+    <p class="hint" style="margin-top:-6px">"Testar conexão" manda um evento CRM_Teste sem nenhum dado de pessoa e sem código de teste (aparece em Eventos recebidos; nenhum anúncio usa esse nome). O evento de teste usa o lead mais recente (dados em hash) e o código de teste: aparece em "Eventos de teste" quase na hora. Os 7 dias são o limite da Meta para eventos de CRM.</p>
+    ${last ? `<div class="formula" style="font-size:13.5px">${last.err ? 'Erro: ' + esc(last.err) : (last.op === 'capi_test' || last.op === 'capi_ping') ? `${last.op === 'capi_ping' ? 'Conexão' : 'Teste'}: ${L.ok ? 'aceito' : 'recusado'} (HTTP ${esc(L.status)}) · evento ${esc(L.eventName)} · dados enviados: ${esc((L.chaves || []).join(', '))} · recebidos: ${esc(L.eventsReceived ?? '–')}${L.fbtraceId ? ' · rastreio ' + esc(L.fbtraceId) : ''}${L.erro ? ' · ' + esc(L.erro) : ''}${(L.mensagens || []).length ? ' · ' + esc(L.mensagens.join('; ')) : ''}` : esc(capiSummary(last.op, L)) + (L.access ? ' · ' + esc(L.access) : '')}</div>` : ''}
+    <div><h3 style="margin-bottom:8px">Últimos eventos ${log && log.counts ? `<span class="hint">${log.counts.sent} enviados · ${log.counts.pending} na fila · ${log.counts.error} com erro</span>` : ''}</h3>
+      ${!log ? '<p class="hint">Carregando…</p>' : log.error ? `<p class="hint">${esc(log.error)}</p>` : !log.events.length ? '<p class="hint">Ainda nenhum evento. Com a integração ligada, o próximo lead que entrar ou mudar de etapa aparece aqui.</p>' : `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Quando</th><th>Lead</th><th>Evento</th><th>Situação</th></tr></thead><tbody>${log.events.map(e => { const ld = S.leads[e.lead_id]; return `<tr><td class="num">${esc(new Date(e.sent_at || e.created_at).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}))}</td><td>${ld ? `<a href="#" data-a="open-lead" data-id="${attr(e.lead_id)}">${esc(ld.name)}</a>` : esc(e.lead_id)}</td><td>${esc(e.event_name)}${e.test ? ' <span class="chip ex">teste</span>' : ''}</td><td><span class="chip ${e.status === 'sent' ? 'meet' : e.status === 'error' ? 'late' : 'today'}">${st[e.status] || esc(e.status)}</span>${e.last_error ? ` <span class="hint" title="${attr(e.last_error)}">${esc(String(e.last_error).slice(0, 60))}</span>` : ''}</td></tr>` }).join('')}</tbody></table></div>`}
+    </div>
+  </div></section>`;
+}
 
 /* ---------- render ---------- */
 const VIEWS = {hoje: viewHoje, agenda: viewAgenda, pipeline: viewPipeline, comissao: viewComissao, analises: viewAnalises, trafego: viewTrafego, processos: viewProcessos, whatsapp: viewWhats, config: viewConfig};
@@ -2860,6 +2962,11 @@ const ACT = {
   'install-later': () => { ls.set('brase.installDismiss', String(Date.now())); render() },
   'reload-app': async () => { try { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.update().catch(() => {}))); const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))) } catch {} location.reload() },
   'logout': () => { try { localStorage.removeItem(CODE_KEY) } catch {} location.reload() },
+  'capi-ping': () => { capiRun('capi_ping') },
+  'capi-test': () => { capiRun('capi_test') },
+  'capi-backfill': () => { capiRun('capi_backfill') },
+  'capi-flush': () => { capiRun('capi_flush') },
+  'capi-refresh': () => { capiLoad(true) },
   'push-toggle': () => { pushIsOn() ? pushDisable() : pushEnable() },
   'push-test': () => { pushTest() },
   'push-later': () => { ls.set('brase.pushDismiss', String(Date.now())); render() },
@@ -2875,6 +2982,8 @@ const ACT = {
   'print-sent': t => { printSent(t.dataset.id); toast('Print registrado') },
   'lead-replied': t => leadReplied(t.dataset.id),
   'print-snooze': t => printSnooze(t.dataset.id),
+  'no-powerdata': t => noPowerData(t.dataset.id),
+  'pd-undo': t => powerDataUndo(t.dataset.id),
   'notif-on': () => { try { Notification.requestPermission().then(p => { toast(p === 'granted' ? 'Avisos ativados neste navegador' : 'O navegador não liberou os avisos', p === 'granted' ? '' : 'err'); render() }) } catch { toast('Este navegador não permite avisos', 'err') } },
   'ag-refresh': () => refreshCalendar(true),
   'ag-pick': t => { const s = +t.dataset.s, set = new Set(UI.agSel || []); if (set.has(s)) set.delete(s); else { if (set.size >= 5){ toast('Selecione até 5 horários por lead.', 'err'); return } set.add(s) } UI.agSel = [...set]; render() },
@@ -2966,6 +3075,9 @@ const ACT = {
 };
 const CHG = {
   me: t => { UI.me = t.value; ls.set('brase.me', UI.me); UI.owner = UI.me; UI.comSeller = UI.me; if (PUSH_SUB && HOSTCALL) HOSTCALL(pushBody(PUSH_SUB)).catch(() => {}); render() },
+  'capi-mode': t => { saveCfg({capi: {...cfg().capi, mode: t.value}}) },
+  'capi-code': t => { saveCfg({capi: {...cfg().capi, testCode: String(t.value || '').trim().slice(0, 40)}}) },
+  'capi-st': t => { const c = cfg().capi, id = t.dataset.id, cur = c.stages[id]; if (!cur) return; const v = t.dataset.k === 'on' ? t.checked : String(t.value || '').trim().slice(0, 50) || DEFAULT_CAPI_STAGES[id].name; saveCfg({capi: {...c, stages: {...c.stages, [id]: {...cur, [t.dataset.k]: v}}}}) },
   owner: t => { UI.owner = t.value; render() },
   'an-owner': t => { UI.anOwner = t.value; render() },
   touch: t => { toggleTouch(t.dataset.lead, t.dataset.touch, t.checked); if (UI.view === 'hoje') render() },
@@ -3133,7 +3245,7 @@ async function hostedDb(conf){
   };
   setInterval(poll, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll() });
-  HOSTCALL = call; HOSTMETA = !!first.meta; HOSTPUSH = first.vapid || ''; HOSTPOLL = poll;
+  HOSTCALL = call; HOSTMETA = !!first.meta; HOSTPUSH = first.vapid || ''; HOSTPOLL = poll; HOSTCAPI = first.capi || null;
   HOSTCAL = async force => { const r = await call({op: 'calendar', force: !!force}); (cache.meta ||= new Map()).set('calendar', r); emit('meta'); return r };
   if (first.clickup) MCP = {hosted: true, callTool: async (server, tool, input) => ({payload: await call({op: 'clickup', tool, input})})};
   return {
