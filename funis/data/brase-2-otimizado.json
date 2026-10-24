@@ -1,11 +1,11 @@
 {
  "format": "brase-funil-export/1",
- "exportedAt": "2026-10-21T22:01:23.313Z",
+ "exportedAt": "2026-10-22T00:00:08.580Z",
  "slug": "brase-2-otimizado",
  "title": "BRASE 2 · otimizado",
  "source": {
   "basedOn": "brase-2",
-  "note": "Cópia do que está publicado em 21/10/2026: BRASE 2 com as decisões de 13/10, teste A/B de capa v1 × v2 (v2 já começa com a pergunta de dor e pula a etapa Dor), formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto, etiquetas no webhook e LeadQualificado só no envio."
+  "note": "Cópia do que está publicado em 21/10/2026: BRASE 2 com as decisões de 13/10, teste A/B de capa v1 × v2 (v2 já começa com a pergunta de dor e pula a etapa Dor), formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto (oferta refeita: título único, cartões do que entrega, R$ 97), etiquetas no webhook e LeadQualificado só no envio."
  },
  "draft": {
   "slug": "brase-2-otimizado",
@@ -3530,217 +3530,52 @@
     "title": "Oferta · ZapFood",
     "layers": [
      {
-      "id": "QugDFX",
+      "id": "WNPPPZ",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "5a10",
-         "compare": "==",
-         "variable": "@tempo"
-        }
-       ],
-       [
-        {
-         "value": "mais10",
-         "compare": "==",
-         "variable": "@tempo"
-        }
-       ],
-       [
-        {
-         "value": "bolso",
-         "compare": "==",
-         "variable": "@entrega"
-        }
-       ],
-       [
-        {
-         "value": "cliente",
-         "compare": "==",
-         "variable": "@entrega"
-        }
-       ],
-       [
-        {
-         "value": "B",
-         "compare": "==",
-         "variable": "@opcoes_V8j0wv"
-        }
-       ],
-       [
-        {
-         "value": "C",
-         "compare": "==",
-         "variable": "@opcoes_V8j0wv"
-        }
-       ],
-       [
-        {
-         "value": "barato",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ],
-       [
-        {
-         "value": "nao",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ],
-       [
-        {
-         "value": "B",
-         "compare": "==",
-         "variable": "@opcoes_BAoGLH"
-        }
-       ],
-       [
-        {
-         "value": "C",
-         "compare": "==",
-         "variable": "@opcoes_BAoGLH"
-        }
-       ],
-       [
-        {
-         "value": "alguns",
-         "compare": "==",
-         "variable": "@adicional"
-        }
-       ],
-       [
-        {
-         "value": "nao",
-         "compare": "==",
-         "variable": "@adicional"
-        }
-       ],
-       [
-        {
-         "value": "cupom",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "bl6Eyd",
-       "name": "hjn7ab",
-       "text": "<h1 class=\"ql-align-center\">A sua loja tem <span style=\"color: rgb(245, 158, 11);\">porta vazando.</span></h1>"
+       "id": "QcEuaL",
+       "name": "sxzbti",
+       "text": "<h1 class=\"ql-align-center\">Descubra onde a sua loja <span style=\"color: rgb(245, 158, 11);\">perde pedido</span> e o que arrumar primeiro</h1>"
       }
      },
      {
-      "id": "XabxPW",
+      "id": "hIqwXo",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "5a10",
-         "compare": "!=",
-         "variable": "@tempo"
-        },
-        {
-         "value": "mais10",
-         "compare": "!=",
-         "variable": "@tempo"
-        },
-        {
-         "value": "bolso",
-         "compare": "!=",
-         "variable": "@entrega"
-        },
-        {
-         "value": "cliente",
-         "compare": "!=",
-         "variable": "@entrega"
-        },
-        {
-         "value": "B",
-         "compare": "!=",
-         "variable": "@opcoes_V8j0wv"
-        },
-        {
-         "value": "C",
-         "compare": "!=",
-         "variable": "@opcoes_V8j0wv"
-        },
-        {
-         "value": "barato",
-         "compare": "!=",
-         "variable": "@promo"
-        },
-        {
-         "value": "nao",
-         "compare": "!=",
-         "variable": "@promo"
-        },
-        {
-         "value": "B",
-         "compare": "!=",
-         "variable": "@opcoes_BAoGLH"
-        },
-        {
-         "value": "C",
-         "compare": "!=",
-         "variable": "@opcoes_BAoGLH"
-        },
-        {
-         "value": "alguns",
-         "compare": "!=",
-         "variable": "@adicional"
-        },
-        {
-         "value": "nao",
-         "compare": "!=",
-         "variable": "@adicional"
-        },
-        {
-         "value": "cupom",
-         "compare": "!=",
-         "variable": "@promo"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "eIwHPz",
-       "name": "tA2vXZ",
-       "text": "<h1 class=\"ql-align-center\">As suas respostas <span style=\"color: rgb(245, 158, 11);\">não mostram porta vazando.</span></h1>"
+       "id": "kfgVYO",
+       "name": "PyQ4OT",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">O ZapFood analisa a sua loja pelas suas respostas e entrega o plano pronto, no celular, em poucos minutos.</span></p>"
       }
      },
      {
-      "id": "e9abud",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
+      "id": "vv3iPH",
+      "type": "clear",
+      "design": {},
       "content": {
-       "id": "3wBgjV",
-       "name": "nUJCRs",
-       "text": "<h3 class=\"ql-align-center\">O ZapFood é o diagnóstico da Brase que olha as 5 portas da sua loja. Você responde sobre ela, uma pergunta por vez, e descobre qual porta mais vaza, o principal motivo, quanto isso pode estar custando e o plano pronto para arrumar.</h3>"
+       "id": "oFXo42",
+       "name": "nKwmlp",
+       "clear": "h-[0.5rem]"
       }
      },
      {
-      "id": "2bmYtT",
+      "id": "xaOlbL",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "2C6CCi",
-       "name": "l0yGch",
-       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja como funciona, com as telas do app:</strong></p>"
+       "id": "yY9AdT",
+       "name": "P4aYmj",
+       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja por dentro, com as telas do app:</strong></p>"
       }
      },
      {
@@ -3761,27 +3596,99 @@
       }
      },
      {
-      "id": "5ecHyZ",
+      "id": "7VssEm",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "1c9FYS",
+       "name": "KRV8gy",
+       "clear": "h-[1.5rem]"
+      }
+     },
+     {
+      "id": "ZOdusA",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "8uGuBJ",
-       "name": "FTiQE9",
-       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês:</p>"
+       "id": "8e0Zt3",
+       "name": "cWTT7B",
+       "text": "<h2 class=\"ql-align-center\">O que você recebe</h2>"
       }
      },
      {
-      "id": "gwgqDF",
+      "id": "2AXzi5",
+      "type": "arguments",
+      "title": "Argumentos",
+      "design": {
+       "basis": 100,
+       "order": "default",
+       "gridCols": "grid-cols-2",
+       "aspectImage": "aspect-[1/1]"
+      },
+      "content": {
+       "id": "VApAr6",
+       "cols": "grid-cols-2",
+       "name": "ukM0mz",
+       "arguments": [
+        {
+         "id": "7kQ9eB",
+         "text": "<h3 class=\"ql-align-center\">Qual porta mais vaza</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">e o principal motivo</span></p>",
+         "image": {
+          "src": "🚪",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "Es0Foz",
+         "text": "<h3 class=\"ql-align-center\">Quanto isso custa</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">a conta do que você está perdendo</span></p>",
+         "image": {
+          "src": "💸",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "ljegFw",
+         "text": "<h3 class=\"ql-align-center\">O produto isca</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">pronto para puxar cliente novo</span></p>",
+         "image": {
+          "src": "🎣",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "IG9m2B",
+         "text": "<h3 class=\"ql-align-center\">As 5 primeiras missões</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">o passo a passo para arrumar</span></p>",
+         "image": {
+          "src": "✅",
+          "type": "emoji"
+         }
+        }
+       ]
+      }
+     },
+     {
+      "id": "arUXDL",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "U4C8gn",
-       "name": "5xkKMn",
-       "clear": "h-[1rem]"
+       "id": "LxRbWQ",
+       "name": "M3qkxC",
+       "clear": "h-[1.5rem]"
+      }
+     },
+     {
+      "id": "kAl2vg",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Wh9tm5",
+       "name": "TUmO1i",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">🎧 A Michele, do <strong>Lanche dos Guri</strong>, saiu de R$ 600 para </span><strong style=\"color: rgb(245, 158, 11);\">R$ 4.000 por mês</strong><span style=\"color: rgb(203, 213, 225);\">:</span></p>"
       }
      },
      {
@@ -3809,52 +3716,75 @@
       }
      },
      {
-      "id": "9kWm9F",
+      "id": "TUkgzK",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "8aFopf",
-       "name": "UKl8Ow",
-       "clear": "h-[1rem]"
+       "id": "YS1OHT",
+       "name": "AJwPPc",
+       "clear": "h-[1.5rem]"
       }
      },
      {
-      "id": "d5e62j",
-      "type": "checklist",
-      "title": "Checklist",
+      "id": "vBJaT5",
+      "icon": "usdCircle",
+      "type": "price",
+      "title": "Preço",
+      "design": {
+       "basis": 100,
+       "style": "theme"
+      },
+      "content": {
+       "id": "u69pfQ",
+       "name": "JheSV9",
+       "after": "ou 12x de R$ 9,94",
+       "title": "<p><strong>ZapFood</strong></p>",
+       "value": "R$ 97",
+       "before": "à vista",
+       "featured": "Pagamento único · acesso vitalício",
+       "redirect": true
+      }
+     },
+     {
+      "id": "lfruoN",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "jCtccI",
+       "name": "pD7vHe",
+       "clear": "h-[0.75rem]"
+      }
+     },
+     {
+      "id": "93dnbQ",
+      "icon": "rectangleWide",
+      "type": "button",
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "success"
+      },
+      "content": {
+       "id": "AJXGxc",
+       "name": "Gs30ln",
+       "type": "redirect",
+       "label": "Quero meu diagnóstico por R$ 97 ➔",
+       "pulse": true,
+       "target": false,
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
+      }
+     },
+     {
+      "id": "SPiXER",
+      "type": "text",
+      "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "zyi646",
-       "name": "5jubu8",
-       "items": [
-        {
-         "id": "p0aqji",
-         "icon": {
-          "type": "emoji",
-          "value": "🚪"
-         },
-         "text": "Mostra <b>qual porta mais vaza</b> e o principal motivo, com a conta"
-        },
-        {
-         "id": "635mcu",
-         "icon": {
-          "type": "emoji",
-          "value": "🎯"
-         },
-         "text": "Entrega <b>o produto isca</b> pronto e as 5 primeiras missões"
-        },
-        {
-         "id": "px9zrv",
-         "icon": {
-          "type": "emoji",
-          "value": "📱"
-         },
-         "text": "Tudo no celular, <b>em poucos minutos</b>, sem instalar nada"
-        }
-       ]
+       "id": "kujGAz",
+       "name": "xJjsh7",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">🛡️ Garantia de 7 dias: não gostou, pede o dinheiro de volta.</span></p>"
       }
      },
      {
@@ -3876,7 +3806,7 @@
       "content": {
        "id": "7pR5qW",
        "name": "DmxeVl",
-       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
       }
      },
      {
@@ -3898,92 +3828,17 @@
       "content": {
        "id": "omrmyT",
        "name": "nwaTFH",
-       "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
       }
      },
      {
-      "id": "j53tzl",
+      "id": "lpVueH",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "1zgw1p",
-       "name": "0g1ula",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "vBJaT5",
-      "icon": "usdCircle",
-      "type": "price",
-      "title": "Preço",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "u69pfQ",
-       "name": "JheSV9",
-       "after": "ou R$ 97 à vista",
-       "title": "<p><strong>ZapFood</strong></p>",
-       "value": "R$ 9,94",
-       "before": "12x de",
-       "featured": "Pagamento único · acesso vitalício",
-       "redirect": true
-      }
-     },
-     {
-      "id": "JyCSRW",
-      "type": "clear",
-      "title": "Espaço",
-      "design": {},
-      "content": {
-       "id": "qzDWeF",
-       "name": "b5FfnL",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "93dnbQ",
-      "icon": "rectangleWide",
-      "type": "button",
-      "title": "Botão",
-      "design": {
-       "basis": 100,
-       "style": "success"
-      },
-      "content": {
-       "id": "AJXGxc",
-       "name": "Gs30ln",
-       "type": "redirect",
-       "label": "Quero achar a porta que vaza ➔",
-       "pulse": false,
-       "target": false,
-       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
-      }
-     },
-     {
-      "id": "x7w3Xv",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "NZl6YE",
-       "name": "nHlDMA",
-       "text": "<p class=\"ql-align-center\">🛡️ Pagamento único de R$ 97, sem mensalidade. Não gostou? Pede o dinheiro de volta em até 7 dias.</p>"
-      }
-     },
-     {
-      "id": "dTJ8wG",
-      "type": "clear",
-      "title": "Espaço",
-      "design": {},
-      "content": {
-       "id": "LlyvXh",
-       "name": "UgCYiE",
-       "clear": "h-[1rem]"
+       "id": "9Uhwrm",
+       "name": "rZ5Q05",
+       "clear": "h-[1.5rem]"
       }
      },
      {
@@ -7859,217 +7714,52 @@
     "title": "Oferta · ZapFood",
     "layers": [
      {
-      "id": "QugDFX",
+      "id": "WNPPPZ",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "5a10",
-         "compare": "==",
-         "variable": "@tempo"
-        }
-       ],
-       [
-        {
-         "value": "mais10",
-         "compare": "==",
-         "variable": "@tempo"
-        }
-       ],
-       [
-        {
-         "value": "bolso",
-         "compare": "==",
-         "variable": "@entrega"
-        }
-       ],
-       [
-        {
-         "value": "cliente",
-         "compare": "==",
-         "variable": "@entrega"
-        }
-       ],
-       [
-        {
-         "value": "B",
-         "compare": "==",
-         "variable": "@opcoes_V8j0wv"
-        }
-       ],
-       [
-        {
-         "value": "C",
-         "compare": "==",
-         "variable": "@opcoes_V8j0wv"
-        }
-       ],
-       [
-        {
-         "value": "barato",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ],
-       [
-        {
-         "value": "nao",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ],
-       [
-        {
-         "value": "B",
-         "compare": "==",
-         "variable": "@opcoes_BAoGLH"
-        }
-       ],
-       [
-        {
-         "value": "C",
-         "compare": "==",
-         "variable": "@opcoes_BAoGLH"
-        }
-       ],
-       [
-        {
-         "value": "alguns",
-         "compare": "==",
-         "variable": "@adicional"
-        }
-       ],
-       [
-        {
-         "value": "nao",
-         "compare": "==",
-         "variable": "@adicional"
-        }
-       ],
-       [
-        {
-         "value": "cupom",
-         "compare": "==",
-         "variable": "@promo"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "bl6Eyd",
-       "name": "hjn7ab",
-       "text": "<h1 class=\"ql-align-center\">A sua loja tem <span style=\"color: rgb(245, 158, 11);\">porta vazando.</span></h1>"
+       "id": "QcEuaL",
+       "name": "sxzbti",
+       "text": "<h1 class=\"ql-align-center\">Descubra onde a sua loja <span style=\"color: rgb(245, 158, 11);\">perde pedido</span> e o que arrumar primeiro</h1>"
       }
      },
      {
-      "id": "XabxPW",
+      "id": "hIqwXo",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "5a10",
-         "compare": "!=",
-         "variable": "@tempo"
-        },
-        {
-         "value": "mais10",
-         "compare": "!=",
-         "variable": "@tempo"
-        },
-        {
-         "value": "bolso",
-         "compare": "!=",
-         "variable": "@entrega"
-        },
-        {
-         "value": "cliente",
-         "compare": "!=",
-         "variable": "@entrega"
-        },
-        {
-         "value": "B",
-         "compare": "!=",
-         "variable": "@opcoes_V8j0wv"
-        },
-        {
-         "value": "C",
-         "compare": "!=",
-         "variable": "@opcoes_V8j0wv"
-        },
-        {
-         "value": "barato",
-         "compare": "!=",
-         "variable": "@promo"
-        },
-        {
-         "value": "nao",
-         "compare": "!=",
-         "variable": "@promo"
-        },
-        {
-         "value": "B",
-         "compare": "!=",
-         "variable": "@opcoes_BAoGLH"
-        },
-        {
-         "value": "C",
-         "compare": "!=",
-         "variable": "@opcoes_BAoGLH"
-        },
-        {
-         "value": "alguns",
-         "compare": "!=",
-         "variable": "@adicional"
-        },
-        {
-         "value": "nao",
-         "compare": "!=",
-         "variable": "@adicional"
-        },
-        {
-         "value": "cupom",
-         "compare": "!=",
-         "variable": "@promo"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "eIwHPz",
-       "name": "tA2vXZ",
-       "text": "<h1 class=\"ql-align-center\">As suas respostas <span style=\"color: rgb(245, 158, 11);\">não mostram porta vazando.</span></h1>"
+       "id": "kfgVYO",
+       "name": "PyQ4OT",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">O ZapFood analisa a sua loja pelas suas respostas e entrega o plano pronto, no celular, em poucos minutos.</span></p>"
       }
      },
      {
-      "id": "e9abud",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
+      "id": "vv3iPH",
+      "type": "clear",
+      "design": {},
       "content": {
-       "id": "3wBgjV",
-       "name": "nUJCRs",
-       "text": "<h3 class=\"ql-align-center\">O ZapFood é o diagnóstico da Brase que olha as 5 portas da sua loja. Você responde sobre ela, uma pergunta por vez, e descobre qual porta mais vaza, o principal motivo, quanto isso pode estar custando e o plano pronto para arrumar.</h3>"
+       "id": "oFXo42",
+       "name": "nKwmlp",
+       "clear": "h-[0.5rem]"
       }
      },
      {
-      "id": "2bmYtT",
+      "id": "xaOlbL",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "2C6CCi",
-       "name": "l0yGch",
-       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja como funciona, com as telas do app:</strong></p>"
+       "id": "yY9AdT",
+       "name": "P4aYmj",
+       "text": "<p class=\"ql-align-center\"><strong style=\"color: rgb(245, 158, 11);\">👇 Veja por dentro, com as telas do app:</strong></p>"
       }
      },
      {
@@ -8090,27 +7780,99 @@
       }
      },
      {
-      "id": "5ecHyZ",
+      "id": "7VssEm",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "1c9FYS",
+       "name": "KRV8gy",
+       "clear": "h-[1.5rem]"
+      }
+     },
+     {
+      "id": "ZOdusA",
       "type": "text",
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "8uGuBJ",
-       "name": "FTiQE9",
-       "text": "<p class=\"ql-align-center\">🎧 Ouça a Michele, dona do “Lanche dos Guri”, que saiu de R$ 600 pra R$ 4.000 por mês:</p>"
+       "id": "8e0Zt3",
+       "name": "cWTT7B",
+       "text": "<h2 class=\"ql-align-center\">O que você recebe</h2>"
       }
      },
      {
-      "id": "gwgqDF",
+      "id": "2AXzi5",
+      "type": "arguments",
+      "title": "Argumentos",
+      "design": {
+       "basis": 100,
+       "order": "default",
+       "gridCols": "grid-cols-2",
+       "aspectImage": "aspect-[1/1]"
+      },
+      "content": {
+       "id": "VApAr6",
+       "cols": "grid-cols-2",
+       "name": "ukM0mz",
+       "arguments": [
+        {
+         "id": "7kQ9eB",
+         "text": "<h3 class=\"ql-align-center\">Qual porta mais vaza</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">e o principal motivo</span></p>",
+         "image": {
+          "src": "🚪",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "Es0Foz",
+         "text": "<h3 class=\"ql-align-center\">Quanto isso custa</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">a conta do que você está perdendo</span></p>",
+         "image": {
+          "src": "💸",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "ljegFw",
+         "text": "<h3 class=\"ql-align-center\">O produto isca</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">pronto para puxar cliente novo</span></p>",
+         "image": {
+          "src": "🎣",
+          "type": "emoji"
+         }
+        },
+        {
+         "id": "IG9m2B",
+         "text": "<h3 class=\"ql-align-center\">As 5 primeiras missões</h3><p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">o passo a passo para arrumar</span></p>",
+         "image": {
+          "src": "✅",
+          "type": "emoji"
+         }
+        }
+       ]
+      }
+     },
+     {
+      "id": "arUXDL",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "U4C8gn",
-       "name": "5xkKMn",
-       "clear": "h-[1rem]"
+       "id": "LxRbWQ",
+       "name": "M3qkxC",
+       "clear": "h-[1.5rem]"
+      }
+     },
+     {
+      "id": "kAl2vg",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "Wh9tm5",
+       "name": "TUmO1i",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">🎧 A Michele, do <strong>Lanche dos Guri</strong>, saiu de R$ 600 para </span><strong style=\"color: rgb(245, 158, 11);\">R$ 4.000 por mês</strong><span style=\"color: rgb(203, 213, 225);\">:</span></p>"
       }
      },
      {
@@ -8138,52 +7900,75 @@
       }
      },
      {
-      "id": "9kWm9F",
+      "id": "TUkgzK",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "8aFopf",
-       "name": "UKl8Ow",
-       "clear": "h-[1rem]"
+       "id": "YS1OHT",
+       "name": "AJwPPc",
+       "clear": "h-[1.5rem]"
       }
      },
      {
-      "id": "d5e62j",
-      "type": "checklist",
-      "title": "Checklist",
+      "id": "vBJaT5",
+      "icon": "usdCircle",
+      "type": "price",
+      "title": "Preço",
+      "design": {
+       "basis": 100,
+       "style": "theme"
+      },
+      "content": {
+       "id": "u69pfQ",
+       "name": "JheSV9",
+       "after": "ou 12x de R$ 9,94",
+       "title": "<p><strong>ZapFood</strong></p>",
+       "value": "R$ 97",
+       "before": "à vista",
+       "featured": "Pagamento único · acesso vitalício",
+       "redirect": true
+      }
+     },
+     {
+      "id": "lfruoN",
+      "type": "clear",
+      "design": {},
+      "content": {
+       "id": "jCtccI",
+       "name": "pD7vHe",
+       "clear": "h-[0.75rem]"
+      }
+     },
+     {
+      "id": "93dnbQ",
+      "icon": "rectangleWide",
+      "type": "button",
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "success"
+      },
+      "content": {
+       "id": "AJXGxc",
+       "name": "Gs30ln",
+       "type": "redirect",
+       "label": "Quero meu diagnóstico por R$ 97 ➔",
+       "pulse": true,
+       "target": false,
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
+      }
+     },
+     {
+      "id": "SPiXER",
+      "type": "text",
+      "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "zyi646",
-       "name": "5jubu8",
-       "items": [
-        {
-         "id": "p0aqji",
-         "icon": {
-          "type": "emoji",
-          "value": "🚪"
-         },
-         "text": "Mostra <b>qual porta mais vaza</b> e o principal motivo, com a conta"
-        },
-        {
-         "id": "635mcu",
-         "icon": {
-          "type": "emoji",
-          "value": "🎯"
-         },
-         "text": "Entrega <b>o produto isca</b> pronto e as 5 primeiras missões"
-        },
-        {
-         "id": "px9zrv",
-         "icon": {
-          "type": "emoji",
-          "value": "📱"
-         },
-         "text": "Tudo no celular, <b>em poucos minutos</b>, sem instalar nada"
-        }
-       ]
+       "id": "kujGAz",
+       "name": "xJjsh7",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(148, 163, 184);\">🛡️ Garantia de 7 dias: não gostou, pede o dinheiro de volta.</span></p>"
       }
      },
      {
@@ -8205,7 +7990,7 @@
       "content": {
        "id": "7pR5qW",
        "name": "DmxeVl",
-       "text": "<p class=\"ql-align-center\"><em>Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Sem pressa: o seu diagnóstico fica na sua conta, sem prazo para acabar.</em></p>"
       }
      },
      {
@@ -8227,92 +8012,17 @@
       "content": {
        "id": "omrmyT",
        "name": "nwaTFH",
-       "text": "<p class=\"ql-align-center\"><em>Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
+       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Se travar em algum ponto, o suporte é com o próprio Renan.</em></p>"
       }
      },
      {
-      "id": "j53tzl",
+      "id": "lpVueH",
       "type": "clear",
-      "title": "Espaço",
       "design": {},
       "content": {
-       "id": "1zgw1p",
-       "name": "0g1ula",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "vBJaT5",
-      "icon": "usdCircle",
-      "type": "price",
-      "title": "Preço",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "u69pfQ",
-       "name": "JheSV9",
-       "after": "ou R$ 97 à vista",
-       "title": "<p><strong>ZapFood</strong></p>",
-       "value": "R$ 9,94",
-       "before": "12x de",
-       "featured": "Pagamento único · acesso vitalício",
-       "redirect": true
-      }
-     },
-     {
-      "id": "JyCSRW",
-      "type": "clear",
-      "title": "Espaço",
-      "design": {},
-      "content": {
-       "id": "qzDWeF",
-       "name": "b5FfnL",
-       "clear": "h-[1rem]"
-      }
-     },
-     {
-      "id": "93dnbQ",
-      "icon": "rectangleWide",
-      "type": "button",
-      "title": "Botão",
-      "design": {
-       "basis": 100,
-       "style": "success"
-      },
-      "content": {
-       "id": "AJXGxc",
-       "name": "Gs30ln",
-       "type": "redirect",
-       "label": "Quero achar a porta que vaza ➔",
-       "pulse": false,
-       "target": false,
-       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
-      }
-     },
-     {
-      "id": "x7w3Xv",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "NZl6YE",
-       "name": "nHlDMA",
-       "text": "<p class=\"ql-align-center\">🛡️ Pagamento único de R$ 97, sem mensalidade. Não gostou? Pede o dinheiro de volta em até 7 dias.</p>"
-      }
-     },
-     {
-      "id": "dTJ8wG",
-      "type": "clear",
-      "title": "Espaço",
-      "design": {},
-      "content": {
-       "id": "LlyvXh",
-       "name": "UgCYiE",
-       "clear": "h-[1rem]"
+       "id": "9Uhwrm",
+       "name": "rZ5Q05",
+       "clear": "h-[1.5rem]"
       }
      },
      {
