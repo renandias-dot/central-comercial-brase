@@ -2134,6 +2134,14 @@ async function funisCall(op, body = {}){
   return j;
 }
 UI.spendJob = null;
+// Na versão hospedada sem token da Meta, o botão só aparece depois de guardado o gatilho de API da rotina.
+function spendCanRefresh(){
+  if (MCP && !MCP.hosted) return true;
+  if (!HOST) return false;
+  if (HOSTMETA) return true;
+  routineLoad();
+  return !!(UI.rt.st && UI.rt.st.configured);
+}
 async function refreshSpendRoutine(btn){
   if (UI.spendJob && !UI.spendJob.late) return;
   if (btn) btn.disabled = true;
@@ -2229,9 +2237,9 @@ function viewTrafego(){
      <div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
      ${UI.trMode === 'custom' ? rangeInputs('tr', p) : ''}
      ${UI.trMode === 'month' ? `<div class="pager"><button class="btn sm ghost" data-a="tr-prev" aria-label="Mês anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="tr-next" ${UI.trOffset >= 0 ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>` : ''}
-     ${(MCP && !MCP.hosted) || HOST ? `<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta" ${UI.spendJob && !UI.spendJob.late ? 'disabled' : ''}>${UI.spendJob && !UI.spendJob.late ? 'Atualizando…' : 'Atualizar investimento'}</button>` : ''}`)
+     ${spendCanRefresh() ? `<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta" ${UI.spendJob && !UI.spendJob.late ? 'disabled' : ''}>${UI.spendJob && !UI.spendJob.late ? 'Atualizando…' : 'Atualizar investimento'}</button>` : ''}`)
   + `<div class="kpis">
-      ${kpi('Investimento Meta', T.spend ? brl(T.spend) : '—', S.meta.spend ? `atualizado em ${fmtDM(localDay(S.meta.spend.updatedAt))}` : 'sem dados de investimento')}
+      ${kpi('Investimento Meta', T.spend ? brl(T.spend) : '—', (S.meta.spend ? `atualizado em ${fmtDM(localDay(S.meta.spend.updatedAt))}` : 'sem dados de investimento') + (HOST && !HOSTMETA ? ' · atualiza sozinho todo dia às 7h47' : ''))}
       ${kpi('Leads no CRM', T.n, `${T.nMeta} com UTM da Meta · o pixel contou ${T.pixel}`)}
       ${kpi('Custo por lead', money(T.spend, T.nMeta), 'investimento ÷ leads da Meta no CRM')}
       ${kpi('Custo por agendamento', money(T.spend, T.booked), `${T.booked} chegaram a Reunião Marcada`)}
@@ -2239,7 +2247,7 @@ function viewTrafego(){
       ${kpi('Custo por venda', money(T.spend, T.won), `${T.won} vendas`)}
     </div>
     ${UI.spendJob ? `<div class="banner${UI.spendJob.late ? ' warn' : ''}">${UI.spendJob.late ? `A atualização pela Meta está demorando mais que o normal.${UI.spendJob.url ? ` <a href="${attr(UI.spendJob.url)}" target="_blank" rel="noopener">Ver o que a rotina fez</a>` : ''}` : 'Buscando o investimento na Meta pelo Claude… a tela atualiza sozinha em 1 ou 2 minutos.'}</div>` : ''}
-    ${(() => { const up = S.meta.spend && S.meta.spend.updatedAt ? localDay(S.meta.spend.updatedAt) : '', end = p.all ? today() : (p.to < today() ? p.to : today()); return up && end > up ? `<div class="banner warn">O investimento da Meta foi atualizado até ${fmtDM(up)}. O gasto de ${fmtDM(addDays(up, 1))} em diante ainda não entrou, então o custo por lead, por reunião e por venda deste período aparece menor do que o real.${(MCP && !MCP.hosted) || HOST ? ' Use “Atualizar investimento”.' : ''}</div>` : '' })()}
+    ${(() => { const up = S.meta.spend && S.meta.spend.updatedAt ? localDay(S.meta.spend.updatedAt) : '', end = p.all ? today() : (p.to < today() ? p.to : today()); return up && end > up ? `<div class="banner warn">O investimento da Meta foi atualizado até ${fmtDM(up)}. O gasto de ${fmtDM(addDays(up, 1))} em diante ainda não entrou, então o custo por lead, por reunião e por venda deste período aparece menor do que o real.${spendCanRefresh() ? ' Use “Atualizar investimento”.' : HOST ? ' Ele atualiza sozinho todo dia às 7h47.' : ''}</div>` : '' })()}
     ${noUtm ? `<div class="banner warn">${noUtm} lead(s) ${p.all ? '' : 'deste período '}ainda estão sem UTM (vieram do ClickUp antes da leitura das descrições). ${p.all ? '' : `${noDate} leads sem data de entrada só aparecem em “Tudo”.`}</div>` : ''}
     ${UI.trTab === 'sug' ? adviceHTML(p, T) : UI.trTab === 'ideal' ? idealTrafficHTML(p) : `<div class="g3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px">${hl.map(([l, r, f]) => `<section class="panel hl"><div class="l">${l}</div>${r ? `<div class="n">${esc(r.name)}</div><div class="v">${f(r)}</div>` : `<div class="v hint">Precisa de itens com pelo menos ${TR_MIN} leads.</div>`}</section>`).join('')}</div>
     <section class="panel"><div class="panel-h"><div class="seg" role="group" aria-label="Agrupar por">${TR_DIMS.map(([id, l]) => `<button data-a="tr-dim" data-v="${id}" aria-pressed="${dim === id}">${l}</button>`).join('')}</div>
@@ -2906,7 +2914,7 @@ function routineConfigHTML(){
   const when = t => t ? new Date(t).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
   return `<section class="panel" style="margin-bottom:14px"><div class="panel-b" style="padding-top:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:860px">
     <div><b>Botão “Atualizar investimento” (aba Tráfego)</b><p class="hint" style="margin-top:4px">O botão pede ao Claude para rodar a rotina “Gasto da Meta: Funis e Central”, que lê a conta de anúncios pelo conector da Meta (sem token da Meta) e grava aqui os últimos dias. A mesma rotina já roda sozinha todo dia às 7h47.</p></div>
-    ${!st ? '<p class="hint">Carregando…</p>' : st.error ? `<div class="banner warn">${esc(st.error)}</div>` : st.configured ? `<div class="banner" style="background:var(--good-soft);color:var(--good)">Botão ligado.${L ? ` Último pedido: ${when(L.at)}.` : ''}</div>` : `<div class="banner warn"><div><b>Falta ligar o botão (uma vez só).</b><br>1) Em <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>, abra a rotina “Gasto da Meta: Funis e Central” › menu ao lado do nome › <i>Editar</i>. 2) Na linha <i>Gatilho</i>, clique em <b>+</b> › <b>API</b>, copie o <i>Fire URL</i> e clique em <i>Gerar token</i> (ele aparece uma vez só). 3) Cole os dois aqui embaixo e salve.</div></div>`}
+    ${!st ? '<p class="hint">Carregando…</p>' : st.error ? `<div class="banner warn">${esc(st.error)}</div>` : st.configured ? `<div class="banner" style="background:var(--good-soft);color:var(--good)">Botão ligado.${L ? ` Último pedido: ${when(L.at)}.` : ''}</div>` : `<div class="banner"><div><b>Opcional.</b> Sem o botão, o investimento já atualiza sozinho todo dia às 7h47. Para ter também o botão: 1) Em <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>, abra a rotina “Gasto da Meta: Funis e Central” › menu ao lado do nome › <i>Editar</i>. 2) Na linha <i>Gatilho</i>, clique em <b>+</b> › <b>API</b>, copie o <i>Fire URL</i> e clique em <i>Gerar token</i> (ele aparece uma vez só). 3) Cole os dois aqui embaixo e salve. Se a opção <b>API</b> não aparecer no gatilho, a sua conta do Claude ainda não tem esse recurso; não precisa fazer nada.</div></div>`}
     ${st && !st.error ? `<div class="g2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
       <label class="f">Fire URL da rotina<input class="in" id="rt-url" placeholder="https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" autocomplete="off"></label>
       <label class="f">Token da rotina<input class="in" id="rt-token" type="password" placeholder="${st.configured ? 'guardado · cole um novo para trocar' : 'sk-ant-…'}" autocomplete="off"></label></div>
