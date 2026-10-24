@@ -5,7 +5,7 @@
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendDoc, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -23,7 +23,7 @@ const CRM_API = env('CRM_API') || 'https://wndgqvkeguampmtmkmhq.supabase.co/func
 class HttpError extends Error { constructor(public status: number, message: string){ super(message) } }
 const bad = (message: string, status = 400) => new HttpError(status, message);
 const errText = (e: unknown) => e instanceof Error ? e.message : String(e);
-const CORS = {'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-fn-key, authorization, apikey', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-max-age': '86400'};
+const CORS = {'access-control-allow-origin': '*', 'access-control-allow-headers': 'content-type, x-fn-key, x-crm-key, authorization, apikey', 'access-control-allow-methods': 'POST, OPTIONS', 'access-control-max-age': '86400'};
 const reply = (status: number, data: unknown) => new Response(JSON.stringify(data), {status, headers: {...CORS, 'content-type': 'application/json; charset=utf-8'}});
 const json = (v: unknown) => (sql as any).json(v);
 // deno-lint-ignore no-explicit-any
@@ -411,11 +411,79 @@ async function cronSync(){
   }
   return out;
 }
+// O gasto que a rotina da Meta manda também vai para a aba Tráfego da Central (documento meta/spend), trocando os dias da remessa.
+async function crmPushSpend(rows: AdSpendRow[]){
+  const conf = await getConf('crm');
+  if (!conf.key) return {skipped: 'sem o código da Central'};
+  const call = async (body: Row) => {
+    const r = await fetch(conf.url || CRM_API, {method: 'POST', headers: {'content-type': 'application/json', 'x-crm-key': conf.key}, body: JSON.stringify(body), signal: AbortSignal.timeout(40000)});
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw bad('A Central Comercial respondeu ' + (j.error || 'HTTP ' + r.status), 502);
+    return j;
+  };
+  try {
+    const docs = (await call({op: 'load'})).docs || [], sp = docs.find((d: Row) => d && d.col === 'meta' && d.id === 'spend');
+    const next = crmSpendDoc(sp && sp.data, rows, new Date().toISOString());
+    if (!next) return {skipped: 'nenhuma linha com nome de anúncio'};
+    await call({op: 'set', col: 'meta', id: 'spend', data: next.data});
+    const st = {ok: true, at: next.data.updatedAt, since: next.since, until: next.until, rows: next.rows, spend: next.spend};
+    await setConf('crm_spend', st);
+    return st;
+  } catch (e) {
+    const st = {ok: false, at: new Date().toISOString(), error: errText(e)};
+    await setConf('crm_spend', st);
+    return st;
+  }
+}
 // Operações de máquina (cron e a rotina diária da Meta): cabeçalho x-fn-cron com a chave guardada em fn_config (k = 'cron').
 const MACHINE: Record<string, (b: Row) => Promise<unknown>> = {
   async 'cron.sync'(){ return await cronSync() },
-  async 'cron.spend'(b){ return {rows: await upsertAdSpend(Array.isArray(b.rows) ? b.rows : [], /^[a-z-]{2,20}$/.test(String(b.source)) ? String(b.source) : 'meta'), meta: await metaStatus()} },
+  async 'cron.spend'(b){
+    const rows = Array.isArray(b.rows) ? b.rows : [];
+    return {rows: await upsertAdSpend(rows, /^[a-z-]{2,20}$/.test(String(b.source)) ? String(b.source) : 'meta'), meta: await metaStatus(), crm: await crmPushSpend(rows)};
+  },
 };
+// Botão "Atualizar investimento" da Central: dispara a rotina da Meta (tarefa agendada do Claude com o conector da Meta)
+// pelo gatilho de API dela. O endereço e o token do gatilho ficam em fn_config (k = 'crm_refresh') e nunca voltam para a página.
+const FIRE_RE = /^https:\/\/api\.anthropic\.com\/v1\/claude_code\/routines\/trig_[A-Za-z0-9]{10,40}\/fire$/;
+const REFRESH_GAP = 5 * 60e3;
+async function refreshStatus(){
+  const c = await getConf('crm_refresh'), push = await getConf('crm_spend');
+  return {configured: !!(c.url && c.token), last: c.last || null, push: push.at ? push : null};
+}
+const CRM_OPS: Record<string, (b: Row) => Promise<unknown>> = {
+  async 'crm.refresh.status'(){ return await refreshStatus() },
+  async 'crm.refresh'(){
+    const c = await getConf('crm_refresh');
+    if (!c.url || !c.token) throw bad('O botão ainda não foi ligado: guarde o endereço e o token da rotina em Configurações › Meta.', 409);
+    const push = await getConf('crm_spend'), last = c.last || null;
+    if (last && Date.now() - Date.parse(last.at) < REFRESH_GAP && !(push.at && push.at > last.at)) return {started: false, running: true, last};
+    const r = await fetch(c.url, {method: 'POST', signal: AbortSignal.timeout(20000), headers: {authorization: 'Bearer ' + c.token, 'anthropic-beta': 'experimental-cc-routine-2026-04-01', 'anthropic-version': '2023-06-01', 'content-type': 'application/json'},
+      body: JSON.stringify({text: 'Pedido pelo botão "Atualizar investimento" da Central Comercial.'})});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) throw bad('O Claude recusou o token da rotina. Gere um token novo na rotina e guarde em Configurações › Meta.', 502);
+    if (r.status === 429) throw bad('A rotina já foi disparada muitas vezes nesta hora. Tente de novo mais tarde.', 429);
+    if (!r.ok) throw bad('O Claude não aceitou o pedido (' + ((j.error && j.error.message) || 'HTTP ' + r.status) + ').', 502);
+    const now = {at: new Date().toISOString(), url: /^https:\/\/claude\.ai\//.test(String(j.claude_code_session_url)) ? j.claude_code_session_url : ''};
+    await setConf('crm_refresh', {...c, last: now});
+    return {started: true, last: now};
+  },
+  async 'crm.refresh.config'(b){
+    const c = await getConf('crm_refresh');
+    if (b.clear) { await setConf('crm_refresh', {last: c.last || null}); return await refreshStatus() }
+    const url = String(b.url || '').trim(), token = String(b.token || '').trim();
+    if (!FIRE_RE.test(url)) throw bad('O endereço precisa ser o "Fire URL" da rotina (https://api.anthropic.com/v1/claude_code/routines/trig_…/fire).');
+    if (!/^sk-ant-[A-Za-z0-9_-]{20,300}$/.test(token)) throw bad('O token precisa ser o que a rotina mostrou ao gerar (começa com sk-ant-).');
+    await setConf('crm_refresh', {url, token, last: c.last || null});
+    return await refreshStatus();
+  },
+};
+async function crmKeyOk(req: Request){
+  const k = req.headers.get('x-crm-key') || '';
+  if (k.length < 3) return false;
+  const c = await getConf('crm');
+  return !!c.key && sameKey(k, c.key);
+}
 async function machineOk(req: Request){
   const k = req.headers.get('x-fn-cron') || '';
   if (k.length < 20) return false;
@@ -692,6 +760,11 @@ Deno.serve(async req => {
     const ip = clientIp(req), st = await authState(ip);
     if (st.wait > 0) return reply(429, {error: `Muitas tentativas com o código errado. Tente de novo em ${st.wait} min.`});
     if (st.total >= ALL_FAILS) return reply(429, {error: 'Muitas tentativas com o código errado no momento. Tente de novo mais tarde.'});
+    if (CRM_OPS[op]) {
+      if (!(await crmKeyOk(req))) { await authFailed(ip); await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso da Central inválido.'}) }
+      if (st.fails) await sql`delete from fn_auth_fails where ip = ${ip}`;
+      return reply(200, await CRM_OPS[op](body));
+    }
     if (!(await accessOk(req.headers.get('x-fn-key') ?? ''))) { await authFailed(ip); await new Promise(r => setTimeout(r, 400)); return reply(401, {error: 'Código de acesso inválido.'}) }
     if (st.fails) await sql`delete from fn_auth_fails where ip = ${ip}`;
     const fn = ops[op];

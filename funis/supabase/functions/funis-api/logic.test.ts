@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-api/logic.test.ts
 import {assert, assertEquals, assertThrows} from 'jsr:@std/assert@1';
-import {abandonDue, aggregateAccount, aggregateAds, aggregateE2E, crmLeadFacts, isMetaLead, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
+import {abandonDue, aggregateAccount, aggregateAds, aggregateE2E, crmLeadFacts, isMetaLead, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendDoc, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
 import {evalRoles, interpolate} from './rules.ts';
 
 const brase = JSON.parse(await Deno.readTextFile(new URL('../../../data/brase-2.json', import.meta.url)));
@@ -364,4 +364,26 @@ Deno.test('conta inteira: todo o gasto, visitas de todos os funis e leads da Cen
   assertEquals(r.all.inCrm, 3);
   assertEquals(r.stages.paid, {feita: 1, fechado: 1});
   assertEquals(r.daily.map(d => [d.day, d.spend, d.inCrm]), [['2026-10-18', 50, 1], ['2026-10-19', 30, 1]]);
+});
+
+Deno.test('gasto da rotina da Meta entra no documento da Central trocando só os dias da remessa', () => {
+  const doc = {updatedAt: '2026-10-22T03:00:00Z', daily: '2026-08-01', account: 'Conta (act_1)', rows: [
+    {adId: '111111', ad: 'A', day: '2026-10-20', month: '2026-10', spend: 10},
+    {adId: '111111', ad: 'A', day: '2026-10-21', month: '2026-10', spend: 20},
+    {adId: '222222', ad: 'B', day: '2026-10-21', month: '2026-10', spend: 5},
+    {adId: '111111', ad: 'A', month: '2026-07', spend: 300},
+  ]};
+  const r = crmSpendDoc(doc, [
+    {day: '2026-10-21', ad_id: '111111', ad_name: 'A', campaign_id: '9999999', campaign_name: 'C', adset_id: '8888888', adset_name: 'S', spend: 21.456, impressions: 500, clicks: 9, lpv: 7, meta_leads: 1},
+    {day: '2026-10-22', ad_id: '111111', ad_name: 'A', spend: 30, impressions: 600},
+    {day: '2026-10-22', ad_id: '333333', ad_name: '', spend: 3},
+    {day: '2026-10-22', ad_id: '444444', ad_name: 'Sem gasto', spend: 0, impressions: 0},
+  ], '2026-10-24T22:00:00Z')!;
+  assertEquals([r.since, r.until, r.rows, r.spend], ['2026-10-21', '2026-10-22', 2, 51.46]);
+  assertEquals([r.data.updatedAt, r.data.daily, r.data.account], ['2026-10-24T22:00:00Z', '2026-08-01', 'Conta (act_1)']);
+  // o 20/10 e o mês de julho ficam; o 21/10 do B some (sem gasto na remessa) e o do A é trocado
+  assertEquals(r.data.rows.map((x: any) => [x.adId, x.day || x.month, x.spend]), [['111111', '2026-10-20', 10], ['111111', '2026-07', 300], ['111111', '2026-10-21', 21.46], ['111111', '2026-10-22', 30]]);
+  assertEquals(r.data.rows[2], {adId: '111111', ad: 'A', adsetId: '8888888', adset: 'S', campaignId: '9999999', campaign: 'C', day: '2026-10-21', month: '2026-10', spend: 21.46, impressions: 500, clicks: 9, lpv: 7, metaLeads: 1});
+  assertEquals(crmSpendDoc(doc, [{day: '2026-10-22', ad_id: '333333', ad_name: '', spend: 3}], 'x'), null);
+  assertEquals(crmSpendDoc(null, [{day: '2026-10-22', ad_id: '111111', ad_name: 'A', spend: 1}], 'x')!.data.daily, '2026-10-22');
 });

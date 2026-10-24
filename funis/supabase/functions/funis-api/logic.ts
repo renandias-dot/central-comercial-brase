@@ -385,6 +385,25 @@ export function crmSpendRows(doc: any): AdSpendRow[] {
     spend: Number(r.spend) || 0, impressions: Number(r.impressions) || 0, clicks: Number(r.clicks) || 0, lpv: Number(r.lpv) || 0, meta_leads: Number(r.metaLeads) || 0,
   }));
 }
+// O contrário: grava no documento meta/spend da Central as linhas diárias que a rotina da Meta mandou. Os dias entre o
+// primeiro e o último da remessa são trocados inteiros (anúncio sem gasto no dia some); o resto do documento fica como está.
+// Só entram linhas com o nome do anúncio, para a aba Tráfego da Central não mostrar anúncio sem nome.
+export function crmSpendDoc(doc: any, rows: AdSpendRow[], now: string){
+  const prev = doc && typeof doc === 'object' ? doc : {}, num = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+  const fresh = new Map<string, Record<string, unknown>>();
+  for (const r of rows || []) {
+    const day = String(r.day || '').slice(0, 10), adId = String(r.ad_id || '').trim(), spend = Math.max(0, Math.round((Number(r.spend) || 0) * 100) / 100);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{6,}$/.test(adId) || !String(r.ad_name || '').trim() || (!spend && !num(r.impressions))) continue;
+    fresh.set(day + '|' + adId, {adId, ad: String(r.ad_name).trim(), adsetId: String(r.adset_id || ''), adset: String(r.adset_name || ''), campaignId: String(r.campaign_id || ''), campaign: String(r.campaign_name || ''),
+      day, month: day.slice(0, 7), spend, impressions: num(r.impressions), clicks: num(r.clicks), lpv: num(r.lpv), metaLeads: num(r.meta_leads)});
+  }
+  const add = [...fresh.values()], days = add.map(r => r.day as string).sort();
+  if (!add.length) return null;
+  const since = days[0], until = days[days.length - 1];
+  const keep = (Array.isArray(prev.rows) ? prev.rows : []).filter((r: any) => !(r && r.day && r.day >= since && r.day <= until));
+  return {data: {...prev, updatedAt: now, daily: prev.daily && prev.daily < since ? prev.daily : (prev.daily || since), rows: keep.concat(add)},
+    since, until, rows: add.length, spend: Math.round(add.reduce((t, r) => t + (r.spend as number), 0) * 100) / 100};
+}
 
 /* ================= relatórios: anúncios, caminhos e tempo ================= */
 // O link do anúncio usa o modelo da Meta "Nome|ID" (ex.: utm_content=IFood Escondeu|120244276786450151).

@@ -729,7 +729,7 @@ const UI = {
 UI.owner = UI.me;
 let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
-let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null, HOSTCAPI = null;
+let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null, HOSTCAPI = null, HOSTKEY = '';
 
 const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
@@ -2110,6 +2110,7 @@ function mcpMsg(e){
 // Versão hospedada: o servidor busca na Meta com o token guardado nele (segredo META_ACCESS_TOKEN).
 const spendCutoff = () => monthShift(today().slice(0, 7), -2) + '-01';
 async function refreshSpendHosted(btn){
+  if (!HOSTMETA) return refreshSpendRoutine(btn);
   const ids = new Set(((S.meta.spend && S.meta.spend.rows) || []).map(r => r.campaignId).filter(Boolean));
   leadsArr().forEach(l => { if (l.utm && l.utm.campaignId) ids.add(l.utm.campaignId) });
   if (!ids.size){ toast('Ainda não há campanhas conhecidas: faltam leads com UTM da Meta.', 'err'); return }
@@ -2122,6 +2123,37 @@ async function refreshSpendHosted(btn){
     toast(`Investimento atualizado: ${ids.size} campanha(s), ${r.rows.length} linhas (por dia desde ${fmtDM(cut)})`); render();
   } catch (e){ toast('Não foi possível buscar o investimento: ' + ((e && e.message) || 'erro'), 'err') }
   finally { if (btn) btn.disabled = false }
+}
+// Sem o token da Meta no servidor da Central, o botão pede ao servidor dos Funis para disparar a rotina do Claude que lê a
+// Meta pelo conector ("Gasto da Meta: Funis e Central"). A rotina grava aqui em meta/spend e a tela atualiza sozinha.
+const FUNIS_API = 'https://covwdaygoorabowiuyfr.supabase.co/functions/v1/funis-api';
+async function funisCall(op, body = {}){
+  const r = await fetch(FUNIS_API, {method: 'POST', headers: {'content-type': 'application/json', 'x-crm-key': HOSTKEY}, body: JSON.stringify({op, ...body})});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw {code: r.status, message: j.error || 'Erro ' + r.status};
+  return j;
+}
+UI.spendJob = null;
+async function refreshSpendRoutine(btn){
+  if (UI.spendJob && !UI.spendJob.late) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await funisCall('crm.refresh');
+    UI.spendJob = {at: r.last.at, url: r.last.url || ''};
+    toast(r.started ? 'Pedi ao Claude para buscar o investimento na Meta. Leva 1 a 2 minutos e a tela atualiza sozinha.' : 'A atualização já está rodando. A tela atualiza sozinha quando terminar.');
+    spendWatch();
+  } catch (e){ toast(e && e.code === 409 ? 'O botão ainda não está ligado: configure em Configurações › Meta.' : (e && e.message) || 'Erro', 'err') }
+  finally { if (btn) btn.disabled = false; render() }
+}
+// Confere a cada 15 s até o documento meta/spend chegar mais novo que o pedido (ou 10 min, aí avisa que demorou).
+function spendWatch(){
+  clearTimeout(spendWatch.t);
+  const j = UI.spendJob; if (!j || j.late) return;
+  const up = S.meta.spend && S.meta.spend.updatedAt;
+  if (up && up > j.at){ UI.spendJob = null; toast('Investimento da Meta atualizado.'); render(); return }
+  if (Date.now() - Date.parse(j.at) > 10 * 60e3){ UI.spendJob = {...j, late: true}; render(); return }
+  if (HOSTPOLL) HOSTPOLL();
+  spendWatch.t = setTimeout(spendWatch, 15000);
 }
 async function refreshSpend(btn){
   if (HOST) return refreshSpendHosted(btn);
@@ -2197,7 +2229,7 @@ function viewTrafego(){
      <div class="seg" role="group" aria-label="Período"><button data-a="tr-mode" data-v="month" aria-pressed="${UI.trMode === 'month'}">Mês</button><button data-a="tr-mode" data-v="custom" aria-pressed="${UI.trMode === 'custom'}">Calendário</button><button data-a="tr-mode" data-v="all" aria-pressed="${UI.trMode === 'all'}">Tudo</button></div>
      ${UI.trMode === 'custom' ? rangeInputs('tr', p) : ''}
      ${UI.trMode === 'month' ? `<div class="pager"><button class="btn sm ghost" data-a="tr-prev" aria-label="Mês anterior">‹</button><span class="lbl">${p.label}</span><button class="btn sm ghost" data-a="tr-next" ${UI.trOffset >= 0 ? 'disabled' : ''} aria-label="Próximo mês">›</button></div>` : ''}
-     ${(MCP && !MCP.hosted) || HOST ? '<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta">Atualizar investimento</button>' : ''}`)
+     ${(MCP && !MCP.hosted) || HOST ? `<button class="btn" data-a="refresh-spend" title="Busca o investimento por campanha, conjunto e criativo direto na Meta" ${UI.spendJob && !UI.spendJob.late ? 'disabled' : ''}>${UI.spendJob && !UI.spendJob.late ? 'Atualizando…' : 'Atualizar investimento'}</button>` : ''}`)
   + `<div class="kpis">
       ${kpi('Investimento Meta', T.spend ? brl(T.spend) : '—', S.meta.spend ? `atualizado em ${fmtDM(localDay(S.meta.spend.updatedAt))}` : 'sem dados de investimento')}
       ${kpi('Leads no CRM', T.n, `${T.nMeta} com UTM da Meta · o pixel contou ${T.pixel}`)}
@@ -2206,6 +2238,7 @@ function viewTrafego(){
       ${kpi('Custo por reunião feita', money(T.spend, T.done), `${T.done} reuniões realizadas`)}
       ${kpi('Custo por venda', money(T.spend, T.won), `${T.won} vendas`)}
     </div>
+    ${UI.spendJob ? `<div class="banner${UI.spendJob.late ? ' warn' : ''}">${UI.spendJob.late ? `A atualização pela Meta está demorando mais que o normal.${UI.spendJob.url ? ` <a href="${attr(UI.spendJob.url)}" target="_blank" rel="noopener">Ver o que a rotina fez</a>` : ''}` : 'Buscando o investimento na Meta pelo Claude… a tela atualiza sozinha em 1 ou 2 minutos.'}</div>` : ''}
     ${(() => { const up = S.meta.spend && S.meta.spend.updatedAt ? localDay(S.meta.spend.updatedAt) : '', end = p.all ? today() : (p.to < today() ? p.to : today()); return up && end > up ? `<div class="banner warn">O investimento da Meta foi atualizado até ${fmtDM(up)}. O gasto de ${fmtDM(addDays(up, 1))} em diante ainda não entrou, então o custo por lead, por reunião e por venda deste período aparece menor do que o real.${(MCP && !MCP.hosted) || HOST ? ' Use “Atualizar investimento”.' : ''}</div>` : '' })()}
     ${noUtm ? `<div class="banner warn">${noUtm} lead(s) ${p.all ? '' : 'deste período '}ainda estão sem UTM (vieram do ClickUp antes da leitura das descrições). ${p.all ? '' : `${noDate} leads sem data de entrada só aparecem em “Tudo”.`}</div>` : ''}
     ${UI.trTab === 'sug' ? adviceHTML(p, T) : UI.trTab === 'ideal' ? idealTrafficHTML(p) : `<div class="g3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:14px">${hl.map(([l, r, f]) => `<section class="panel hl"><div class="l">${l}</div>${r ? `<div class="n">${esc(r.name)}</div><div class="v">${f(r)}</div>` : `<div class="v hint">Precisa de itens com pelo menos ${TR_MIN} leads.</div>`}</section>`).join('')}</div>
@@ -2574,7 +2607,7 @@ function viewConfig(){
       <div class="actions">${MCP ? '<button class="btn primary" data-a="sync-cu">Atualizar do ClickUp</button>' : HOST ? '<span class="hint">Falta guardar a chave de API do ClickUp no servidor (segredo CLICKUP_TOKEN).</span>' : '<span class="hint">Disponível para quem tem o ClickUp conectado em claude.ai › Configurações › Conectores.</span>'}</div>
     </div></section>`;
   } else if (UI.cfgTab === 'meta'){
-    body = capiConfigHTML(); capiLoad();
+    body = routineConfigHTML() + capiConfigHTML(); capiLoad(); routineLoad();
   } else if (UI.cfgTab === 'dados'){
     const counts = COLS.map(k => [k, Object.keys(S[k] || {}).length]), total = sum(counts.map(x => x[1]));
     const ex = leadsArr().filter(l => l.example).length;
@@ -2849,6 +2882,38 @@ function capiMerge(raw){
   Object.keys(DEFAULT_CAPI_STAGES).forEach(k => { const d = DEFAULT_CAPI_STAGES[k], o = st[k] && typeof st[k] === 'object' ? st[k] : {}; stages[k] = {on: typeof o.on === 'boolean' ? o.on : d.on, name: (typeof o.name === 'string' && o.name.trim()) || d.name} });
   return {mode: c.mode === 'on' || c.mode === 'test' ? c.mode : 'off', testCode: String(c.testCode || ''), stages};
 }
+/* ---------- Meta: botão "Atualizar investimento" pela rotina do Claude ----------
+   O endereço e o token do gatilho de API da rotina ficam no servidor dos Funis (nunca voltam para a página). */
+UI.rt = {loaded: false, st: null, busy: false};
+async function routineLoad(force){
+  if (!HOST || (UI.rt.loaded && !force)) return;
+  UI.rt.loaded = true;
+  try { UI.rt.st = await funisCall('crm.refresh.status') } catch (e){ UI.rt.st = {error: (e && e.message) || 'Erro'} }
+  scheduleRender();
+}
+async function routineSave(clear){
+  if (UI.rt.busy) return;
+  const url = (($('#rt-url') || {}).value || '').trim(), token = (($('#rt-token') || {}).value || '').trim();
+  if (!clear && (!url || !token)){ toast('Cole o endereço (Fire URL) e o token da rotina.', 'err'); return }
+  UI.rt.busy = true; render();
+  try { UI.rt.st = await funisCall('crm.refresh.config', clear ? {clear: true} : {url, token}); toast(clear ? 'Botão desligado.' : 'Botão ligado. Use “Atualizar investimento” na aba Tráfego.') }
+  catch (e){ toast((e && e.message) || 'Erro', 'err') }
+  UI.rt.busy = false; render();
+}
+function routineConfigHTML(){
+  if (!HOST) return '';
+  const st = UI.rt.st, P = st && st.push, L = st && st.last;
+  const when = t => t ? new Date(t).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : '';
+  return `<section class="panel" style="margin-bottom:14px"><div class="panel-b" style="padding-top:14px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:860px">
+    <div><b>Botão “Atualizar investimento” (aba Tráfego)</b><p class="hint" style="margin-top:4px">O botão pede ao Claude para rodar a rotina “Gasto da Meta: Funis e Central”, que lê a conta de anúncios pelo conector da Meta (sem token da Meta) e grava aqui os últimos dias. A mesma rotina já roda sozinha todo dia às 7h47.</p></div>
+    ${!st ? '<p class="hint">Carregando…</p>' : st.error ? `<div class="banner warn">${esc(st.error)}</div>` : st.configured ? `<div class="banner" style="background:var(--good-soft);color:var(--good)">Botão ligado.${L ? ` Último pedido: ${when(L.at)}.` : ''}</div>` : `<div class="banner warn"><div><b>Falta ligar o botão (uma vez só).</b><br>1) Em <a href="https://claude.ai/code/routines" target="_blank" rel="noopener">claude.ai/code/routines</a>, abra a rotina “Gasto da Meta: Funis e Central” › menu ao lado do nome › <i>Editar</i>. 2) Na linha <i>Gatilho</i>, clique em <b>+</b> › <b>API</b>, copie o <i>Fire URL</i> e clique em <i>Gerar token</i> (ele aparece uma vez só). 3) Cole os dois aqui embaixo e salve.</div></div>`}
+    ${st && !st.error ? `<div class="g2" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px">
+      <label class="f">Fire URL da rotina<input class="in" id="rt-url" placeholder="https://api.anthropic.com/v1/claude_code/routines/trig_…/fire" autocomplete="off"></label>
+      <label class="f">Token da rotina<input class="in" id="rt-token" type="password" placeholder="${st.configured ? 'guardado · cole um novo para trocar' : 'sk-ant-…'}" autocomplete="off"></label></div>
+    <div class="row" style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn primary" data-a="rt-save" ${UI.rt.busy ? 'disabled' : ''}>${st.configured ? 'Trocar' : 'Ligar o botão'}</button>${st.configured ? `<button class="btn" data-a="refresh-spend" ${UI.spendJob && !UI.spendJob.late ? 'disabled' : ''}>Atualizar investimento agora</button><button class="btn ghost" data-a="rt-clear" data-confirm="Sim, desligar" ${UI.rt.busy ? 'disabled' : ''}>Desligar</button>` : ''}</div>` : ''}
+    ${P ? `<p class="hint">${P.ok ? `Última gravação aqui: ${when(P.at)} · ${P.rows} linhas de ${fmtDM(P.since)} a ${fmtDM(P.until)} · ${brl(P.spend)}.` : `A última gravação falhou (${when(P.at)}): ${esc(P.error || '')}`}</p>` : ''}
+  </div></section>`;
+}
 UI.capi = {loaded: false, log: null, busy: '', last: null};
 async function capiLoad(force){
   if (!HOSTCALL || (UI.capi.loaded && !force)) return;
@@ -2967,6 +3032,8 @@ const ACT = {
   'capi-backfill': () => { capiRun('capi_backfill') },
   'capi-flush': () => { capiRun('capi_flush') },
   'capi-refresh': () => { capiLoad(true) },
+  'rt-save': () => { routineSave(false) },
+  'rt-clear': () => { routineSave(true) },
   'push-toggle': () => { pushIsOn() ? pushDisable() : pushEnable() },
   'push-test': () => { pushTest() },
   'push-later': () => { ls.set('brase.pushDismiss', String(Date.now())); render() },
@@ -3245,7 +3312,7 @@ async function hostedDb(conf){
   };
   setInterval(poll, 20000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) poll() });
-  HOSTCALL = call; HOSTMETA = !!first.meta; HOSTPUSH = first.vapid || ''; HOSTPOLL = poll; HOSTCAPI = first.capi || null;
+  HOSTCALL = call; HOSTKEY = code; HOSTMETA = !!first.meta; HOSTPUSH = first.vapid || ''; HOSTPOLL = poll; HOSTCAPI = first.capi || null;
   HOSTCAL = async force => { const r = await call({op: 'calendar', force: !!force}); (cache.meta ||= new Map()).set('calendar', r); emit('meta'); return r };
   if (first.clickup) MCP = {hosted: true, callTool: async (server, tool, input) => ({payload: await call({op: 'clickup', tool, input})})};
   return {
