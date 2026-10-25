@@ -1048,7 +1048,7 @@ const CT_KEY = 'brase.conteudo';
 const ctOn = () => ls.get(CT_KEY) === '1';
 const CT_ST = {aguardando: ['Para aprovar', 'today'], ajustar: ['Ajuste pedido', ''], aprovado: ['Aprovado', 'ok'], publicado: ['Postado', 'ok'], descartado: ['Descartado', ''], rascunho: ['Rascunho', '']};
 const CT_PILAR = {revelacao: 'Revelação', prova: 'Prova', depoimento: 'Depoimento', novidade: 'Novidade', oferta: 'Oferta'};
-const CT_ACAO = {criado: 'Criado', enviado: 'Enviado para aprovação', aprovado: 'Aprovado', ajustar: 'Ajuste pedido', ajuste: 'Ajuste feito', descartado: 'Descartado', publicado: 'Postado'};
+const CT_ACAO = {criado: 'Criado', enviado: 'Enviado para aprovação', aprovado: 'Aprovado', ajustar: 'Ajuste pedido', ajuste: 'Ajuste feito', descartado: 'Descartado', publicado: 'Postado', erro: 'Falha na fábrica'};
 const ctList = sts => arr('conteudo').filter(x => sts.includes(x.status)).sort((a, b) => (a.criado_em || '').localeCompare(b.criado_em || ''));
 // No texto esperado, *assim* marca o que vai em laranja no slide.
 const ctText = s => esc(s).replace(/\*([^*]+)\*/g, '<span class="ct-hl">$1</span>').replace(/\n/g, '<br>');
