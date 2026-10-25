@@ -40,18 +40,18 @@ self.addEventListener('push', e => {
     const wins = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
     if (wins.some(c => c.focused && c.visibilityState === 'visible')) { wins.forEach(c => c.postMessage(Object.assign({type: 'push'}, d))); return; }
     const opt = {body: d.b || '', icon: './icons/icon-192.png', badge: './icons/icon-192.png', vibrate: [200, 100, 200, 100, 200],
-      requireInteraction: d.k === 'new' || d.k === 'print', data: {id: d.id, url: d.url || './'}};
+      requireInteraction: d.k === 'new' || d.k === 'print', data: {id: d.id, ct: d.ct, url: d.url || './'}};
     if (d.tag) { opt.tag = d.tag; opt.renotify = true; }
     await self.registration.showNotification(d.t || 'Central Brase', opt);
   })());
 });
 
-// Toque na notificação: traz a Central para a frente e abre o lead do aviso (ou abre o app, se estiver fechado).
+// Toque na notificação: traz a Central para a frente e abre o lead (ou o carrossel para aprovar) do aviso; com o app fechado, abre pelo endereço.
 self.addEventListener('notificationclick', e => {
   e.notification.close();
   const d = e.notification.data || {}, target = d.url || './';
   e.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(list => {
-    for (const c of list) if ('focus' in c) { if (d.id) c.postMessage({type: 'open-lead', id: d.id}); return c.focus(); }
+    for (const c of list) if ('focus' in c) { if (d.id) c.postMessage({type: 'open-lead', id: d.id}); else if (d.ct) c.postMessage({type: 'open-ct', id: d.ct}); return c.focus(); }
     return self.clients.openWindow(target);
   }));
 });

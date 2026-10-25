@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3b3f017397";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "6ee5f3eeb7";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -351,6 +351,22 @@ button.ag-s{cursor:pointer}
 .ag-steps{margin:0;padding-left:20px;display:grid;gap:10px;font-size:13.5px}
 .ag-cmd{margin:8px 0;padding:10px 12px;border-radius:8px;background:var(--sunken);font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere}
 .modal.cr{width:min(1000px,100%);gap:12px}
+.modal.ct{width:min(760px,100%);gap:12px}
+.ct-strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:4px;overscroll-behavior-x:contain}
+.ct-slide{margin:0;flex:0 0 min(330px,84%);scroll-snap-align:center;display:grid;gap:8px;align-content:start}
+.ct-slide img{width:100%;aspect-ratio:4/5;object-fit:cover;border-radius:10px;background:var(--sunken);display:block}
+.ct-slide figcaption{font-size:12.5px;color:var(--ink-2);line-height:1.4}
+.ct-slide figcaption .n{color:var(--muted);font-weight:700;margin-right:4px}
+.ct-hl{color:var(--accent-strong);font-weight:700}
+.ct-dots{display:flex;justify-content:center;gap:6px}.ct-dots i{width:6px;height:6px;border-radius:50%;background:var(--line-2)}.ct-dots i.on{background:var(--accent)}
+.ct-checks{display:flex;gap:6px;flex-wrap:wrap}
+.ct-av{margin:4px 0 0;padding-left:18px}
+.ct-leg{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;overflow-wrap:anywhere}
+.ct-foot{flex-wrap:wrap}
+.ct-adj{display:grid;gap:10px}
+.ct-thumb{flex:none;width:44px;height:55px;border-radius:6px;overflow:hidden;border:1px solid var(--line);padding:0;background:var(--sunken);cursor:pointer}
+.ct-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+@media (max-width:600px){.ct-foot .btn{flex:1 1 30%}}
 .cr-h{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .cr-h h2{overflow-wrap:anywhere}.cr-h small{display:block;color:var(--muted);font-size:12.5px;margin-top:3px;overflow-wrap:anywhere}
 .cr-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
@@ -640,7 +656,7 @@ const DEFAULT_CONFIG = {
   autoAssign: true,
   lossReasons: ['Sem orçamento','Sem resposta','Já tem agência','Não é o momento','Fora do perfil (ICP)','Preço','Outro'],
 };
-const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats','holds'];
+const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats','holds','conteudo'];
 const BUCKETS = [
   {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','link','print','qualificando','agendando']},
   {id: 'marcada', name: 'Reunião marcada', color: '#d49b0b', st: ['marcada']},
@@ -712,7 +728,7 @@ const adjWeekend = s => { if (!cfg().skipWeekends) return s; const w = parseYmd(
 const initials = n => { const p = String(n || '?').trim().split(/\s+/); return ((p[0]||'?')[0] + (p.length > 1 ? p[p.length-1][0] : '')).toUpperCase() };
 
 /* ---------- state ---------- */
-const S = { sellers:{}, leads:{}, tasks:{}, routines:{}, routineLog:{}, docs:{}, adjustments:{}, config:{}, meta:{}, wa_stats:{}, holds:{}, ready:{}, dbOk:false, connecting:true };
+const S = { sellers:{}, leads:{}, tasks:{}, routines:{}, routineLog:{}, docs:{}, adjustments:{}, config:{}, meta:{}, wa_stats:{}, holds:{}, conteudo:{}, ready:{}, dbOk:false, connecting:true };
 const UI = {
   view: (() => { const h = (location.hash || '').slice(1); if (VIEW_IDS.includes(h)) return h; const v = ls.get('brase.view'); return VIEW_IDS.includes(v) ? v : 'hoje' })(),
   me: ls.get('brase.me') || '',
@@ -722,7 +738,7 @@ const UI = {
   dist: {from: 'frio+morno', owner: '*', minRev: '0', qty: 20, to: '', cadence: true, move: 'keep'},
   comSeller: '', comOffset: 0,
   docId: null, docEdit: false, docQ: '',
-  cfgTab: 'equipe',
+  cfgTab: 'equipe', ct: null,
   drawer: null, drawerFocus: null, modal: null,
   sheet: null, update: false, stage: ls.get('brase.stage') || 'novo', sbCenter: true,
 };
@@ -993,6 +1009,7 @@ function viewHoje(){
   ${exampleBanner()}
   <div class="g-hoje">
     <div class="stack">
+      ${ctPanelHTML()}
       ${freshPanelHTML(leads)}
       ${ptCfg().on ? printPanelHTML(leads) : ''}
       ${waiting.length ? `<section class="panel"><div class="panel-h"><h2>Aguardando resposta no WhatsApp</h2><span class="sub">Ideal: responder em até 5 minutos</span></div><div class="panel-b"><div class="rows">${waiting.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)} <span class="chip ${Date.now() - new Date(l.wa.waitingSince) > 3e5 ? 'late' : 'today'}">há ${minsAgo(l.wa.waitingSince)}</span></div><div class="row-s">${esc(l.wa.lastSnippet || '')}</div></div>${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Responder</a>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('')}</div></div></section>` : ''}
@@ -1021,6 +1038,109 @@ function viewHoje(){
       </div></section>
     </div>
   </div>`;
+}
+
+/* ---------- conteúdo para aprovar (fábrica de Instagram) ----------
+   A fábrica (repo brase-instagram, no computador do Renan) grava cada carrossel em conteudo/<id> com os slides, o texto
+   esperado de cada um, a legenda e as checagens. A decisão volta pelo mesmo documento: aprovado, ajustar (com o pedido)
+   ou descartado; depois de postar, publicado. Só aparece no aparelho com "Aprovar conteúdo" ligado em Configurações › Avisos. */
+const CT_KEY = 'brase.conteudo';
+const ctOn = () => ls.get(CT_KEY) === '1';
+const CT_ST = {aguardando: ['Para aprovar', 'today'], ajustar: ['Ajuste pedido', ''], aprovado: ['Aprovado', 'ok'], publicado: ['Postado', 'ok'], descartado: ['Descartado', ''], rascunho: ['Rascunho', '']};
+const CT_PILAR = {revelacao: 'Revelação', prova: 'Prova', depoimento: 'Depoimento', novidade: 'Novidade', oferta: 'Oferta'};
+const CT_ACAO = {criado: 'Criado', enviado: 'Enviado para aprovação', aprovado: 'Aprovado', ajustar: 'Ajuste pedido', ajuste: 'Ajuste feito', descartado: 'Descartado', publicado: 'Postado'};
+const ctList = sts => arr('conteudo').filter(x => sts.includes(x.status)).sort((a, b) => (a.criado_em || '').localeCompare(b.criado_em || ''));
+// No texto esperado, *assim* marca o que vai em laranja no slide.
+const ctText = s => esc(s).replace(/\*([^*]+)\*/g, '<span class="ct-hl">$1</span>').replace(/\n/g, '<br>');
+const ctWhen = v => { try { return new Date(v).toLocaleString('pt-BR', {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) } catch { return '' } };
+function ctPanelHTML(){
+  if (!ctOn()) return '';
+  const wait = ctList(['aguardando', 'ajustar']), ok = ctList(['aprovado']);
+  if (!wait.length && !ok.length) return '';
+  const row = x => { const sl = x.slides || [], av = (x.checagens && x.checagens.a_validar) || [];
+    return `<div class="row"><button class="ct-thumb" data-a="ct-open" data-id="${attr(x.id)}" aria-label="Abrir carrossel">${sl[0] && sl[0].url ? `<img src="${attr(sl[0].url)}" alt="" loading="lazy">` : ''}</button>
+    <div class="row-main" data-a="ct-open" data-id="${attr(x.id)}"><div class="row-t">${esc(x.gancho || x.tema || 'Carrossel')}</div><div class="row-s">${[CT_PILAR[x.pilar], sl.length + ' slides', (x.versao || 1) > 1 ? 'v' + x.versao : ''].filter(Boolean).join(' · ')}</div></div>
+    ${x.status === 'ajustar' ? `<span class="chip" title="${attr(x.pedido_de_ajuste || '')}">ajuste pedido</span>` : x.status === 'aprovado' ? '<span class="chip ok">aprovado</span>' : av.length ? `<span class="chip today">${av.length} a validar</span>` : ''}
+  </div>` };
+  return `<section class="panel"><div class="panel-h"><h2>Conteúdo para aprovar</h2><span class="sub">Instagram · nada vai ao ar sem o seu ok</span></div><div class="panel-b">
+    ${wait.length ? `<div class="rows">${wait.map(row).join('')}</div>` : '<div class="empty">Nada esperando aprovação.</div>'}
+    ${ok.length ? `<div class="sec-t">Aprovados para postar <span class="n">${ok.length}</span></div><div class="rows">${ok.map(row).join('')}</div>` : ''}
+  </div></section>`;
+}
+function ctModalHTML(){
+  const x = UI.ct && S.conteudo[UI.ct.id]; if (!x) return '';
+  const sl = x.slides || [], st = CT_ST[x.status] || [x.status, ''], ch = x.checagens || {}, av = ch.a_validar || [];
+  const chk = (k, l) => `<span class="chip ${ch[k] ? 'ok' : 'late'}">${ch[k] ? '✓' : '!'} ${l}</span>`;
+  const hist = (x.historico || []).slice(-5).reverse();
+  const acts = x.status === 'aguardando' ? (UI.ct.adj
+      ? `<form class="ct-adj" data-f="ct-adjust"><label class="f">O que mudar?<textarea class="in" name="pedido" id="ct-pedido" rows="3" maxlength="600" required placeholder="Ex.: troca o gancho · tira o slide 4 · enxuga o 3"></textarea></label><p class="hint">A fábrica refaz só o que você pedir e o carrossel volta aqui como v${(x.versao || 1) + 1}.</p><div class="foot"><button type="button" class="btn ghost" data-a="ct-adj-cancel">Voltar</button><button class="btn primary">Pedir ajuste</button></div></form>`
+      : `<div class="foot ct-foot"><button class="btn ghost" data-a="ct-discard" data-confirm="Descartar mesmo?">Descartar</button><button class="btn" data-a="ct-adj">Ajustar</button><button class="btn primary" data-a="ct-approve">Aprovar</button></div>`)
+    : x.status === 'aprovado' ? `<div class="foot ct-foot"><button class="btn" data-a="ct-save">Salvar slides</button><button class="btn" data-a="ct-copy">Copiar legenda</button><button class="btn primary" data-a="ct-posted" data-confirm="Já postou? Toque de novo">Marcar como postado</button></div>`
+    : x.status === 'ajustar' ? `<p class="hint">Ajuste pedido${x.pedido_de_ajuste ? ': “' + esc(x.pedido_de_ajuste) + '”' : ''}. A fábrica refaz quando o computador dela estiver ligado e o carrossel volta aqui como v${(x.versao || 1) + 1}.</p>` : '';
+  return `<div class="modal-wrap low"><div class="modal ct" role="dialog" aria-modal="true" aria-label="Revisar carrossel">
+    <div class="cr-h"><div><h2>${esc(x.gancho || x.tema || 'Carrossel')}</h2><small>${[CT_PILAR[x.pilar], sl.length + ' slides', 'v' + (x.versao || 1), st[0]].filter(Boolean).join(' · ')}</small></div><button class="btn sm ghost" data-a="close-modal">Fechar</button></div>
+    <div class="ct-strip" id="ct-strip">${sl.map((s, i) => `<figure class="ct-slide"><img src="${attr(s.url || '')}" alt="Slide ${s.n}" loading="${i < 2 ? 'eager' : 'lazy'}"><figcaption><span class="n">${s.n}/${sl.length}</span>${ctText(s.texto || '')}</figcaption></figure>`).join('')}</div>
+    ${sl.length > 1 ? `<div class="ct-dots" aria-hidden="true">${sl.map((s, i) => `<i class="${i ? '' : 'on'}"></i>`).join('')}</div>` : ''}
+    <p class="hint">Embaixo de cada slide está o texto que ele deveria ter. Confira letra por letra: a IA erra texto em imagem.</p>
+    <div class="ct-checks">${chk('proibidos_ok', 'proibidos')}${chk('conhecimento_ok', 'conhecimento de iFood')}${chk('autorizacao_ok', 'autorização de cliente')}</div>
+    ${av.length ? `<div class="banner warn"><div><b>A validar antes de aprovar</b><ul class="ct-av">${av.map(a => `<li>${esc(a)}</li>`).join('')}</ul></div></div>` : ''}
+    <div><div class="sec-t">Legenda</div><p class="ct-leg">${esc(x.legenda || '').replace(/\n/g, '<br>')}</p></div>
+    ${hist.length ? `<div class="hist">${hist.map(h => `<div><time>${esc(ctWhen(h.em))}</time><span>${esc(CT_ACAO[h.acao] || h.acao)}${h.texto ? ': ' + esc(h.texto) : ''}</span></div>`).join('')}</div>` : ''}
+    ${acts}
+  </div></div>`;
+}
+let ctLast = '';
+function renderCt(host){
+  const html = ctModalHTML();
+  if (!html){ UI.modal = null; UI.ct = null; host.innerHTML = ''; ctLast = ''; return }
+  if (host.dataset.m === 'conteudo' && html === ctLast && host.innerHTML) return;
+  const old = host.dataset.m === 'conteudo' ? host.querySelector('#ct-strip') : null, sx = old ? old.scrollLeft : 0;
+  host.dataset.m = 'conteudo'; ctLast = html; host.innerHTML = html;
+  const strip = host.querySelector('#ct-strip'), dots = host.querySelectorAll('.ct-dots i');
+  if (!strip) return;
+  if (sx) strip.scrollLeft = sx;
+  const sync = () => { const w = strip.firstElementChild ? strip.firstElementChild.offsetWidth + 10 : 1, i = Math.round(strip.scrollLeft / w); dots.forEach((d, k) => d.classList.toggle('on', k === i)) };
+  strip.addEventListener('scroll', sync, {passive: true}); sync();
+}
+function ctOpen(id){
+  if (!S.conteudo[id]) return;
+  UI.ct = {id, adj: false}; UI.modal = 'conteudo'; renderModal();
+  if (S.conteudo[id].status === 'aprovado') ctFiles(S.conteudo[id]).catch(() => {});
+}
+function ctDecide(status, pedido){
+  const id = UI.ct && UI.ct.id, x = id && S.conteudo[id]; if (!x) return;
+  const por = validMe() && S.sellers[validMe()] ? S.sellers[validMe()].name : 'Gestão';
+  patch('conteudo', id, {status, pedido_de_ajuste: pedido || '', decidido_em: iso(), historico: [...(x.historico || []), {em: iso(), acao: status, ...(pedido ? {texto: pedido} : {}), por}]});
+  toast({aprovado: 'Aprovado. Fica em "Aprovados para postar".', ajustar: 'Ajuste pedido. A fábrica refaz e o carrossel volta aqui.', descartado: 'Descartado.', publicado: 'Marcado como postado.'}[status]);
+  if (status === 'aprovado'){ UI.ct.adj = false; ctFiles(S.conteudo[id]).catch(() => {}) } else { UI.modal = null; UI.ct = null }
+  render();
+}
+// Baixa as imagens antes do toque em "Salvar slides": o compartilhamento do celular só abre se for logo depois do toque.
+const CT_FILES = new Map();
+function ctFiles(x){
+  const k = x.id + '@' + (x.versao || 1);
+  if (!CT_FILES.has(k)) CT_FILES.set(k, Promise.all((x.slides || []).map(async s => {
+    const r = await fetch(s.url); if (!r.ok) throw new Error('slide ' + s.n + ': HTTP ' + r.status);
+    const b = await r.blob(); return new File([b], `${x.id}-${pad(s.n)}.png`, {type: b.type || 'image/png'});
+  })).catch(e => { CT_FILES.delete(k); throw e }));
+  return CT_FILES.get(k);
+}
+async function ctSave(){
+  const x = UI.ct && S.conteudo[UI.ct.id]; if (!x) return;
+  try {
+    const files = await ctFiles(x);
+    if (navigator.canShare && navigator.canShare({files})){ await navigator.share({files}); return }
+    files.forEach(f => { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000) });
+    toast(files.length + ' slides baixados');
+  } catch (e){
+    if (e && e.name === 'AbortError') return;
+    toast(e && e.name === 'NotAllowedError' ? 'Slides prontos. Toque de novo em Salvar slides.' : 'Não foi possível baixar os slides: ' + ((e && e.message) || e), e && e.name === 'NotAllowedError' ? '' : 'err');
+  }
+}
+function ctConfigHTML(){
+  return `<div><h3 style="margin-bottom:8px">Conteúdo do Instagram</h3>
+    <label class="switch"><input type="checkbox" class="ck" data-c="ct-device" ${ctOn() ? 'checked' : ''}> Aprovar conteúdo neste aparelho</label>
+    <p class="hint" style="margin-top:6px">Mostra no Hoje o bloco "Conteúdo para aprovar", com os carrosséis que a fábrica produziu. Fica só neste aparelho. Com os avisos com o app fechado ligados, chega um aviso a cada carrossel novo ou ajuste pronto.</p></div>`;
 }
 
 /* ---------- views: PIPELINE ---------- */
@@ -1208,6 +1328,7 @@ function renderModal(){
   if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; crLast = ''; offerLast = ''; return }
   if (UI.modal === 'creative') return renderCreative(host);
   if (UI.modal === 'offer') return renderOffer(host);
+  if (UI.modal === 'conteudo') return renderCt(host);
   if (host.dataset.m === UI.modal && host.innerHTML) return;
   host.dataset.m = UI.modal;
   const c = cfg(), cad = buildCadence(today());
@@ -2056,6 +2177,7 @@ function alConfigHTML(){
     </div><div class="actions" style="margin-top:10px"><button class="btn sm" data-a="al-unlock">Liberar som e avisos do navegador</button><button class="btn sm ghost" data-a="al-test">Testar o som</button></div>
     <p class="hint" style="margin-top:8px">Notificações do navegador: ${permTxt}. O navegador só toca som depois que você clica uma vez na página; use o botão acima ao abrir o site.</p></div>
     ${pushConfigHTML()}
+    ${ctConfigHTML()}
     <div><h3 style="margin-bottom:8px">Para toda a equipe</h3>
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-al" data-k="newLead" ${A.newLead ? 'checked' : ''}> Avisar quando entrar um lead novo e ninguém tiver feito o 1º contato</label>
       <label class="switch" style="margin-top:8px"><input type="checkbox" class="ck" data-c="cfg-al" data-k="sound" ${A.sound ? 'checked' : ''}> Tocar som nos avisos</label>
@@ -2660,7 +2782,7 @@ try {
 function registerSW(){
   if (!HOST || !('serviceWorker' in navigator) || !/^https?:$/.test(location.protocol)) return;
   navigator.serviceWorker.register('./sw.js').catch(() => {});
-  navigator.serviceWorker.addEventListener('message', e => { if (!e.data) return; if (e.data.type === 'open-lead' && S.leads[e.data.id]) openLead(e.data.id); else if (e.data.type === 'push' && typeof HOSTPOLL === 'function') HOSTPOLL() });
+  navigator.serviceWorker.addEventListener('message', e => { if (!e.data) return; if (e.data.type === 'open-lead' && S.leads[e.data.id]) openLead(e.data.id); else if (e.data.type === 'open-ct') ctOpen(e.data.id); else if (e.data.type === 'push' && typeof HOSTPOLL === 'function') HOSTPOLL() });
 }
 // Ao voltar para o app, confere se saiu uma versão nova (no máximo a cada 5 minutos) e avisa, sem recarregar sozinho.
 async function checkVersion(force){
@@ -2793,7 +2915,7 @@ const pushPerm = () => { try { return Notification.permission } catch { return '
 const pushIsOn = () => PUSH_OK() && pushPerm() === 'granted' && !!PUSH_SUB;
 const keyBytes = s => { const t = s.replace(/-/g, '+').replace(/_/g, '/'); return Uint8Array.from(atob(t + '='.repeat((4 - t.length % 4) % 4)), c => c.charCodeAt(0)) };
 const sameKey = (a, b) => { if (!a || a.byteLength !== b.length) return false; const x = new Uint8Array(a); return b.every((v, i) => v === x[i]) };
-const pushBody = sub => ({op: 'push_subscribe', subscription: sub.toJSON(), sellerId: validMe(), ua: String(navigator.userAgent || '').slice(0, 200)});
+const pushBody = sub => ({op: 'push_subscribe', subscription: sub.toJSON(), sellerId: validMe(), conteudo: ctOn(), ua: String(navigator.userAgent || '').slice(0, 200)});
 // Lê a inscrição que este aparelho já tem e a reenvia ao servidor (mantém o "Você está como" em dia).
 async function pushRefresh(){
   if (!PUSH_OK()) return;
@@ -2853,8 +2975,9 @@ function pushConfigHTML(){
     <p class="hint" style="margin-top:6px">Não chega com o app fechado? No Xiaomi (e em outros celulares) a economia de bateria bloqueia: em Configurações › Apps › Gerenciar apps, escolha o Chrome e o Brase CRM, ligue o Início automático, deixe a Economia de bateria em "Sem restrições" e permita as notificações na tela de bloqueio.</p></div>`;
 }
 // Toque no aviso com o app fechado abre em /#lead=<id>: abre a ficha assim que os dados chegarem.
-function readLeadHash(){ const m = /^#lead=([\w-]+)$/.exec(location.hash || ''); if (m) UI.pendingLead = m[1] }
+function readLeadHash(){ const m = /^#lead=([\w-]+)$/.exec(location.hash || ''); if (m) UI.pendingLead = m[1]; const c = /^#conteudo=([\w-]+)$/.exec(location.hash || ''); if (c) UI.pendingCt = c[1] }
 function openPendingLead(){
+  if (UI.pendingCt && loaded()){ const c = UI.pendingCt; UI.pendingCt = null; try { history.replaceState(null, '', location.pathname + location.search) } catch {} if (S.conteudo[c]){ UI.ct = {id: c, adj: false}; UI.modal = 'conteudo' } }
   if (!UI.pendingLead || !loaded()) return;
   const id = UI.pendingLead; UI.pendingLead = null;
   try { history.replaceState(null, '', location.pathname + location.search) } catch {}
@@ -3050,6 +3173,14 @@ const ACT = {
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
   'close-modal': () => { UI.modal = null; renderModal() },
+  'ct-open': t => ctOpen(t.dataset.id),
+  'ct-approve': () => ctDecide('aprovado'),
+  'ct-discard': () => ctDecide('descartado'),
+  'ct-posted': () => ctDecide('publicado'),
+  'ct-adj': () => { UI.ct.adj = true; renderModal(); setTimeout(() => { const f = $('#ct-pedido'); if (f) f.focus() }, 0) },
+  'ct-adj-cancel': () => { UI.ct.adj = false; renderModal() },
+  'ct-copy': () => { const x = UI.ct && S.conteudo[UI.ct.id]; if (x) copy(x.legenda || '') },
+  'ct-save': () => { ctSave() },
   'link-received': t => linkReceived(t.dataset.id),
   'al-unlock': () => { alUnlock(); try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(() => render()) } catch {} setTimeout(() => { if (alAudioReady()){ alBeep('new'); toast('Som e avisos liberados neste navegador') } else toast('Clique de novo se não ouvir o som', 'err'); render() }, 200) },
   'al-mute': () => { AL_MUTE_UNTIL = Date.now() + 15 * 60e3; toast('Som silenciado por 15 minutos'); render() },
@@ -3149,6 +3280,7 @@ const ACT = {
   },
 };
 const CHG = {
+  'ct-device': t => { ls.set(CT_KEY, t.checked ? '1' : ''); if (PUSH_SUB && HOSTCALL) HOSTCALL(pushBody(PUSH_SUB)).catch(() => {}); render() },
   me: t => { UI.me = t.value; ls.set('brase.me', UI.me); UI.owner = UI.me; UI.comSeller = UI.me; if (PUSH_SUB && HOSTCALL) HOSTCALL(pushBody(PUSH_SUB)).catch(() => {}); render() },
   'capi-mode': t => { saveCfg({capi: {...cfg().capi, mode: t.value}}) },
   'capi-code': t => { saveCfg({capi: {...cfg().capi, testCode: String(t.value || '').trim().slice(0, 40)}}) },
@@ -3210,6 +3342,7 @@ const INP = {
   'doc-q': t => { UI.docQ = t.value; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
 };
 const FORM = {
+  'ct-adjust': (f, fd) => { const p = String(fd.get('pedido') || '').trim(); if (p) ctDecide('ajustar', p) },
   'new-lead': (f, fd) => {
     const dup = findByPhone(fd.get('phone'));
     if (dup){ UI.modal = null; renderModal(); openLead(dup); toast('Esse telefone já está no CRM: ' + (S.leads[dup].name || 'lead'), 'err'); return }
