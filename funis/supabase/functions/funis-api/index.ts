@@ -119,14 +119,15 @@ async function deliver(f: Row, s: Session, kind = 'lead'){
   if (days > 0 && s.phone) {
     const [dup] = await sql`select id from fn_sessions where funnel_id = ${f.id} and phone = ${s.phone} and id <> ${s.id} and (webhook ->> 'ok') = 'true' and created_at > now() - make_interval(days => ${days}) limit 1`;
     if (dup) {
-      const mark = {at: new Date().toISOString(), ok: false, skipped: 'repetido', kind, same: dup.id};
+      const mark = {at: new Date().toISOString(), ok: false, skipped: 'repetido', kind, same: dup.id, phone: s.phone || null};
       await sql`update fn_sessions set webhook = ${json(mark)} where funnel_id = ${f.id} and id = ${s.id}`;
       return {ok: false, status: 0, body: '', error: 'Telefone repetido (já enviado no lead ' + dup.id + ').', skipped: true};
     }
   }
   const extra = payloadExtras(s, ls, kind, kind === 'abandono' ? stepTitle(f.published || f.draft, s.last_step) : '');
   const r = await sendWebhook(f.webhook, buildPayload(f.slug, s, f.webhook, extra));
-  const mark = {at: new Date().toISOString(), ok: r.ok, status: r.status, error: r.error, kind};
+  // phone: com qual WhatsApp foi (outro número no mesmo visitante vai de novo); resp: o começo da resposta do CRM, para saber o que ele fez.
+  const mark = {at: new Date().toISOString(), ok: r.ok, status: r.status, error: r.error, kind, phone: s.phone || null, resp: String(r.body || '').slice(0, 300)};
   await sql`update fn_sessions set webhook = ${json(mark)} where funnel_id = ${f.id} and id = ${s.id}`;
   if (!r.ok) console.error('webhook falhou', f.slug, s.id, r.status, r.error);
   return r;

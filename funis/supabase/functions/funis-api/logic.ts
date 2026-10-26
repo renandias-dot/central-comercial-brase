@@ -135,12 +135,17 @@ export function emailOf(s: Session){
   return '';
 }
 // O webhook deve sair agora? (uma vez por visitante; o editor pode reenviar.)
-export function webhookDue(w: Webhook | null | undefined, prev: Session | null, next: Session, events: Event[]){
+export function webhookDue(w: Webhook | null | undefined, prev: Session | null, next: Session, events: Event[], now = Date.now()){
   if (!w || !w.enabled || !w.url) return false;
-  // já enviado (o envio de "abandono" não conta: quem volta e termina vai de novo, completo); repetido não vai
-  const pw = (prev && prev.webhook || null) as {ok?: boolean; kind?: string; skipped?: string} | null;
-  if (pw && (pw.skipped || (pw.ok && pw.kind !== 'abandono'))) return false;
   const trig = w.trigger || 'component';
+  // Já enviado (o de "abandono" não conta: quem volta e termina vai de novo, completo). Com outro WhatsApp vai sempre, para
+  // nenhum envio se perder (a Central ignora telefone repetido); com o mesmo, no botão só depois de 10 min (clique duplo) e
+  // nos outros gatilhos não vai de novo. Envio antigo sem o telefone guardado conta como outro número.
+  const pw = (prev && prev.webhook || null) as {ok?: boolean; kind?: string; skipped?: string; phone?: string | null; at?: string} | null;
+  if (pw && (pw.skipped || (pw.ok && pw.kind !== 'abandono'))) {
+    const same = pw.phone !== undefined && (pw.phone || '') === (next.phone || '');
+    if (same && (trig !== 'component' || now - (Date.parse(String(pw.at || '')) || 0) < 10 * 60e3)) return false;
+  }
   // Como no InLead: vários componentes separados por vírgula; vale o último com que a pessoa interagiu (botão ou opção).
   if (trig === 'component') { const list = String(w.component || '').split(',').map(x => x.trim()).filter(Boolean); return !!list.length && events.some(e => e && ((e.type === 'click' && (list.includes(String(e.name)) || list.includes(String(e.layer)))) || (e.type === 'answer' && e.answer && list.includes(String(e.answer.name))))) }
   if (trig === 'complete') return next.completed && !(prev && prev.completed);
