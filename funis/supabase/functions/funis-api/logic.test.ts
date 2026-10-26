@@ -38,7 +38,13 @@ Deno.test('webhook do BRASE 2 sai no clique do botão VT19S2, uma vez só', () =
   const s = mergeSession(null, 'AbC123', [], null, pub);
   assert(!webhookDue(w, null, s, [{type: 'click', name: 'WTiTGM'}]));
   assert(webhookDue(w, null, s, [{type: 'click', name: 'VT19S2'}]));
-  assert(!webhookDue(w, {...s, webhook: {ok: true}}, s, [{type: 'click', name: 'VT19S2'}]), 'já enviado');
+  const now = Date.now(), recent = new Date(now - 60e3).toISOString(), late = new Date(now - 30 * 60e3).toISOString();
+  const withPhone = {...s, phone: '5521999990001'};
+  assert(!webhookDue(w, {...withPhone, webhook: {ok: true, phone: '5521999990001', at: recent}}, withPhone, [{type: 'click', name: 'VT19S2'}], now), 'já enviado agora com o mesmo WhatsApp');
+  assert(webhookDue(w, {...withPhone, webhook: {ok: true, phone: '5521999990001', at: late}}, withPhone, [{type: 'click', name: 'VT19S2'}], now), 'clicou de novo depois de 10 min');
+  assert(webhookDue(w, {...withPhone, webhook: {ok: true, phone: '5521999990002', at: recent}}, withPhone, [{type: 'click', name: 'VT19S2'}], now), 'outro WhatsApp vai sempre');
+  assert(webhookDue(w, {...withPhone, webhook: {ok: true, at: recent}}, withPhone, [{type: 'click', name: 'VT19S2'}], now), 'envio antigo sem telefone guardado');
+  assert(!webhookDue({...w, trigger: 'lead'}, {...withPhone, webhook: {ok: true, phone: '5521999990001', at: late}}, {...withPhone, answers: {x: {type: 'field', value: '(21) 99999-0001'}}}, [], now), 'gatilho de contato: uma vez por número');
   assert(webhookDue(w, {...s, webhook: {ok: false}}, s, [{type: 'click', name: 'VT19S2'}]), 'tenta de novo se falhou');
   assert(!webhookDue({...w, enabled: false}, null, s, [{type: 'click', name: 'VT19S2'}]));
   assert(webhookDue({...w, trigger: 'complete'}, null, {...s, completed: true}, []));
@@ -183,7 +189,9 @@ Deno.test('abandono: só quem deixou o WhatsApp, não enviou e sumiu há X minut
   // quem volta e termina depois do abandono vai de novo, completo; repetido não vai
   const w = {enabled: true, url: 'https://x.com/h', trigger: 'component', component: 'VT19S2'};
   assert(webhookDue(w, sess({webhook: {ok: true, kind: 'abandono'}}), sess(), [{type: 'click', name: 'VT19S2'}]));
-  assert(!webhookDue(w, sess({webhook: {ok: false, skipped: 'repetido'}}), sess(), [{type: 'click', name: 'VT19S2'}]));
+  const p = sess().phone || null;
+  assert(!webhookDue(w, sess({webhook: {ok: false, skipped: 'repetido', phone: p, at: new Date().toISOString()}}), sess(), [{type: 'click', name: 'VT19S2'}]));
+  assert(webhookDue(w, sess({webhook: {ok: false, skipped: 'repetido', phone: '5511900000000', at: new Date().toISOString()}}), sess({phone: '5511988887777'}), [{type: 'click', name: 'VT19S2'}]), 'repetido, mas agora com outro WhatsApp');
 });
 
 Deno.test('venda da Kirvano ligada ao visitante', () => {
