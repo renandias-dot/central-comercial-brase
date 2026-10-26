@@ -2703,6 +2703,16 @@ function sheetHTML(){
       <button class="btn" data-a="sheet-close">Fechar</button>
     </section></div>`;
   }
+  if (UI.sheet === 'pickme'){
+    const list = sellersList().filter(s => s.active !== false);
+    return `<div class="sheet-wrap"><section class="sheet" role="dialog" aria-modal="true" aria-label="Quem usa este celular">
+      <div class="sheet-grip" aria-hidden="true"></div>
+      <h3 class="sheet-h">Quem usa este celular?</h3>
+      <p class="hint">Os avisos de lead chegam para a pessoa escolhida aqui. Quem é gestor recebe os avisos de todos. Dá para trocar depois em Mais › Você está como.</p>
+      <div class="sheet-rows">${list.map(s => `<button class="sheet-row" data-a="pick-me" data-v="${attr(s.id)}"><span>${esc(s.name)}</span><em class="sr-note">${esc(s.role || '')}</em>${IC.chev}</button>`).join('')}</div>
+      <button class="btn" data-a="sheet-close">Cancelar</button>
+    </section></div>`;
+  }
   if (UI.sheet === 'install'){
     const steps = IS_EMBED ? ['Você abriu em um navegador que não instala o app (o de dentro do WhatsApp ou do Instagram, ou o Mi Browser da Xiaomi).', 'Toque nos <b>três pontinhos</b> (ou em <b>Compartilhar</b>) e escolha <b>Abrir no Chrome</b> (Android) ou <b>Abrir no Safari</b> (iPhone). Se não achar, copie o endereço e cole no <b>Chrome</b>.', 'Já no navegador, toque em <b>Instalar</b> na faixa do topo.']
       : IS_IOS
@@ -2806,7 +2816,8 @@ async function pushRefresh(){
 async function pushEnable(){
   if (PUSH_BUSY) return;
   if (!PUSH_OK()){ toast(IS_IOS && !IS_APP() ? 'No iPhone, instale o app primeiro (Compartilhar › Adicionar à Tela de Início) e ative os avisos por lá.' : 'Este navegador não oferece avisos com o app fechado.', 'err'); return }
-  if (!validMe()){ toast('Escolha o seu nome em "Você está como" antes de ativar.', 'err'); return }
+  // Sem nome escolhido neste aparelho: no celular, pergunta na hora quem usa (e continua daí); no computador, aponta o menu.
+  if (!validMe()){ if (PHONE()){ UI.sheet = 'pickme'; renderSheet() } else toast('Escolha o seu nome em "Você está como", embaixo do menu à esquerda, antes de ativar.', 'err'); return }
   PUSH_BUSY = true;
   try {
     const perm = pushPerm() === 'granted' ? 'granted' : await Notification.requestPermission();
@@ -3043,6 +3054,7 @@ const ACT = {
   'rt-save': () => { routineSave(false) },
   'rt-clear': () => { routineSave(true) },
   'push-toggle': () => { pushIsOn() ? pushDisable() : pushEnable() },
+  'pick-me': t => { UI.me = t.dataset.v; ls.set('brase.me', UI.me); UI.owner = UI.me; UI.comSeller = UI.me; UI.sheet = null; renderSheet(); render(); pushEnable() },
   'push-test': () => { pushTest() },
   'push-later': () => { ls.set('brase.pushDismiss', String(Date.now())); render() },
   'theme': () => { const o = ['dark', 'light', 'auto'], n = o[(o.indexOf(themePref()) + 1) % 3]; ls.set('brase.theme', n); applyTheme(); toast('Aparência: ' + THEME_NAME[n]); render() },
