@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-api/logic.test.ts
 import {assert, assertEquals, assertThrows} from 'jsr:@std/assert@1';
-import {abandonDue, aggregateAccount, aggregateAds, aggregateE2E, crmLeadFacts, isMetaLead, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendDoc, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
+import {abandonDue, aggregateAccount, aggregateAds, aggregateE2E, crmLeadFacts, isMetaLead, aggregatePaths, attributeSpend, brDay, crmFlags, crmLeadRows, crmSpendDoc, crmSpendRows, isPaid, buildPayload, capiEvent, encodeBody, ifoodSummary, importRow, isBotUA, isQualified, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, normPhone, parseCrm, parseMoney, parseSale, payloadExtras, periodStart, plainLabel, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sessionVars, sha256, slugify, splitUtm, validBrPhone, webhookDue, webhookForEditor, type Event, type Session} from './logic.ts';
 import {evalRoles, interpolate} from './rules.ts';
 
 const brase = JSON.parse(await Deno.readTextFile(new URL('../../../data/brase-2.json', import.meta.url)));
@@ -394,4 +394,16 @@ Deno.test('gasto da rotina da Meta entra no documento da Central trocando só os
   assertEquals(r.data.rows[2], {adId: '111111', ad: 'A', adsetId: '8888888', adset: 'S', campaignId: '9999999', campaign: 'C', day: '2026-10-21', month: '2026-10', spend: 21.46, impressions: 500, clicks: 9, lpv: 7, metaLeads: 1});
   assertEquals(crmSpendDoc(doc, [{day: '2026-10-22', ad_id: '333333', ad_name: '', spend: 3}], 'x'), null);
   assertEquals(crmSpendDoc(null, [{day: '2026-10-22', ad_id: '111111', ad_name: 'A', spend: 1}], 'x')!.data.daily, '2026-10-22');
+});
+
+Deno.test('robôs e testes automáticos não viram visita; gente de verdade vira', () => {
+  for (const ua of ['meta-externalads/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1 (compatible; meta-externalads/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler))',
+    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+    'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36 (compatible; AdsBot-Google-Mobile; +http://www.google.com/mobile/adsbot.html)',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/141.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Instagram 340.0.0.0 claude-check']) assert(isBotUA(ua), ua);
+  for (const ua of ['Mozilla/5.0 (Linux; Android 14; KINGKONG X Build/UP1A.231005.007; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/141.0.0.0 Mobile Safari/537.36 Instagram 340.0.0.0 Android',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 [FBAN/FBIOS;FBAV/480.0.0.0]',
+    'Mozilla/5.0 (Linux; Android 15; 25040RP0AE) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Mobile Safari/537.36', '', null]) assert(!isBotUA(ua), String(ua));
 });

@@ -203,7 +203,8 @@ function tracker(live){
   f.slug = f.slug || slug;
   if (blocked(f)) { const to = f.settings.filter.redirect; if (to) location.replace(to); else show('Página indisponível', ''); return }
   setup(f);
-  const T = tracker(got.live && !!API);
+  // ?registro=0: para testar sem virar visita nem lead (não registra nada no servidor).
+  const T = tracker(got.live && !!API && new URLSearchParams(location.search).get('registro') !== '0');
   // Teste A/B: a variante do visitante vai nos parâmetros (teste_<nome>), que seguem para o servidor, o webhook e as regras.
   Object.assign(urlParams, FR.abAssign(f, T.code, urlParams));
   // ?step=<id da etapa> (InLead) ou ?etapa=<número ou id>
