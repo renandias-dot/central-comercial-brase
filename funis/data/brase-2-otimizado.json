@@ -1,11 +1,11 @@
 {
  "format": "brase-funil-export/1",
- "exportedAt": "2026-10-22T00:00:08.580Z",
+ "exportedAt": "2026-10-27T19:24:16.606Z",
  "slug": "brase-2-otimizado",
  "title": "BRASE 2 · otimizado",
  "source": {
   "basedOn": "brase-2",
-  "note": "Cópia do que está publicado em 21/10/2026: BRASE 2 com as decisões de 13/10, teste A/B de capa v1 × v2 (v2 já começa com a pergunta de dor e pula a etapa Dor), formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto (oferta refeita: título único, cartões do que entrega, R$ 97), etiquetas no webhook e LeadQualificado só no envio."
+  "note": "Cópia do que está publicado em 27/10/2026: BRASE 2 com as decisões de 13/10, capa única v3 (a v1 com \"+200 lojas que ajudamos a bater recordes de faturamento no iFood\" no topo e o subtítulo \"entenda o que está travando o seu crescimento\"), sem teste A/B, formulário V7, WhatsApp do Lipe com texto pronto, ramo abaixo de R$ 5 mil no arco do Hunt Cash com o ZapFood em checkout honesto (R$ 97), etiquetas no webhook e LeadQualificado só no envio."
  },
  "draft": {
   "slug": "brase-2-otimizado",
@@ -15,146 +15,47 @@
     "title": "Capa",
     "layers": [
      {
-      "id": "QqJHpK",
-      "icon": "text",
+      "id": "cQD32o",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {},
-      "content": {
-       "id": "VhEhnI",
-       "name": "dmGo3e",
-       "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>"
-      }
-     },
-     {
-      "id": "9Z567P",
-      "icon": "text",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {},
-      "content": {
-       "id": "i5ho8Y",
-       "name": "RBnItX",
-       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>"
-      }
-     },
-     {
-      "id": "rPJrLL",
-      "icon": "rectangleWide",
-      "type": "button",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Botão",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "YoScvS",
-       "name": "WTiTGM",
-       "type": "next",
-       "label": "INICIAR ANÁLISE ➔",
-       "pulse": false,
-       "target": false,
-       "destination": "next"
-      }
-     },
-     {
-      "id": "huNzpc",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "3YLweQ",
-       "name": "cVdC94",
+       "id": "vZTkNm",
+       "name": "2h5K4R",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">🏆</span> <strong style=\"color: rgb(255, 255, 255);\">+200 lojas</strong><span style=\"color: rgb(203, 213, 225);\"> que ajudamos a bater recordes de faturamento no iFood</span></p>"
+      }
+     },
+     {
+      "id": "ySG2pu",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "qnIIFe",
+       "name": "NAltHV",
        "text": "<h1 class=\"ql-align-center\">Sua loja vende <span style=\"color: rgb(245, 158, 11);\">menos no iFood</span> do que deveria?</h1>"
       }
      },
      {
-      "id": "7DehSC",
+      "id": "1EOxiw",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "wYFTY6",
-       "name": "mtKBit",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
+       "id": "jLFsUH",
+       "name": "LCVLxu",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e entenda </span><strong style=\"color: rgb(245, 158, 11);\">o que está travando o seu crescimento.</strong></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
       }
      },
      {
-      "id": "5a9wLk",
+      "id": "Ixx3nm",
       "type": "button",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Botão",
       "design": {
        "basis": 100,
@@ -163,8 +64,8 @@
        "backgroundColor": "#f59e0b"
       },
       "content": {
-       "id": "FKBx2G",
-       "name": "iniciar_v1",
+       "id": "uJuETI",
+       "name": "iniciar_v3",
        "type": "next",
        "label": "Ver onde minha loja trava ➔",
        "pulse": false,
@@ -173,173 +74,15 @@
       }
      },
      {
-      "id": "iTThVN",
+      "id": "HXdiF8",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "Z3VnB7",
-       "name": "Gtxbw3",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
-      }
-     },
-     {
-      "id": "uTxelG",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "hupeKB",
-       "name": "k3BNvW",
-       "text": "<h1 class=\"ql-align-center\">O que mais te <span style=\"color: rgb(245, 158, 11);\">incomoda</span> na sua loja hoje?</h1>"
-      }
-     },
-     {
-      "id": "6WlfeP",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "6XUc1l",
-       "name": "UE2PQc",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Escolha a que mais parece com a sua semana e veja <strong style=\"color: rgb(245, 158, 11);\">onde a sua loja está travando.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
-      }
-     },
-     {
-      "id": "SyDOxb",
-      "icon": "gameBoard",
-      "type": "options",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Opções",
-      "design": {
-       "gap": "gap-2",
-       "grid": "grid-cols-1",
-       "icon": "select",
-       "basis": 100,
-       "order": "default",
-       "border": "border-[2px]",
-       "shadow": "shadow-none",
-       "background": "contrast",
-       "aspectImage": "aspect-[1/1]",
-       "orientation": "vertical",
-       "iconPosition": "end",
-       "transparentImage": true
-      },
-      "content": {
-       "id": "ZXAhsg",
-       "name": "opcoes_sz3HdB",
-       "type": "options",
-       "options": [
-        {
-         "id": "SdYOjy",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>🔇&nbsp;<strong>Pedido sumiu:</strong>&nbsp;Vendia bem e, do nada, o movimento caiu.</p>",
-         "score": 1,
-         "value": "A",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "q2F74I",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>👀&nbsp;<strong>Visita sem pedido:</strong>&nbsp;Muita gente abre o cardápio e pouca gente compra.</p>",
-         "score": 2,
-         "value": "B",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "8r7yPf",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>📉&nbsp;<strong>Lucro baixo:</strong>&nbsp;Vendo bem, mas no fim do mês sobra pouco.</p>",
-         "score": 3,
-         "value": "C",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "nwRR18",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>🚀&nbsp;<strong>Estou começando:</strong>&nbsp;Quero crescer do jeito certo desde o início.</p>",
-         "score": 4,
-         "value": "D",
-         "destination": "Kqi5Pw"
-        }
-       ],
-       "required": true,
-       "introType": "none",
-       "introduction": null
-      }
-     },
-     {
-      "id": "barX2t",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "DC4NfK",
-       "name": "AnY5bV",
+       "id": "9UZrPK",
+       "name": "Vwv5jc",
        "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
       }
      }
@@ -1083,19 +826,6 @@
        "pulse": false,
        "target": false,
        "destination": "https://wa.me/553193877523"
-      }
-     },
-     {
-      "id": "y8n30v",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "14pdcr",
-       "name": "rkfpf7",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">🔒 Sem spam. Seus dados ficam só com a gente.</em></p>"
       }
      }
     ],
@@ -3530,6 +3260,19 @@
     "title": "Oferta · ZapFood",
     "layers": [
      {
+      "id": "G6Y7SQ",
+      "type": "script",
+      "title": "Faixa Black Friday",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "xb7iRv",
+       "name": "9WvAFA",
+       "script": "<div id=\"zf-bf\" style=\"position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#f59e0b;color:#171717;text-align:center;font-weight:800;font-size:14px;line-height:1.3;padding:9px 12px;font-family:Inter,system-ui,-apple-system,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.35)\">🔥 Promoção de Black Friday por tempo limitado: de <s>R$&nbsp;97</s> por R$&nbsp;47</div><script>(function(){var b=document.getElementById(\"zf-bf\");if(!b)return;document.body.appendChild(b);document.body.style.paddingTop=b.offsetHeight+\"px\";})();</script>"
+      }
+     },
+     {
       "id": "WNPPPZ",
       "type": "text",
       "title": "Texto",
@@ -3553,6 +3296,19 @@
        "id": "kfgVYO",
        "name": "PyQ4OT",
        "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">O ZapFood analisa a sua loja pelas suas respostas e entrega o plano pronto, no celular, em poucos minutos.</span></p>"
+      }
+     },
+     {
+      "id": "TWoFcd",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "90dRXk",
+       "name": "s9ZCBb",
+       "text": "<h2 class=\"ql-align-center\">🔥 Black Friday: de <s>R$&nbsp;97</s> por <span style=\"color: rgb(245, 158, 11);\">R$&nbsp;47</span></h2>"
       }
      },
      {
@@ -3585,14 +3341,34 @@
       "title": "Vídeo",
       "design": {
        "basis": 100,
-       "ratio": "square"
+       "ratio": "square",
+       "autoplay": false
       },
       "content": {
        "id": "feTnFQ",
        "name": "yY1xUr",
        "title": null,
-       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/oC7AybrRhFM?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
+       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/jyVs5mYmFO4?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
        "description": null
+      }
+     },
+     {
+      "id": "SdBz2z",
+      "icon": "rectangleWide",
+      "type": "button",
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "success"
+      },
+      "content": {
+       "id": "k33HZw",
+       "name": "JlCbd4",
+       "type": "redirect",
+       "label": "Quero meu diagnóstico por R$ 47 ➔",
+       "pulse": true,
+       "target": false,
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
       }
      },
      {
@@ -3737,11 +3513,11 @@
       "content": {
        "id": "u69pfQ",
        "name": "JheSV9",
-       "after": "ou 12x de R$ 9,94",
+       "after": "à vista ou 11x de R$ 5,26",
        "title": "<p><strong>ZapFood</strong></p>",
-       "value": "R$ 97",
-       "before": "à vista",
-       "featured": "Pagamento único · acesso vitalício",
+       "value": "R$ 47",
+       "before": "de R$ 97 por",
+       "featured": "Black Friday · pagamento único",
        "redirect": true
       }
      },
@@ -3768,7 +3544,7 @@
        "id": "AJXGxc",
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "Quero meu diagnóstico por R$ 97 ➔",
+       "label": "Quero meu diagnóstico por R$ 47 ➔",
        "pulse": true,
        "target": false,
        "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
@@ -3865,7 +3641,7 @@
         },
         {
          "id": "L4cIhC",
-         "answer": "<p>Nenhuma. É pagamento único de R$ 97. O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
+         "answer": "<p>Nenhuma. É pagamento único de R$ 47, na Black Friday (o preço normal é R$ 97). O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
          "question": "Tem mensalidade ou pegadinha?"
         },
         {
@@ -3925,13 +3701,7 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [
-    {
-     "name": "capa",
-     "enabled": true,
-     "variants": "v1, v2"
-    }
-   ],
+   "ab": [],
    "seo": {},
    "leads": {
     "hot": 70,
@@ -4199,146 +3969,47 @@
     "title": "Capa",
     "layers": [
      {
-      "id": "QqJHpK",
-      "icon": "text",
+      "id": "cQD32o",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {},
-      "content": {
-       "id": "VhEhnI",
-       "name": "dmGo3e",
-       "text": "<h1 class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">DIAGNÓSTICO </span>DE TRAVAS DO ALGORITMO! 🚀</h1>"
-      }
-     },
-     {
-      "id": "9Z567P",
-      "icon": "text",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {},
-      "content": {
-       "id": "i5ho8Y",
-       "name": "RBnItX",
-       "text": "<h3>Você&nbsp;suspeita&nbsp;que&nbsp;o<span style=\"color: rgb(245, 158, 11);\">&nbsp;</span><strong style=\"color: rgb(245, 158, 11);\">iFood&nbsp;&quot;escondeu&quot;</strong>&nbsp;sua&nbsp;loja?</h3><p></p><h3>Responda&nbsp;às&nbsp;perguntas&nbsp;abaixo&nbsp;para&nbsp;escanearmos&nbsp;se&nbsp;sua&nbsp;operação&nbsp;tem&nbsp;os&nbsp;pré-requisitos&nbsp;para&nbsp;<strong style=\"color: rgb(245, 158, 11);\">destravar&nbsp;as&nbsp;vendas!</strong></h3><p></p><p>⏱️&nbsp;<em style=\"color: rgb(248, 250, 252);\">Tempo&nbsp;estimado:&nbsp;menos&nbsp;de&nbsp;2&nbsp;minutos.</em></p>"
-      }
-     },
-     {
-      "id": "rPJrLL",
-      "icon": "rectangleWide",
-      "type": "button",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        },
-        {
-         "value": "v2",
-         "compare": "!=",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Botão",
-      "design": {
-       "basis": 100,
-       "style": "theme"
-      },
-      "content": {
-       "id": "YoScvS",
-       "name": "WTiTGM",
-       "type": "next",
-       "label": "INICIAR ANÁLISE ➔",
-       "pulse": false,
-       "target": false,
-       "destination": "next"
-      }
-     },
-     {
-      "id": "huNzpc",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "3YLweQ",
-       "name": "cVdC94",
+       "id": "vZTkNm",
+       "name": "2h5K4R",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(245, 158, 11);\">🏆</span> <strong style=\"color: rgb(255, 255, 255);\">+200 lojas</strong><span style=\"color: rgb(203, 213, 225);\"> que ajudamos a bater recordes de faturamento no iFood</span></p>"
+      }
+     },
+     {
+      "id": "ySG2pu",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "qnIIFe",
+       "name": "NAltHV",
        "text": "<h1 class=\"ql-align-center\">Sua loja vende <span style=\"color: rgb(245, 158, 11);\">menos no iFood</span> do que deveria?</h1>"
       }
      },
      {
-      "id": "7DehSC",
+      "id": "1EOxiw",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "wYFTY6",
-       "name": "mtKBit",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e veja <strong style=\"color: rgb(245, 158, 11);\">onde o ranking está segurando os seus pedidos.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
+       "id": "jLFsUH",
+       "name": "LCVLxu",
+       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Responda umas perguntas rápidas e entenda </span><strong style=\"color: rgb(245, 158, 11);\">o que está travando o seu crescimento.</strong></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
       }
      },
      {
-      "id": "5a9wLk",
+      "id": "Ixx3nm",
       "type": "button",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Botão",
       "design": {
        "basis": 100,
@@ -4347,8 +4018,8 @@
        "backgroundColor": "#f59e0b"
       },
       "content": {
-       "id": "FKBx2G",
-       "name": "iniciar_v1",
+       "id": "uJuETI",
+       "name": "iniciar_v3",
        "type": "next",
        "label": "Ver onde minha loja trava ➔",
        "pulse": false,
@@ -4357,173 +4028,15 @@
       }
      },
      {
-      "id": "iTThVN",
+      "id": "HXdiF8",
       "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v1",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
       "title": "Texto",
       "design": {
        "basis": 100
       },
       "content": {
-       "id": "Z3VnB7",
-       "name": "Gtxbw3",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
-      }
-     },
-     {
-      "id": "uTxelG",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "hupeKB",
-       "name": "k3BNvW",
-       "text": "<h1 class=\"ql-align-center\">O que mais te <span style=\"color: rgb(245, 158, 11);\">incomoda</span> na sua loja hoje?</h1>"
-      }
-     },
-     {
-      "id": "6WlfeP",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "6XUc1l",
-       "name": "UE2PQc",
-       "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(255, 255, 255);\">Escolha a que mais parece com a sua semana e veja <strong style=\"color: rgb(245, 158, 11);\">onde a sua loja está travando.</strong></span></p><p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">⏱️ Leva menos de 1 minuto.</em></p>"
-      }
-     },
-     {
-      "id": "SyDOxb",
-      "icon": "gameBoard",
-      "type": "options",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Opções",
-      "design": {
-       "gap": "gap-2",
-       "grid": "grid-cols-1",
-       "icon": "select",
-       "basis": 100,
-       "order": "default",
-       "border": "border-[2px]",
-       "shadow": "shadow-none",
-       "background": "contrast",
-       "aspectImage": "aspect-[1/1]",
-       "orientation": "vertical",
-       "iconPosition": "end",
-       "transparentImage": true
-      },
-      "content": {
-       "id": "ZXAhsg",
-       "name": "opcoes_sz3HdB",
-       "type": "options",
-       "options": [
-        {
-         "id": "SdYOjy",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>🔇&nbsp;<strong>Pedido sumiu:</strong>&nbsp;Vendia bem e, do nada, o movimento caiu.</p>",
-         "score": 1,
-         "value": "A",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "q2F74I",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>👀&nbsp;<strong>Visita sem pedido:</strong>&nbsp;Muita gente abre o cardápio e pouca gente compra.</p>",
-         "score": 2,
-         "value": "B",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "8r7yPf",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>📉&nbsp;<strong>Lucro baixo:</strong>&nbsp;Vendo bem, mas no fim do mês sobra pouco.</p>",
-         "score": 3,
-         "value": "C",
-         "destination": "Kqi5Pw"
-        },
-        {
-         "id": "nwRR18",
-         "image": {
-          "src": null,
-          "type": "image"
-         },
-         "label": "<p>🚀&nbsp;<strong>Estou começando:</strong>&nbsp;Quero crescer do jeito certo desde o início.</p>",
-         "score": 4,
-         "value": "D",
-         "destination": "Kqi5Pw"
-        }
-       ],
-       "required": true,
-       "introType": "none",
-       "introduction": null
-      }
-     },
-     {
-      "id": "barX2t",
-      "type": "text",
-      "roles": [
-       [
-        {
-         "value": "v2",
-         "compare": "==",
-         "variable": "@teste.capa"
-        }
-       ]
-      ],
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "DC4NfK",
-       "name": "AnY5bV",
+       "id": "9UZrPK",
+       "name": "Vwv5jc",
        "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">Feito para lojas que já vendem a partir de R$ 10 mil por mês no iFood.</em></p>"
       }
      }
@@ -5267,19 +4780,6 @@
        "pulse": false,
        "target": false,
        "destination": "https://wa.me/553193877523"
-      }
-     },
-     {
-      "id": "y8n30v",
-      "type": "text",
-      "title": "Texto",
-      "design": {
-       "basis": 100
-      },
-      "content": {
-       "id": "14pdcr",
-       "name": "rkfpf7",
-       "text": "<p class=\"ql-align-center\"><em style=\"color: rgb(148, 163, 184);\">🔒 Sem spam. Seus dados ficam só com a gente.</em></p>"
       }
      }
     ],
@@ -7714,6 +7214,19 @@
     "title": "Oferta · ZapFood",
     "layers": [
      {
+      "id": "G6Y7SQ",
+      "type": "script",
+      "title": "Faixa Black Friday",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "xb7iRv",
+       "name": "9WvAFA",
+       "script": "<div id=\"zf-bf\" style=\"position:fixed;top:0;left:0;right:0;z-index:2147483000;background:#f59e0b;color:#171717;text-align:center;font-weight:800;font-size:14px;line-height:1.3;padding:9px 12px;font-family:Inter,system-ui,-apple-system,sans-serif;box-shadow:0 2px 12px rgba(0,0,0,.35)\">🔥 Promoção de Black Friday por tempo limitado: de <s>R$&nbsp;97</s> por R$&nbsp;47</div><script>(function(){var b=document.getElementById(\"zf-bf\");if(!b)return;document.body.appendChild(b);document.body.style.paddingTop=b.offsetHeight+\"px\";})();</script>"
+      }
+     },
+     {
       "id": "WNPPPZ",
       "type": "text",
       "title": "Texto",
@@ -7737,6 +7250,19 @@
        "id": "kfgVYO",
        "name": "PyQ4OT",
        "text": "<p class=\"ql-align-center\"><span style=\"color: rgb(203, 213, 225);\">O ZapFood analisa a sua loja pelas suas respostas e entrega o plano pronto, no celular, em poucos minutos.</span></p>"
+      }
+     },
+     {
+      "id": "TWoFcd",
+      "type": "text",
+      "title": "Texto",
+      "design": {
+       "basis": 100
+      },
+      "content": {
+       "id": "90dRXk",
+       "name": "s9ZCBb",
+       "text": "<h2 class=\"ql-align-center\">🔥 Black Friday: de <s>R$&nbsp;97</s> por <span style=\"color: rgb(245, 158, 11);\">R$&nbsp;47</span></h2>"
       }
      },
      {
@@ -7769,14 +7295,34 @@
       "title": "Vídeo",
       "design": {
        "basis": 100,
-       "ratio": "square"
+       "ratio": "square",
+       "autoplay": false
       },
       "content": {
        "id": "feTnFQ",
        "name": "yY1xUr",
        "title": null,
-       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/oC7AybrRhFM?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
+       "video": "<iframe width=\"560\" height=\"560\" src=\"https://www.youtube.com/embed/jyVs5mYmFO4?rel=0&amp;playsinline=1\" title=\"A porta que vaza: o diagnóstico do ZapFood\" frameborder=\"0\" allow=\"accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share\" referrerpolicy=\"strict-origin-when-cross-origin\" allowfullscreen></iframe>",
        "description": null
+      }
+     },
+     {
+      "id": "SdBz2z",
+      "icon": "rectangleWide",
+      "type": "button",
+      "title": "Botão",
+      "design": {
+       "basis": 100,
+       "style": "success"
+      },
+      "content": {
+       "id": "k33HZw",
+       "name": "JlCbd4",
+       "type": "redirect",
+       "label": "Quero meu diagnóstico por R$ 47 ➔",
+       "pulse": true,
+       "target": false,
+       "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
       }
      },
      {
@@ -7921,11 +7467,11 @@
       "content": {
        "id": "u69pfQ",
        "name": "JheSV9",
-       "after": "ou 12x de R$ 9,94",
+       "after": "à vista ou 11x de R$ 5,26",
        "title": "<p><strong>ZapFood</strong></p>",
-       "value": "R$ 97",
-       "before": "à vista",
-       "featured": "Pagamento único · acesso vitalício",
+       "value": "R$ 47",
+       "before": "de R$ 97 por",
+       "featured": "Black Friday · pagamento único",
        "redirect": true
       }
      },
@@ -7952,7 +7498,7 @@
        "id": "AJXGxc",
        "name": "Gs30ln",
        "type": "redirect",
-       "label": "Quero meu diagnóstico por R$ 97 ➔",
+       "label": "Quero meu diagnóstico por R$ 47 ➔",
        "pulse": true,
        "target": false,
        "destination": "https://pay.kirvano.com/9926c0cb-9c4f-43ad-84cb-e4e51ed4a4b6"
@@ -8049,7 +7595,7 @@
         },
         {
          "id": "L4cIhC",
-         "answer": "<p>Nenhuma. É pagamento único de R$ 97. O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
+         "answer": "<p>Nenhuma. É pagamento único de R$ 47, na Black Friday (o preço normal é R$ 97). O seu diagnóstico e o plano ficam na sua conta, sem prazo para acabar.</p>",
          "question": "Tem mensalidade ou pegadinha?"
         },
         {
@@ -8109,13 +7655,7 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [
-    {
-     "name": "capa",
-     "enabled": true,
-     "variants": "v1, v2"
-    }
-   ],
+   "ab": [],
    "seo": {},
    "leads": {
     "hot": 70,
