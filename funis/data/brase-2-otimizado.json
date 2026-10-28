@@ -3701,7 +3701,12 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [],
+   "ab": [
+    {
+     "name": "capa",
+     "variants": "v3"
+    }
+   ],
    "seo": {},
    "leads": {
     "hot": 70,
@@ -7655,7 +7660,12 @@
   },
   "schema": "brase-funil/1",
   "settings": {
-   "ab": [],
+   "ab": [
+    {
+     "name": "capa",
+     "variants": "v3"
+    }
+   ],
    "seo": {},
    "leads": {
     "hot": 70,

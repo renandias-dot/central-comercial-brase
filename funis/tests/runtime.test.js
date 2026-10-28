@@ -215,7 +215,8 @@ test('teste A/B: variante fixa por visitante, forçada pelo link e em @teste.nom
   for (let i = 0; i < 1000; i++) n[R.abAssign(f, 'v' + i, {}).teste_capa]++;
   assert.ok(n.atual > 400 && n.v1 > 400, JSON.stringify(n));
   assert.deepStrictEqual(R.abAssign(f, 'abc123', {}), R.abAssign(f, 'abc123', {}));
-  assert.deepStrictEqual(Object.keys(R.abAssign(f, 'x', {})), ['teste_capa'], 'teste desligado ou com uma variante não entra');
+  assert.deepStrictEqual(Object.keys(R.abAssign(f, 'x', {})), ['teste_capa', 'teste_uma'], 'teste desligado não entra');
+  assert.strictEqual(R.abAssign(f, 'x', {}).teste_uma, 'só', 'com uma variante, todo visitante fica marcado com ela');
   assert.strictEqual(R.abAssign(f, 'x', {teste_capa: 'v1'}).teste_capa, 'v1');
   assert.notStrictEqual(R.abAssign(f, 'x', {teste_capa: 'inventada'}).teste_capa, 'inventada');
   const vars = R.buildVars({params: {teste_capa: 'v1'}});
