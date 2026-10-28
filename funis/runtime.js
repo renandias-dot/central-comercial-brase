@@ -99,9 +99,10 @@ function buildVars(ctx){
 /* ================= teste A/B (funil › settings.ab) ================= */
 // Cada visitante cai numa variante fixa, sorteada pelo código dele; vai nos parâmetros como teste_<nome> (relatórios e
 // webhook) e nas regras como @teste.<nome>. ?teste_<nome>=<variante> no link força uma variante (para conferir).
+// Com uma variante só, marca todo visitante com ela: serve para comparar a versão atual com as dos testes anteriores.
 const abName = n => String(n == null ? '' : n).trim().toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 30);
 const abVariants = t => (Array.isArray(t && t.variants) ? t.variants : String((t && t.variants) || '').split(',')).map(v => String(v).trim()).filter(Boolean);
-function abTests(funnel){ return ((funnel && funnel.settings && funnel.settings.ab) || []).filter(t => t && t.enabled !== false && abName(t.name) && abVariants(t).length > 1) }
+function abTests(funnel){ return ((funnel && funnel.settings && funnel.settings.ab) || []).filter(t => t && t.enabled !== false && abName(t.name) && abVariants(t).length) }
 function hashStr(s){ let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619) } return h >>> 0 }
 function abAssign(funnel, code, params){
   const out = {};
