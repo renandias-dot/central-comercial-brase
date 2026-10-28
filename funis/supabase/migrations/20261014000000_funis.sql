@@ -208,3 +208,8 @@ create table if not exists fn_crm_leads (
 );
 create index if not exists fn_crm_leads_created on fn_crm_leads (created_at);
 alter table fn_crm_leads enable row level security;
+
+-- Visitas tiradas dos relatórios (robôs e testes), guardadas aqui caso precise voltar alguma. Só o servidor lê.
+create table if not exists fn_sessions_removidas (like fn_sessions including all);
+alter table fn_sessions_removidas add column if not exists removida_em timestamptz default now(), add column if not exists motivo text;
+alter table fn_sessions_removidas enable row level security;

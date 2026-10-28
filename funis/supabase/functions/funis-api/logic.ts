@@ -23,6 +23,10 @@ export const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,59}$/;
 // Código da loja no iFood: o UUID que aparece no link (…/delivery/cidade-uf/nome/UUID).
 export const merchantIdFrom = (t: unknown) => ((String(t ?? '').match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i) || [''])[0]).toLowerCase();
 export const SESSION_RE = /^[A-Za-z0-9_-]{4,40}$/;
+// Robôs que abrem a página e rodam o funil sem ser gente: o da Meta que confere o link do anúncio (meta-externalads), o do
+// Google Ads, navegadores automáticos e os testes daqui. Não viram visita.
+const BOT_UA = /meta-external(ads|agent|fetcher)|facebookexternalhit|facebot|facebookcatalog|adsbot|googlebot|bingbot|(bot|crawler|spider)[\/;\s)]|headlesschrome|lighthouse|claude-check|python-requests|curl\/|wget\//i;
+export const isBotUA = (ua: unknown) => BOT_UA.test(String(ua ?? ''));
 const TRACK_KEYS = ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'utm_id', 'fbclid', 'gclid', 'src', 'sck', 'screen', 'viewport', 'platform', 'userAgent', 'language', 'referrer', 'url', 'fbp', 'fbc'];
 export const UTM_KEYS = ['utm_source', 'utm_campaign', 'utm_medium', 'utm_content', 'utm_term', 'utm_id', 'fbclid', 'gclid', 'src', 'sck'];
 

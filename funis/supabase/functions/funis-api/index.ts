@@ -5,7 +5,7 @@
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendDoc, crmSpendRows, encodeBody, ifoodSummary, importRow, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendDoc, crmSpendRows, encodeBody, ifoodSummary, importRow, isBotUA, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -207,6 +207,7 @@ const PUBLIC: Record<string, (b: Row, req: Request) => Promise<unknown>> = {
   async 'public.track'(b, req){
     const slug = String(b.slug || '').toLowerCase(), sid = String(b.session || '');
     if (!SLUG_RE.test(slug) || !SESSION_RE.test(sid)) throw bad('Dados inválidos.');
+    if (isBotUA(req.headers.get('user-agent')) || isBotUA(b.tracking && b.tracking.userAgent)) return {ok: true};
     const events: Event[] = Array.isArray(b.events) ? b.events.slice(0, 60) : [];
     const [f] = await sql`select id, slug, published, webhook, secrets from fn_funnels where slug = ${slug} and published is not null`;
     if (!f) throw bad('Funil não encontrado.', 404);
