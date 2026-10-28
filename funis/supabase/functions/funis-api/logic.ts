@@ -336,12 +336,13 @@ export function parseSale(body: any): Sale {
 /* ================= etapas do CRM (Central Comercial) ================= */
 const STAGES: [string, RegExp][] = [['novo', /^(novo|lead novo)$/], ['link', /^(link|link recebido)$/], ['print', /^(print|print enviado)$/], ['qualificando', /^qualificando$/], ['agendando', /^agendando$/],
   ['marcada', /^(marcada|reuniao marcada)$/], ['feita', /^(feita|reuniao feita|reuniao realizada)$/], ['fechado', /^(fechado|ganho|venda|vendido)$/],
-  ['perdido', /^perdido$/], ['desqualificado', /^desqualificado$/], ['frio', /^frio$/], ['morno', /^morno$/]];
+  ['noshow', /^(noshow|no-show|no show)$/], ['perdido', /^perdido$/], ['desqualificado', /^desqualificado$/], ['frio', /^frio$/], ['morno', /^morno$/]];
 export function stageId(v: unknown){
   const t = String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   return (STAGES.find(([, re]) => re.test(t)) || [''])[0];
 }
-export const MEETING_STAGES = new Set(['marcada', 'feita', 'fechado']);
+// No-show agendou (a reunião só não aconteceu).
+export const MEETING_STAGES = new Set(['marcada', 'noshow', 'feita', 'fechado']);
 // Aceita um lead ou uma lista: {codigo|code, telefone|phone, etapa|stage, valor|value}.
 // deno-lint-ignore no-explicit-any
 export function parseCrm(body: any){
