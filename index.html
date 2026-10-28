@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3b3f017397";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "c58c9c1138";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -252,14 +252,52 @@ textarea.in{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
 .fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .fgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 @media (max-width:520px){.fgrid,.fgrid.three{grid-template-columns:minmax(0,1fr)}}
-.touch{display:grid;grid-template-columns:auto 30px minmax(0,1fr) 138px auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
+.touch{display:grid;grid-template-columns:auto 44px minmax(0,1fr) 138px auto;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line)}
 .touch:first-child{border-top:0}
 .touch .tn{font:800 12px/1 var(--f-display);color:var(--muted)}
 .touch .in{height:30px}
 .touch.done .in:not([type=date]){text-decoration:line-through;color:var(--muted)}
 .touch.late .in[type=date]{border-color:color-mix(in srgb,var(--crit) 60%,transparent);color:var(--crit)}
 .touch.today .in[type=date]{border-color:color-mix(in srgb,var(--warn) 60%,transparent);color:var(--warn)}
-@media (max-width:520px){.touch{grid-template-columns:auto 24px minmax(0,1fr) auto}.touch .in[type=date]{grid-column:3/4}}
+@media (max-width:520px){.touch{grid-template-columns:auto 40px minmax(0,1fr) auto}.touch .in[type=date]{grid-column:3/4}}
+.tbtn{border:0;background:var(--sunken);border-radius:6px;height:24px;padding:0 4px;cursor:pointer;font:800 11.5px/1 var(--f-display);color:var(--ink-2)}
+.touch.today .tbtn{background:var(--warn-soft);color:var(--warn)}.touch.late .tbtn{background:var(--crit-soft);color:var(--crit)}.touch.done .tbtn{background:var(--good-soft);color:var(--good)}
+.ttl{border:0;background:none;padding:2px 0;text-align:left;cursor:pointer;color:var(--ink);display:grid;gap:1px;min-width:0;font:inherit}
+.ttl span{font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ttl small{font-size:11.5px;color:var(--muted)}
+.ttl:hover span{color:var(--accent-strong);text-decoration:underline}
+.touch.done .ttl span{text-decoration:line-through;color:var(--muted)}
+.tcode{font:800 11.5px/1 var(--f-display);letter-spacing:.02em;color:var(--ink-2);margin-right:2px}
+.chip[data-a]{cursor:pointer}.chip[data-a]:hover{filter:brightness(.95);text-decoration:underline}
+.tprev{margin-top:10px;font-size:12.5px;color:var(--ink-2)}.tprev summary{cursor:pointer;color:var(--muted);font-weight:600}
+.tprev-r{padding:4px 0;border-top:1px solid var(--line)}.tprev-r:first-of-type{border-top:0}
+.tmodal{width:min(600px,100%);gap:12px}
+.tm-h{display:flex;align-items:center;gap:10px}.tm-h h2{flex:1;min-width:0}
+.tm-code{font:800 13px/1 var(--f-display);background:var(--accent-soft);color:var(--accent-strong);border-radius:7px;padding:6px 8px;flex:none}
+.tm-meta{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.tm-alts{display:flex;flex-wrap:wrap;gap:6px}
+.tm-note{margin:0;padding:8px 10px;border-radius:8px;background:var(--warn-soft);color:var(--warn);font-size:13px;font-weight:600}
+.tmodal textarea{font-size:14.5px;line-height:1.45;resize:vertical;min-height:110px}
+.tm-miss{margin:-4px 0 0;font-size:12.5px;color:var(--crit)}.tm-miss b{font-weight:700}
+.tm-foot{flex-wrap:wrap}.tm-foot .btn.wa{display:inline-flex;align-items:center;gap:6px}
+.tm-sub{display:flex;flex-wrap:wrap;gap:6px;margin-top:-4px}
+.tm-rule{margin:0;font-size:12px}
+@media (max-width:520px){.modal .tm-foot{display:grid;grid-template-columns:1fr 1fr}.modal .tm-foot .btn{justify-content:center}.modal .tm-foot .btn.primary,.modal .tm-foot .btn.ghost{grid-column:1/-1}.tmodal textarea{min-height:170px}}
+.cad-stages{display:flex;flex-wrap:wrap;gap:6px}
+.cad-st{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:6px 10px 6px 12px;cursor:pointer;display:grid;text-align:left;font:600 13px/1.2 var(--f-body);color:var(--ink);position:relative}
+.cad-st::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;border-radius:2px;background:var(--c)}
+.cad-st small{font-size:11px;color:var(--muted);font-weight:500}
+.cad-st.on{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.cad-steps{display:grid;gap:8px}
+.cad-step{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.cad-step[open]{box-shadow:var(--shadow)}
+.cad-step summary{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;list-style:none}
+.cad-step summary::-webkit-details-marker{display:none}
+.cad-step summary span{font-weight:600;font-size:13.5px;flex:1;min-width:0}.cad-step summary small{font-size:12px;color:var(--muted);text-align:right}
+.cad-step > :not(summary){margin:0 12px 12px}
+.cad-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+@media (max-width:620px){.cad-grid{grid-template-columns:minmax(0,1fr)}.cad-step summary{flex-wrap:wrap}}
+.cad-rules{font-size:13px;color:var(--ink-2);padding:10px 14px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line)}
+.cad-rules ol{margin:6px 0 0;padding-left:20px;display:grid;gap:3px}
 .kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:7px 12px;margin:0;font-size:13px}
 .kv dt{color:var(--muted);font-weight:600}
 .kv dd{margin:0;overflow-wrap:anywhere}
@@ -615,6 +653,7 @@ const STAGES = [
   {id:'marcada', name:'Reunião Marcada', color:'#d49b0b', funnel:4},
   {id:'feita', name:'Reunião Feita', color:'#e8702a', funnel:5},
   {id:'fechado', name:'Fechado', color:'#1f9d55', funnel:6},
+  {id:'noshow', name:'No-show', color:'#c0841a', side:true},
   {id:'perdido', name:'Perdido', color:'#d64545', side:true},
   {id:'desqualificado', name:'Desqualificado', color:'#6b7280', side:true},
   {id:'frio', name:'Frio', color:'#5aa6d6', side:true},
@@ -640,9 +679,84 @@ const DEFAULT_CONFIG = {
   autoAssign: true,
   lossReasons: ['Sem orçamento','Sem resposta','Já tem agência','Não é o momento','Fora do perfil (ICP)','Preço','Outro'],
 };
+// Toques do SDR por etapa (documento "Toques do SDR por etapa"). O que está entre colchetes é trocado pelos dados do lead antes de enviar.
+// day: dia contado da entrada na etapa · hours: horas depois (no dia 0) · slot: manha | tarde | oposto (período oposto ao da entrada)
+// meet: em relação à reunião ('book' ao marcar, 'eve' véspera ou manhã do dia, número = minutos) · alt: saída escolhida pelo motivo da perda
+// every: repete a cada N dias depois de feito · skipIfPrint: pula se o print já foi enviado · use: etapa sem cadência própria usa a de outra
+const CAD_PRINT = 'Anexe o print de antes e depois do case.', CAD_AUDIO = 'Áudio de 15 a 20 segundos. O texto é o roteiro.', CAD_RENAN = 'Peça o áudio ao Renan com o nome do lead e da loja, e encaminhe.';
+const DEFAULT_CADENCES = {
+  novo: {goal: 'O link da loja', end: 'Sem resposta no último toque: mover para Frio.', steps: [
+    {code: 'LN-1', title: 'Abertura', day: 0, fmt: 'Texto', next: 'Sem resposta: LN-2 em 2 horas.', text: 'Fala [nome], [bom dia/boa tarde]! Tudo bem com você?\nEu sou o Luiz Felipe, da Brase. Recebi sua resposta ao formulário de diagnóstico! 🔥🚀\nPra fazer o seu diagnóstico, só vou precisar que me envie o link da sua loja no iFood, poderia me enviar por favor? 🚀'},
+    {code: 'LN-2', title: 'Passo a passo do link', day: 0, hours: 2, fmt: 'Texto', next: 'Sem resposta: LN-3 amanhã, em outro período do dia.', text: 'Pra facilitar, o passo a passo pra achar o link da sua loja é esse:\n1. Entre na sua loja pelo app do iFood, como cliente\n2. Toque no nome da loja pra ver mais informações\n3. Toque no botão de compartilhar, lá em cima à direita\nAí é só colar aqui 🚀'},
+    {code: 'LN-3', title: 'Áudio para mostrar que é gente', day: 1, slot: 'oposto', fmt: 'Áudio', note: CAD_AUDIO, next: 'Sem resposta: LN-4 em 2 dias.', text: 'Fala [nome], aqui é o Luiz Felipe, da Brase! Seu diagnóstico tá reservado aqui, só falta o link da [loja] no iFood pra eu puxar os dados. Me manda quando puder que eu já te mostro quem tá disputando cliente com você aí na região.'},
+    {code: 'LN-4', title: 'Movimento da região', day: 3, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: LN-5 em 3 dias.', text: 'Opa [nome], [bom dia/boa tarde]! Dei uma olhada no movimento da sua região aqui no sistema e tem [segmento, no plural] crescendo forte aí. Quer que eu veja como tá a [loja] no ranking? Só me mandar o link 🚀'},
+    {code: 'LN-5', title: 'Case do segmento', day: 6, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: LN-6 em 4 dias.', text: '[Nome], olha esse resultado: [case, ex.: uma hamburgueria saiu de R$ 83 mil para R$ 180 mil por mês no iFood em 5 meses]. O primeiro passo foi o mesmo que o seu, entender onde a loja tava travando. Me manda o link que eu começo o diagnóstico da [loja] 🚀'},
+    {code: 'LN-6', title: 'Encerramento', day: 10, fmt: 'Texto', next: 'Sem resposta: mover para Frio.', text: '[Nome], vou liberar sua vaga do diagnóstico pra próxima loja da fila. Se mais pra frente quiser ver como a [loja] tá em relação aos concorrentes, é só me chamar aqui 🚀'},
+  ]},
+  link: {use: ''},
+  print: {use: 'qualificando'},
+  qualificando: {goal: 'A dor e o faturamento', end: 'Sem resposta no último toque: mover para Frio.', steps: [
+    {code: 'QL-1', title: 'Retomada leve', day: 0, hours: 3, fmt: 'Texto', next: 'Sem resposta: QL-2 amanhã.', text: '[Nome], conseguiu ver minha mensagem? 👀 Me conta rapidinho como tá o momento da [loja] que eu já fecho seu diagnóstico com o Renan.'},
+    {code: 'QL-2', title: 'Print dos concorrentes', day: 1, fmt: 'Imagem e texto', skipIfPrint: true, note: 'Anexe o print do concorrente, nunca o do ranking. Se o print já foi enviado, pule para o QL-3.', next: 'Sem resposta: QL-3 em 2 dias.', text: 'Opa [nome]! Voltei no sistema hoje e o [concorrente] tá vendendo muito aí na sua região. O Renan já viu o que ele tá fazendo diferente. Me conta como tá o momento aí que a gente destrava isso 🚀'},
+    {code: 'QL-3', title: 'Faturamento em um número', day: 3, fmt: 'Múltipla escolha', note: 'As faixas seguem a régua; ajuste quando ela estiver definida.', next: 'Sem resposta: QL-4 em 3 dias.', text: 'Pra eu fechar seu diagnóstico com o Renan, me responde só com o número 😄\nHoje a [loja] fatura por mês no iFood:\n1) até R$ 15 mil\n2) de R$ 15 a 30 mil\n3) acima de R$ 30 mil'},
+    {code: 'QL-4', title: 'Dor comum da região', day: 6, fmt: 'Áudio', note: CAD_AUDIO, next: 'Sem resposta: QL-5 em 4 dias.', text: 'Fala [nome]! O que mais tenho visto travar as lojas aí da região é depender de promoção pra vender: a loja só aparece quando dá desconto, e a margem vai embora. Isso tá acontecendo aí também? Me conta que eu te mostro o caminho.'},
+    {code: 'QL-5', title: 'Encerramento', day: 10, fmt: 'Texto', next: 'Sem resposta: mover para Frio.', text: 'Vou arquivar seu diagnóstico, [nome], pra abrir espaço pros novos. Se quiser retomar, é só me chamar aqui 🚀'},
+  ]},
+  agendando: {goal: 'O horário da reunião', end: 'Sem resposta no último toque: mover para Frio.', steps: [
+    {code: 'AG-1', title: 'Reservar um horário', day: 0, hours: 2, fmt: 'Texto', next: 'Sem resposta: AG-2 amanhã de manhã.', text: '[Nome], consigo deixar um desses horários reservado pra você? [Dia] às [horário 1] ou [horário 2] 🚀'},
+    {code: 'AG-2', title: 'Pergunta aberta', day: 1, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: AG-3 amanhã.', text: 'Opa [nome], [bom dia/boa tarde]! Os horários que te passei não funcionaram? Me fala o melhor dia e período pra você que eu ajusto aqui 🚀'},
+    {code: 'AG-3', title: 'A dor dele e o programa', day: 2, fmt: 'Texto', next: 'Sem resposta: AG-4 em 2 dias.', text: '[Nome], lembra que você me falou sobre [dor dele]? Nós temos um programa de aceleração justamente pra quem tem esse problema! O objetivo é adicionar +R$ 10.000/mês no seu faturamento em 3 meses, com garantia 🚀\nSão 30 minutos com o Renan. [Dia] às [horário 1] ou [horário 2]?'},
+    {code: 'AG-4', title: 'Case do segmento', day: 4, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: AG-5 em 2 dias.', text: '[Nome], olha esse resultado: [case]. É esse caminho que o Renan te mostra na reunião, com os dados da [loja] na tela. [Dia] às [horário 1] ou [horário 2]?'},
+    {code: 'AG-5', title: 'Áudio do Renan', day: 6, fmt: 'Áudio do Renan', note: CAD_RENAN, next: 'Sem resposta: AG-6 em 2 dias.', text: 'Fala [nome], aqui é o Renan! O Felipe me mostrou a [loja] e vi umas coisas que dá pra destravar rápido. Separa 30 minutos comigo que vai valer a pena. Me fala o melhor horário pra ele.'},
+    {code: 'AG-6', title: 'Agenda fechando', day: 8, fmt: 'Texto', note: 'Só use se for verdade.', next: 'Sem resposta: mover para Frio.', text: 'Opa [nome]! A agenda do Renan dessa semana tá fechando. Sobraram [dia] às [horário 1] e [horário 2]. Quer um deles?'},
+  ]},
+  marcada: {goal: 'Que ele apareça', end: 'Não entrou em 30 minutos: mover para No-show.', steps: [
+    {code: 'RM-1', title: 'Confirmação e decisor', meet: 'book', fmt: 'Texto', next: 'Depois: RM-2 na véspera ou na manhã do dia.', text: 'Marcado, [nome]! Me manda seu e-mail pra eu te mandar o convite pela agenda 🚀\nE teria algum sócio ou alguém que decide junto com você? Se tiver, me manda o e-mail também, é ideal que os dois participem.'},
+    {code: 'RM-2', title: 'Esquenta', meet: 'eve', fmt: 'Texto', next: 'Depois: RM-3 1 hora antes.', text: '[Nome], [amanhã/hoje] às [horário da reunião] o Renan vai te mostrar onde a [loja] tá no ranking da região, o que os concorrentes fazem diferente e o caminho pra crescer. Se puder, deixa o Portal do Parceiro aberto no computador 👍'},
+    {code: 'RM-3', title: 'Confirmação do dia', meet: -60, fmt: 'Texto', next: 'Depois: RM-4 no horário.', text: 'Opa [nome]! Tudo certo pra hoje às [horário da reunião]? Te mando o link na hora 👍'},
+    {code: 'RM-4', title: 'Link da reunião', meet: 0, fmt: 'Texto', next: 'Se não entrar em 10 minutos: RM-5.', text: 'Link da reunião: [link]\nO Renan já tá te aguardando! 🚀'},
+    {code: 'RM-5', title: 'Ele não entrou', meet: 10, fmt: 'Texto', next: 'Não entrou em 30 minutos: mover para No-show.', text: '[Nome], o Renan já tá na sala te esperando. Conseguiu entrar?'},
+  ]},
+  noshow: {goal: 'Remarcar, sem culpa', end: 'Sem resposta no último toque: mover para Frio (não é Perdido, ele ainda não viu a oferta).', steps: [
+    {code: 'NS-1', title: 'Acolhimento', meet: 30, fmt: 'Texto', next: 'Sem resposta: NS-2 amanhã.', text: 'Opa [nome], o Renan te esperou na sala! Aconteceu algum imprevisto? Sem problema, me fala um novo horário que eu reagendo.'},
+    {code: 'NS-2', title: 'Dois horários novos', day: 1, fmt: 'Texto', next: 'Sem resposta: NS-3 amanhã.', text: '[Nome], seu diagnóstico continua pronto aqui esperando a gente conversar. Consigo te encaixar [dia] às [horário 1] ou [horário 2], qual prefere?'},
+    {code: 'NS-3', title: 'O que ele ia ver', day: 2, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: NS-4 amanhã.', text: 'Pra você ver o que o Renan ia te mostrar: [case]. A análise da [loja] já tá separada. [Dia] às [horário 1] ou [horário 2]?'},
+    {code: 'NS-4', title: 'Áudio do Renan', day: 3, fmt: 'Áudio do Renan', note: CAD_RENAN, next: 'Sem resposta: NS-5 em 2 dias.', text: 'Fala [nome], aqui é o Renan! Separei a análise da [loja] pra gente conversar. Deu algum imprevisto? Me fala um horário que eu encaixo.'},
+    {code: 'NS-5', title: 'Saída honrosa', day: 5, fmt: 'Texto', next: 'Sem resposta: mover para Frio (não é Perdido, ele ainda não viu a oferta).', text: '[Nome], vou liberar o espaço do seu diagnóstico pra outro restaurante da fila se a gente não conseguir remarcar essa semana. Ainda tem interesse ou prefere deixar pra outro momento?'},
+  ]},
+  feita: {goal: 'O fechamento (enviados pelo Renan)', end: 'Sem resposta no último toque: mover para Perdido.', steps: [
+    {code: 'RF-1', title: 'Resumo e proposta', day: 0, fmt: 'Texto e PDF', note: 'Anexe o PDF da proposta.', next: 'Sem resposta: RF-2 amanhã.', text: '[Nome], obrigado pela conversa de hoje! Segue a proposta com tudo o que conversamos: o que está incluso, a equipe e as condições. Qualquer dúvida sua ou do seu sócio, me chama por aqui 🚀'},
+    {code: 'RF-2', title: 'O que pesou', day: 1, fmt: 'Múltipla escolha', next: 'Sem resposta: RF-3 em 2 dias.', text: 'Opa [nome]! Fiquei pensando na nossa conversa. Me fala uma coisa, o que pesou mais pra não avançar ainda:\n1) o momento\n2) o investimento\n3) alguma dúvida sobre o resultado'},
+    {code: 'RF-3', title: 'Case do mesmo porte', day: 3, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: RF-4 em 2 dias.', text: '[Nome], lembrei de você vendo esse resultado: [case]. É o mesmo caminho que a gente desenhou pra [loja].'},
+    {code: 'RF-4', title: 'Resposta à objeção', day: 5, fmt: 'Áudio do Renan', note: 'Troque os colchetes pela objeção dele e pela resposta, em duas frases.', next: 'Sem resposta: RF-5 em 5 dias.', text: 'Fala [nome], aqui é o Renan! Fiquei pensando no que você me falou sobre [a objeção dele]. [Resposta em duas frases.] Se fizer sentido, a gente começa ainda essa semana.'},
+    {code: 'RF-5', title: 'Validade da condição', day: 10, fmt: 'Texto', next: 'Sem resposta: mover para Perdido.', text: '[Nome], a condição que conversamos vale até [validade]. Depois disso a vaga volta pra fila. Quer que eu reserve pra [loja]?'},
+  ]},
+  frio: {goal: 'Reabrir: 1 toque por mês, cada um com um tema', end: 'Depois do FR-4, o lead entra na reativação a cada 6 meses.', steps: [
+    {code: 'FR-1', title: 'Vagas reabertas', day: 30, fmt: 'Texto', next: 'Sem resposta: FR-2 no mês seguinte.', text: 'Fala [nome], [bom dia/boa tarde]! Aqui é o Luiz Felipe, da Brase 🚀 Você respondeu nosso formulário de diagnóstico há um tempo e acabamos não dando continuidade. Reabri as vagas essa semana: te mostro seus principais concorrentes no iFood e as estratégias que mais dão resultado na sua região. Me manda o link da [loja]?'},
+    {code: 'FR-2', title: 'Dados novos da região', day: 60, fmt: 'Texto', next: 'Sem resposta: FR-3 no mês seguinte.', text: 'Opa [nome], tudo bem? Reabri a agenda de diagnósticos esse mês e a [loja] ainda tá aqui no sistema. Os dados da sua região mudaram bastante de lá pra cá 👀 Quer que eu rode a análise atualizada?'},
+    {code: 'FR-3', title: 'Case', day: 90, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: FR-4 no mês seguinte.', text: '[Nome], olha esse resultado: [case]. Se quiser ver o que dá pra destravar na [loja], me manda o link 🚀'},
+    {code: 'FR-4', title: 'Data da temporada', day: 120, fmt: 'Texto', note: 'Troque o fim de ano pela próxima data forte, se for o caso.', next: 'Depois: reativação a cada 6 meses.', text: '[Nome], o fim de ano tá chegando e é quando muita loja ganha ou perde espaço no iFood. Quer que eu veja como a [loja] tá posicionada antes do pico? Só me mandar o link 🚀'},
+  ]},
+  morno: {use: 'frio'},
+  desqualificado: {goal: 'Fechar com respeito: saída na hora, escolhida pelo motivo', end: 'Depois da saída, 1 toque a cada 3 meses.', steps: [
+    {code: 'DQ-1', title: 'Saída: faturamento abaixo do perfil', day: 0, alt: 'faturamento|perfil|icp|abaixo|pequen|orçamento|orcamento', fmt: 'Texto', next: 'Depois: mover para Desqualificado, motivo em uma linha e retorno em 3 meses.', text: '[Nome], valeu por compartilhar! Pelo momento atual da loja, o programa ainda não é o ideal. Ele é desenhado pra operações com um volume maior no iFood, e prefiro te falar isso agora do que te oferecer algo que não vai render o que você espera.\nVou deixar seu contato salvo aqui. Quando a loja crescer, me chama que a gente conversa 🚀'},
+    {code: 'DQ-2', title: 'Saída: o canal principal não é o iFood', day: 0, alt: 'ifood|canal', fmt: 'Texto', next: 'Depois: mover para Desqualificado, motivo em uma linha e retorno em 3 meses.', text: '[Nome], entendi! Nosso trabalho é focado 100% em iFood, então pro seu modelo hoje não faria sentido. Se o iFood virar um canal importante pra vocês, me chama que a gente olha junto 🚀'},
+    {code: 'DQ-3', title: 'Saída: loja nos primeiros meses', day: 0, alt: 'primeiros meses|começ|comec|nova|abriu|recente', fmt: 'Texto', next: 'Depois: mover para Desqualificado, motivo em uma linha e retorno em 3 meses.', text: '[Nome], que bom que você já tá olhando pra isso desde o começo! Como a loja ainda tá nos primeiros meses, o algoritmo ainda tá conhecendo ela. O ideal é a gente conversar quando ela tiver mais histórico. Te chamo daqui uns meses pra ver como tá 🚀'},
+    {code: 'DQ-4', title: 'Saída: já tem agência', day: 0, alt: 'agência|agencia|assessoria', fmt: 'Texto', next: 'Depois: mover para Frio, com retorno em 90 dias.', text: 'Que bom que vocês já têm alguém cuidando, [nome]! Se em algum momento quiser uma segunda opinião sobre como a [loja] tá em relação aos concorrentes da região, o diagnóstico fica aqui. Sucesso aí 🚀'},
+    {code: 'DQ-5', title: 'Retorno', day: 90, every: 90, fmt: 'Texto', next: 'Se o faturamento cresceu: voltar para Qualificando.', text: 'Opa [nome]! Faz um tempo que a gente conversou. Como tão as vendas da [loja] hoje? Se o faturamento tiver crescido, talvez agora faça sentido a gente retomar 🚀'},
+  ]},
+};
+const CAD_RULES = [
+  ['Lead respondeu, a bola é sua.', 'Responda em até 15 minutos, antes de qualquer toque.'],
+  ['Mudou de etapa, o toque volta para 1.', 'O CRM recria os toques da etapa nova sozinho.'],
+  ['Respondeu sem avançar, o toque também volta para 1, na mesma etapa.', 'Clique em “Lead respondeu” no toque ou no card.'],
+  ['No máximo 1 toque por dia em quem não respondeu, fora o dia da chegada.', ''],
+  ['Desqualificou, mande a saída e mova o card.', 'Nenhuma conversa termina com a mensagem do lead.'],
+  ['Não sabe o que responder?', 'Em até 1 hora, mande ao Renan o print e a sua sugestão.'],
+];
 const COLS = ['sellers','leads','tasks','routines','routineLog','docs','adjustments','config','meta','wa_stats','holds'];
 const BUCKETS = [
-  {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','link','print','qualificando','agendando']},
+  {id: 'andamento', name: 'Em andamento', color: '#3a7fe0', st: ['novo','link','print','qualificando','agendando','noshow']},
   {id: 'marcada', name: 'Reunião marcada', color: '#d49b0b', st: ['marcada']},
   {id: 'feita', name: 'Reunião feita', color: '#e8702a', st: ['feita']},
   {id: 'venda', name: 'Venda', color: '#1f9d55', st: ['fechado']},
@@ -722,7 +836,7 @@ const UI = {
   dist: {from: 'frio+morno', owner: '*', minRev: '0', qty: 20, to: '', cadence: true, move: 'keep'},
   comSeller: '', comOffset: 0,
   docId: null, docEdit: false, docQ: '',
-  cfgTab: 'equipe',
+  cfgTab: 'equipe', cadStage: 'novo', cadOpen: '',
   drawer: null, drawerFocus: null, modal: null,
   sheet: null, update: false, stage: ls.get('brase.stage') || 'novo', sbCenter: true,
 };
@@ -731,7 +845,7 @@ let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
 let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null, HOSTCAPI = null, HOSTKEY = '';
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons, cadences: {...DEFAULT_CADENCES, ...(c.cadences && typeof c.cadences === 'object' ? c.cadences : {})}} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -778,6 +892,171 @@ function buildCadence(start){
     return {id: uid(), title: t.title || ('Toque ' + (i+1)), due: d, done: false, doneAt: null};
   });
 }
+/* ---------- cadências por etapa ---------- */
+// Leads que entram (ou mudam de etapa pelo servidor) a partir daqui ganham a cadência da etapa sozinhos; os mais antigos mantêm a lista até mudarem de etapa.
+const CAD_SINCE = '2026-10-28T01:00:00.000Z';
+const CAD_SLOT = {manha: 'de manhã', tarde: 'de tarde'};
+const cadNorm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+// Cadência da etapa (segue o "usar a de outra etapa"); null quando a etapa não tem toques.
+function cadOf(stage){
+  const all = cfg().cadences || {}; let c = all[stage];
+  for (let hop = 0; c && c.use && hop < 4; hop++) c = all[c.use];
+  return c && Array.isArray(c.steps) && c.steps.length ? c : null;
+}
+const cadUse = stage => { const c = (cfg().cadences || {})[stage]; return c && c.use && STAGE[c.use] ? c.use : '' };
+// O passo do toque (texto, formato, observação) vem da configuração, então editar a mensagem vale também para os toques já programados.
+function cadStep(t){
+  if (!t || !t.code) return null;
+  const c = cadOf(t.stage), hit = c && c.steps.find(s => s.code === t.code);
+  if (hit) return hit;
+  for (const x of Object.values(cfg().cadences || {})) { const s = (x.steps || []).find(y => y.code === t.code); if (s) return s }
+  return null;
+}
+// Saídas alternativas (Desqualificado): escolhe pelo motivo da perda; sem motivo que combine, a primeira.
+function cadAlt(cad, l){
+  const alts = cad.steps.filter(s => s.alt != null && s.alt !== false); if (!alts.length) return null;
+  const r = cadNorm(l.lostReason);
+  return (r && alts.find(s => String(s.alt).split('|').some(w => cadNorm(w).trim() && r.includes(cadNorm(w).trim())))) || alts[0];
+}
+// Toques da etapa a partir de "from" (entrada na etapa ou resposta do lead). Dias contam em sequência e pulam o fim de semana se configurado;
+// toques em horas caem no mesmo dia (de madrugada ou depois das 21h vão para as 9h); os da reunião usam o horário marcado.
+function buildStageCadence(l, stage, from){
+  const cad = cadOf(stage); if (!cad) return [];
+  const now = Date.now(); let base = from ? new Date(from) : new Date(now); if (isNaN(base)) base = new Date(now);
+  const d0 = ymd(base);
+  if (cfg().skipWeekends && adjWeekend(d0) !== d0){ const b = parseYmd(adjWeekend(d0)); b.setHours(9, 0, 0, 0); base = b }
+  const day0 = ymd(base), h0 = base.getHours(), run = uid().slice(-6), alt = cadAlt(cad, l);
+  const meet = l.meetingAt ? new Date(l.meetingAt) : null, mOk = meet && !isNaN(meet);
+  const out = []; let prevDay = day0, prevOff = 0;
+  for (const s of cad.steps){
+    if (s.alt != null && s.alt !== false && s !== alt) continue;
+    if (s.skipIfPrint && l.printSentAt) continue;
+    let due, at = 0, slot = '';
+    if (s.meet != null && s.meet !== ''){
+      if (s.meet === 'book') at = Math.max(+base, now);
+      else {
+        if (!mOk) continue;
+        if (s.meet === 'eve'){ const m = new Date(meet); if (m.getHours() < 12){ m.setDate(m.getDate() - 1); m.setHours(17, 0, 0, 0) } else m.setHours(9, 0, 0, 0); at = +m }
+        else at = +meet + (Number(s.meet) || 0) * 6e4;
+        if (at < now) at = now;
+      }
+      due = ymd(new Date(at));
+    } else {
+      const off = Math.max(0, Math.round(+s.day || 0)), gap = off - prevOff;
+      due = gap > 0 ? adjWeekend(addDays(prevDay, gap)) : prevDay;
+      if (!off && +s.hours > 0){
+        const t = new Date(+base + s.hours * 36e5);
+        if (t.getHours() >= 21){ const n = parseYmd(adjWeekend(addDays(ymd(t), 1))); n.setHours(9, 0, 0, 0); at = +n }
+        else if (t.getHours() < 8){ t.setHours(9, 0, 0, 0); at = +t } else at = +t;
+        due = ymd(new Date(at));
+      }
+      if (due < prevDay) due = prevDay;
+      prevDay = due; prevOff = off;
+      slot = s.slot === 'oposto' ? (h0 < 12 ? 'tarde' : 'manha') : CAD_SLOT[s.slot] ? s.slot : '';
+    }
+    const t = {id: uid(), code: s.code || '', title: s.title || s.code || 'Toque', stage, run, due, done: false, doneAt: null};
+    if (at) t.at = localStr(at);
+    if (slot) t.slot = slot;
+    out.push(t);
+  }
+  return out;
+}
+// Reinicia a cadência do lead na etapa: os toques feitos ficam no histórico, os pendentes dão lugar aos da etapa (do 1 de novo).
+function restartCad(l, stage, from){
+  const done = (l.touches || []).filter(t => t.done).slice(-40), fresh = buildStageCadence(l, stage, from);
+  l.touches = [...done, ...fresh];
+  l.cadStage = stage; l.cadAt = from || iso(); l.cadRun = fresh.length ? fresh[0].run : '-';
+  return fresh.length;
+}
+// Reunião marcada ou remarcada: refaz os toques que dependem do horário (os já feitos ficam).
+function cadMeeting(l){
+  const cad = cadOf(l.stage); if (!cad || !cad.steps.some(s => s.meet != null && s.meet !== '' && s.meet !== 'book')) return;
+  const cur = curTouches(l), done = new Set(cur.filter(t => t.done).map(t => t.code));
+  const fresh = buildStageCadence(l, l.stage, l.cadStage === l.stage && l.cadAt ? l.cadAt : l.stageAt).filter(t => !done.has(t.code));
+  const run = l.cadStage === l.stage && l.cadRun && l.cadRun !== '-' ? l.cadRun : (fresh[0] || {}).run || '-';
+  l.touches = [...(l.touches || []).filter(t => t.done), ...fresh.map(t => ({...t, run}))];
+  l.cadStage = l.stage; l.cadRun = run; if (!l.cadAt) l.cadAt = iso();
+}
+// Desqualificado: o motivo escolhe a saída; troca a saída ainda não enviada pela do motivo novo.
+function cadExit(l){
+  const cad = cadOf(l.stage), alt = cad && cadAlt(cad, l); if (!alt) return false;
+  const t = (l.touches || []).find(x => !x.done && x.stage === l.stage && cad.steps.some(s => s.code === x.code && s.alt != null && s.alt !== false));
+  if (!t || t.code === alt.code) return false;
+  t.code = alt.code; t.title = alt.title; return true;
+}
+// Data e hora em que o toque deve sair (para ordenar e mostrar).
+const touchAt = t => t.at || (t.due + (t.slot === 'tarde' ? 'T14:00' : 'T09:00'));
+const touchOwner = l => (l.handoff && l.handoff.to) || l.ownerId;
+const curTouches = l => { const tt = l.touches || []; return l.cadRun ? tt.filter(t => t.run === l.cadRun) : tt.filter(t => !t.run) };
+function touchWhen(t){
+  const t0 = today(), hhmm = t.at ? t.at.slice(11, 16) : '';
+  const day = t.due === t0 ? 'hoje' : t.due === addDays(t0, 1) ? 'amanhã' : t.due === addDays(t0, -1) ? 'ontem' : wdOf(t.due) + ' ' + fmtDM(t.due);
+  return day + (hhmm ? ' às ' + hhmm : t.slot ? ' ' + CAD_SLOT[t.slot] : '');
+}
+function cadWhenLabel(s){
+  const m = s.meet;
+  if (m != null && m !== '') return m === 'book' ? 'na hora de marcar' : m === 'eve' ? 'véspera ou manhã do dia' : +m === 0 ? 'no horário da reunião' : +m < 0 ? (-m % 60 ? -m + ' min' : -m / 60 + 'h') + ' antes da reunião' : m + ' min depois do horário';
+  const d = Math.max(0, Math.round(+s.day || 0));
+  const base = d === 0 ? (+s.hours > 0 ? 'dia 0, ' + String(s.hours).replace('.', ',') + 'h depois' : 'dia 0, na hora') : d >= 30 && d % 30 === 0 ? 'mês ' + d / 30 : 'dia ' + d;
+  return base + (d && s.slot ? ', ' + (s.slot === 'oposto' ? 'período oposto ao da entrada' : CAD_SLOT[s.slot] || '') : '') + (+s.every > 0 ? ' · repete a cada ' + s.every + ' dias' : '');
+}
+// Leads novos que chegam pelo webhook (e etapas trocadas pelo servidor) vêm com a lista antiga: troca pela cadência da etapa.
+// Toques já marcados na lista antiga, depois da entrada na etapa, viram os primeiros da cadência nova.
+const CAD_SEEN = new Set();
+function cadNeeds(l){
+  if (!l || l.example || l.cadStage === l.stage || !cadOf(l.stage)) return false;
+  if ((l.touches || []).some(t => !t.done && t.stage === l.stage)) return false;
+  return (l.stageAt || l.createdAt || '') >= CAD_SINCE;
+}
+function cadSync(){
+  if (!loaded()) return;
+  let wait = false;
+  Object.entries(S.leads || {}).forEach(([id, cur]) => {
+    if (CAD_SEEN.has(id + '|' + cur.stage) || !cadNeeds(cur)) return;
+    if (Date.now() - new Date(cur.updatedAt || cur.createdAt || 0) < 8e3){ wait = true; return }
+    CAD_SEEN.add(id + '|' + cur.stage);
+    const l = clone(cur), since = l.stageAt || l.createdAt || '';
+    const legacy = (l.touches || []).filter(t => t.done && !t.stage && (t.doneAt || '') >= since);
+    l.touches = (l.touches || []).filter(t => t.done && !legacy.includes(t));
+    const fresh = buildStageCadence(l, l.stage, since);
+    legacy.slice(0, fresh.length).forEach((x, i) => { fresh[i] = {...fresh[i], id: x.id, done: true, doneAt: x.doneAt} });
+    l.touches = [...l.touches.slice(-40), ...fresh];
+    l.cadStage = l.stage; l.cadAt = since; l.cadRun = fresh.length ? fresh[0].run : '-';
+    put('leads', id, l);
+  });
+  if (wait) setTimeout(cadSync, 9e3);
+}
+// Mensagem recomendada: troca os colchetes pelos dados do lead. O que não tem dado fica entre colchetes para completar.
+function firstName(s){ const w = String(s || '').trim().split(/\s+/)[0] || ''; if (!w) return ''; const b = w === w.toUpperCase() ? w.toLowerCase() : w; return b[0].toUpperCase() + b.slice(1) }
+function cadSlots(l, id){
+  const now = Date.now(), t0 = today();
+  const hs = Object.values(S.holds || {}).filter(h => h.leadId === id && +new Date(h.start) > now).map(h => h.start).sort();
+  const dayName = d => d === t0 ? 'hoje' : d === addDays(t0, 1) ? 'amanhã' : WDL[parseYmd(d).getDay()] + ' (' + fmtDM(d) + ')';
+  return hs.slice(0, 3).map(s => ({d: s.slice(0, 10), day: dayName(s.slice(0, 10)), h: hh(+s.slice(11, 13) * 60 + +s.slice(14, 16))}));
+}
+function cadFill(text, l, id){
+  const nome = firstName(l.contact) || firstName(l.name);
+  const loja = String(l.company || '').trim() || (l.name && l.name.trim() !== String(l.contact || '').trim() ? l.name.trim() : '') || 'sua loja';
+  const h = new Date().getHours(), greet = h < 12 ? 'bom dia' : h < 18 ? 'boa tarde' : 'boa noite';
+  let out = String(text || '');
+  const slots = cadSlots(l, id);
+  if (slots.length){
+    out = out.replace(/\[(dia)\] às \[horário 1\] (ou|e) \[horário 2\]/gi, (m, d, conj) => {
+      const a = slots[0], b = slots[1];
+      const txt = !b ? a.day + ' às ' + a.h : a.d === b.d ? a.day + ' às ' + a.h + ' ' + conj + ' ' + b.h : a.day + ' às ' + a.h + ' ' + conj + ' ' + b.day + ' às ' + b.h;
+      return d[0] === 'D' ? cap(txt) : txt;
+    });
+  }
+  const meet = l.meetingAt ? new Date(l.meetingAt) : null;
+  const md = meet && !isNaN(meet) ? ymd(meet) : '';
+  const pain = String(l.pain || '').split(':')[0].trim().toLowerCase();
+  const map = {nome, loja: loja, 'bom dia/boa tarde': greet};
+  if (md){ map['amanhã/hoje'] = md === today() ? 'hoje' : md === addDays(today(), 1) ? 'amanhã' : WDL[meet.getDay()] + ' (' + fmtDM(md) + ')'; map['horário da reunião'] = hh(meet.getHours() * 60 + meet.getMinutes()) }
+  if (pain) map['dor dele'] = pain;
+  if (l.meetLink) map.link = l.meetLink;
+  return out.replace(/\[([^\]\n]{1,80})\]/g, (m, k) => { const key = Object.keys(map).find(x => cadNorm(x) === cadNorm(k)); const v = key && map[key]; return v ? (k[0] !== k[0].toLowerCase() ? cap(v) : v) : m });
+}
+const cadMissing = txt => [...new Set((String(txt || '').match(/\[[^\]\n]{1,80}\]/g) || []))];
 function applyMilestones(l, stage, now){
   const st = STAGE[stage]; if (!st || st.side) return;
   const f = st.funnel;
@@ -805,9 +1084,10 @@ function createLead(d){
     name: d.name || 'Lead sem nome', company: d.company || '', phone: d.phone || '', email: d.email || '', instagram: d.instagram || '',
     source: d.source || '', notes: d.notes || '', value: d.value ? Number(d.value) || null : null, revenue: d.revenue ? Number(String(d.revenue).replace(/\D/g, '')) || null : null,
     ownerId: d.ownerId || '', stage, createdAt: d.createdAt || now, updatedAt: now, stageAt: now, ackAt: now, history: [{s: stage, at: now}],
-    touches: buildCadence(today()), bookedAt: null, meetingAt: null, meetingDoneAt: null, closedAt: null, lostReason: '',
+    touches: [], bookedAt: null, meetingAt: null, meetingDoneAt: null, closedAt: null, lostReason: '',
     contact: d.contact || '', pain: d.pain || '', team: d.team || '',
   };
+  if (cadOf(stage)) restartCad(lead, stage, now); else lead.touches = buildCadence(today());
   if (d.utm && (d.utm.campaign || d.utm.ad || d.utm.source)) lead.utm = d.utm;
   applyMilestones(lead, stage, now);
   put('leads', id, lead);
@@ -827,6 +1107,7 @@ function moveLead(id, stage){
   if (stage === 'link'){ l.linkAt = now; delete l.repliedAt; if (ptCfg().on && !l.noPowerDataAt) l.printDue = new Date(printDueFrom(Date.now())).toISOString() }
   else if (l.printDue) delete l.printDue;
   if (stage === 'print' && !l.printSentAt) l.printSentAt = now;
+  const nTouch = restartCad(l, stage, now);
   let handed = false;
   if (stage === 'feita' && cfg().handoffOnDone !== false) handed = applyHandoff(l, id);
   else if (l.handoff && !STAGE[stage].side && STAGE[stage].funnel < 5) delete l.handoff;
@@ -839,13 +1120,20 @@ function moveLead(id, stage){
   if (counts && l.meetingDoneAt && !cur.meetingDoneAt) gain += c.perMeeting;
   if (counts && l.closedAt && !cur.closedAt) gain += c.perSale;
   if (gain) msg += ` · +${brl(gain)} na comissão de ${S.sellers[l.ownerId]?.name.split(' ')[0] || 'vendedor'}`;
+  if (nTouch){ const nt = nextTouch(l); msg += ` · toques reiniciados${nt ? ': ' + (nt.code || 'T1') + ' ' + touchWhen(nt) : ''}` }
   toast(msg);
   if ((stage === 'perdido' || stage === 'desqualificado') && !l.lostReason) openLead(id, 'loss');
   else if (stage === 'marcada' && !l.meetingAt) openLead(id, 'meeting');
   else render();
 }
-// Toques só valem enquanto o SDR conduz o lead: depois da Reunião Feita (ou de passar o processo) saem do Hoje e dos atrasados.
-const TOUCHABLE = l => ACTIVE(l.stage) && l.stage !== 'feita' && !l.handoff;
+// Toques valem nas etapas abertas. Depois da Reunião Feita (ou de passar o processo) só contam os da cadência nova da etapa, que são do gestor;
+// em Desqualificado, só a saída e os retornos programados.
+const TOUCHABLE = l => {
+  if (l.stage === 'desqualificado') return (l.touches || []).some(t => !t.done && t.stage === 'desqualificado');
+  if (!ACTIVE(l.stage)) return false;
+  if (l.stage === 'feita' || l.handoff) return (l.touches || []).some(t => !t.done && t.stage === l.stage);
+  return true;
+};
 const manager = () => sellersList().find(s => s.role === 'Gestor' && s.active !== false) || null;
 function applyHandoff(l, id){
   const m = manager(); if (!m || l.handoff || l.example || l.ownerId === m.id) return false;
@@ -854,13 +1142,16 @@ function applyHandoff(l, id){
   put('tasks', uid(), {title: 'Dar sequência: ' + (l.name || 'lead'), due: today(), ownerId: m.id, leadId: id, done: false, doneAt: null, createdAt: iso(), auto: 'handoff'});
   return true;
 }
-function nextTouch(l){ return (l.touches || []).filter(t => !t.done).sort((a, b) => a.due.localeCompare(b.due))[0] || null }
+function nextTouch(l){ return (l.touches || []).filter(t => !t.done).sort((a, b) => touchAt(a).localeCompare(touchAt(b)))[0] || null }
 function toggleTouch(lid, tid, val){
   const cur = S.leads[lid]; if (!cur) return;
   const l = clone(cur), t = (l.touches || []).find(x => x.id === tid); if (!t) return;
   t.done = val; t.doneAt = val ? iso() : null; l.updatedAt = iso();
+  const st = val && cadStep(t), left = l.touches.filter(x => !x.done).length;
+  // Retorno que se repete (Desqualificado: a cada 3 meses): feito o último, programa o próximo.
+  if (st && +st.every > 0 && !left) l.touches.push({id: uid(), code: t.code, title: t.title, stage: t.stage, run: t.run, due: adjWeekend(addDays(today(), +st.every)), done: false, doneAt: null});
   put('leads', lid, l);
-  if (val){ const left = l.touches.filter(x => !x.done).length; toast(left ? `Toque feito · faltam ${left}` : 'Cadência concluída — mova o card se não houver resposta') }
+  if (val){ const nt = nextTouch(l), end = (cadOf(l.stage) || {}).end; toast(nt ? `Toque feito · próximo: ${nt.code || 'toque'} ${touchWhen(nt)}` : end || 'Cadência concluída — mova o card se não houver resposta') }
 }
 function commissionFor(sid, mk){
   const c = cfg().commission;
@@ -889,7 +1180,7 @@ function toggleRoutine(rid, sid){
 }
 function todayCount(own){
   const t0 = today(); let n = 0;
-  leadsArr().forEach(l => { if (own && l.ownerId !== own) return; if (isPrintWait(l) && printMs(l) <= 0) n++; if (!TOUCHABLE(l)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
+  leadsArr().forEach(l => { if (isPrintWait(l) && printMs(l) <= 0 && (!own || l.ownerId === own)) n++; if (!TOUCHABLE(l) || (own && touchOwner(l) !== own)) return; (l.touches || []).forEach(t => { if (!t.done && t.due <= t0) n++ }) });
   return n;
 }
 
@@ -905,10 +1196,11 @@ function ownerOptions(val, allLabel){
 }
 function touchChip(l, t){
   if (!t) return '<span class="chip ok">✓ Cadência concluída</span>';
-  const i = (l.touches || []).indexOf(t) + 1, t0 = today();
-  if (t.due < t0) return `<span class="chip late">T${i} · atrasado ${daysBetween(t.due, t0)}d</span>`;
-  if (t.due === t0) return `<span class="chip today">T${i} · hoje</span>`;
-  return `<span class="chip">T${i} · ${wdOf(t.due)} ${fmtDM(t.due)}</span>`;
+  const cur = curTouches(l), i = (cur.includes(t) ? cur.indexOf(t) : (l.touches || []).indexOf(t)) + 1, t0 = today(), lbl = esc(t.code || 'T' + i);
+  const a = cadStep(t) ? ` data-a="touch-msg" data-id="${attr(l.id)}" data-touch="${attr(t.id)}" title="Ver a mensagem recomendada"` : '';
+  if (t.due < t0) return `<span class="chip late"${a}>${lbl} · atrasado ${daysBetween(t.due, t0)}d</span>`;
+  if (t.due === t0) return `<span class="chip today"${a}>${lbl} · hoje${t.at ? ' ' + t.at.slice(11, 16) : ''}</span>`;
+  return `<span class="chip"${a}>${lbl} · ${wdOf(t.due)} ${fmtDM(t.due)}</span>`;
 }
 function meetChip(v){ const d = v.slice(0, 10), t0 = today(); return `<span class="chip meet">${I.cal}${d === t0 ? 'hoje' : wdOf(d) + ' ' + fmtDM(d)}${v.length > 10 ? ' · ' + v.slice(11, 16) : ''}</span>` }
 function speedChip(created){
@@ -931,8 +1223,10 @@ function viewHoje(){
   const me = own ? S.sellers[own] : null;
   const leads = leadsArr().filter(l => !own || l.ownerId === own);
   const late = [], due = [], doneT = [];
-  leads.forEach(l => { if (!TOUCHABLE(l)) return; (l.touches || []).forEach((t, i) => { const it = {l, t, i}; if (!t.done){ if (t.due < t0) late.push(it); else if (t.due === t0) due.push(it) } else if (localDay(t.doneAt) === t0) doneT.push(it) }) });
-  late.sort((a, b) => a.t.due.localeCompare(b.t.due));
+  // Toques são de quem conduz o lead agora (depois de passar o processo, do gestor).
+  leadsArr().filter(l => !own || touchOwner(l) === own).forEach(l => { const ok = TOUCHABLE(l); (l.touches || []).forEach((t, i) => { const it = {l, t, i}; if (!t.done){ if (!ok) return; if (t.due < t0) late.push(it); else if (t.due === t0) due.push(it) } else if (localDay(t.doneAt) === t0) doneT.push(it) }) });
+  late.sort((a, b) => touchAt(a.t).localeCompare(touchAt(b.t)));
+  due.sort((a, b) => touchAt(a.t).localeCompare(touchAt(b.t)));
   const waiting = leads.filter(l => l.wa && l.wa.waitingSince && ACTIVE(l.stage)).sort((a, b) => a.wa.waitingSince.localeCompare(b.wa.waitingSince));
   const meetings = leads.filter(l => l.meetingAt && l.meetingAt.slice(0, 10) === t0).sort((a, b) => a.meetingAt.localeCompare(b.meetingAt));
   const tasks = arr('tasks').filter(x => (!own || x.ownerId === own) && ((!x.done && x.due <= t0) || (x.done && localDay(x.doneAt) === t0))).sort((a, b) => (a.done - b.done) || a.due.localeCompare(b.due));
@@ -945,17 +1239,18 @@ function viewHoje(){
   const h = new Date().getHours(), greet = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
   const dateLabel = cap(new Date().toLocaleDateString('pt-BR', {weekday: 'long', day: 'numeric', month: 'long'}));
 
-  const touchRow = ({l, t, i}, kind) => `<div class="row ${t.done ? 'done' : ''}">
+  const nowS = localStr(Date.now());
+  const touchRow = ({l, t, i}, kind) => { const st = cadStep(t), fmt = st && st.fmt && st.fmt !== 'Texto' ? st.fmt : ''; return `<div class="row ${t.done ? 'done' : ''}">
     <input type="checkbox" class="ck" data-c="touch" data-lead="${l.id}" data-touch="${t.id}" ${t.done ? 'checked' : ''} aria-label="Marcar toque como feito">
-    <div class="row-main" data-a="open-lead" data-id="${l.id}">
-      <div class="row-t">${esc(l.name)}${kind === 'late' ? ` <span class="chip late">atrasado ${daysBetween(t.due, t0)}d</span>` : ''}${i === 0 && !t.done ? speedChip(l.createdAt) : ''}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div>
-      <div class="row-s">T${i+1} · ${esc(t.title)}${l.contact ? ' · ' + esc(l.contact) : ''}${l.company ? ' · ' + esc(l.company) : ''}</div>
+    <div class="row-main" data-a="${st ? 'touch-msg' : 'open-lead'}" data-id="${l.id}" data-touch="${t.id}" title="${st ? 'Ver a mensagem recomendada' : 'Abrir o card'}">
+      <div class="row-t">${esc(l.name)}${kind === 'late' ? ` <span class="chip late">atrasado ${daysBetween(t.due, t0)}d</span>` : ''}${kind === 'today' && t.at ? ` <span class="chip ${t.at <= nowS ? 'today' : ''}">${t.at <= nowS ? 'desde' : 'às'} ${t.at.slice(11, 16)}</span>` : kind === 'today' && t.slot ? ` <span class="chip">${CAD_SLOT[t.slot]}</span>` : ''}${i === 0 && !t.done ? speedChip(l.createdAt) : ''}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div>
+      <div class="row-s">${t.code ? `<b class="tcode">${esc(t.code)}</b> ${esc(t.title)}` : `T${i+1} · ${esc(t.title)}`}${fmt ? ' · ' + esc(fmt) : ''}${l.contact ? ' · ' + esc(l.contact) : ''}${l.company ? ' · ' + esc(l.company) : ''}</div>
     </div>
     ${l.stage === 'novo' && ptCfg().on ? `<div class="row-act"><button class="btn sm ghost" data-a="link-received" data-id="${attr(l.id)}" title="O lead mandou o link: programa o print">Link recebido</button></div>` : ''}
     <span class="hide-sm">${stagePill(l.stage)}</span>
-    ${l.phone ? `<a class="btn sm ghost wa" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp" aria-label="Abrir conversa no WhatsApp">${IC.wa}<span>WhatsApp</span></a>` : ''}
-    ${own ? '' : avatar(l.ownerId)}
-  </div>`;
+    ${st && !t.done ? `<button class="btn sm ghost" data-a="touch-msg" data-id="${l.id}" data-touch="${t.id}" title="Ver a mensagem recomendada">Mensagem</button>` : l.phone ? `<a class="btn sm ghost wa" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener" title="Abrir conversa no WhatsApp" aria-label="Abrir conversa no WhatsApp">${IC.wa}<span>WhatsApp</span></a>` : ''}
+    ${own ? '' : avatar(touchOwner(l))}
+  </div>` };
 
   const taskRow = x => { const L = x.leadId && S.leads[x.leadId]; return `<div class="row ${x.done ? 'done' : ''}">
     <input type="checkbox" class="ck" data-c="task" data-id="${x.id}" ${x.done ? 'checked' : ''} aria-label="Concluir tarefa">
@@ -1003,7 +1298,7 @@ function viewHoje(){
         ${doneT.length ? `<div class="sec-t">Feitos hoje <span class="n">${doneT.length}</span></div><div class="rows">${doneT.map(x => touchRow(x, 'done')).join('')}</div>` : ''}
       </div></section>
       <section class="panel"><div class="panel-h"><h2>Reuniões de hoje</h2></div><div class="panel-b"><div class="rows">
-        ${meetings.map(l => `<div class="row"><span class="time">${esc(l.meetingAt.slice(11, 16) || '—')}</span><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div><div class="row-s">${esc(l.company || '')}</div></div>${stagePill(l.stage)}${l.stage === 'marcada' ? `<button class="btn sm" data-a="meeting-done" data-id="${l.id}">Reunião feita</button>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('') || '<div class="empty">Nenhuma reunião marcada para hoje.</div>'}
+        ${meetings.map(l => `<div class="row"><span class="time">${esc(l.meetingAt.slice(11, 16) || '—')}</span><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)}${l.example ? ' <span class="chip ex">Exemplo</span>' : ''}</div><div class="row-s">${esc(l.company || '')}</div></div>${stagePill(l.stage)}${l.stage === 'marcada' ? `<button class="btn sm" data-a="meeting-done" data-id="${l.id}">Reunião feita</button><button class="btn sm ghost" data-a="meeting-noshow" data-id="${l.id}" title="Não entrou: move para No-show e começa a remarcação">No-show</button>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('') || '<div class="empty">Nenhuma reunião marcada para hoje.</div>'}
       </div></div></section>
     </div>
     <div class="stack">
@@ -1031,9 +1326,9 @@ function sortCol(items, sid){
 }
 function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
-  const tt = l.touches || [], dn = tt.filter(t => t.done).length;
+  const tt = curTouches(l), dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) ? touchChip(l, nt) : l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) && (nt || tt.length) ? touchChip(l, nt) : '') + (l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card ${freshOf(l) ? 'fresh' : ''}" ${PHONE() ? '' : `draggable="true" data-drag="${l.id}"`} data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -1044,10 +1339,10 @@ function boardHTML(){
   const qq = UI.search.trim().toLowerCase(), own = UI.owner && S.sellers[UI.owner] ? UI.owner : '';
   const L = leadsArr().filter(l => (!own || l.ownerId === own) && (!qq || [l.name, l.company, l.contact, l.phone, l.email, l.instagram, l.source, l.utm && l.utm.ad, l.noPowerDataAt && 'fora do PowerData'].some(v => String(v || '').toLowerCase().includes(qq))));
   const by = {}; STAGES.forEach(s => by[s.id] = []); L.forEach(l => (by[l.stage] || by.novo).push(l));
-  let html = '';
+  let html = '', sep = false;
   STAGES.forEach(s => {
     if (s.side && !UI.showSide) return;
-    if (s.id === 'perdido') html += '<div class="col-sep" aria-hidden="true"><span>Fora do funil</span></div>';
+    if (s.side && !sep){ sep = true; html += '<div class="col-sep" aria-hidden="true"><span>Fora do funil</span></div>' }
     const items = sortCol(by[s.id], s.id);
     const total = s.id === 'fechado' ? sum(items.map(l => l.value)) : 0;
     html += `<section class="col ${s.side ? 'side' : ''}" data-drop="${s.id}" style="--c:${s.color}" aria-label="${s.name}">
@@ -1074,8 +1369,8 @@ function viewPipeline(){
 
 /* ---------- drawer ---------- */
 function drawerHTML(l, id){
-  const st = STAGE[l.stage] || STAGE.novo, t0 = today(), c = cfg();
-  const tt = l.touches || [], dn = tt.filter(t => t.done).length;
+  const st = STAGE[l.stage] || STAGE.novo, t0 = today(), c = cfg(), cadD = cadOf(l.stage);
+  const tt = curTouches(l), dn = tt.filter(t => t.done).length, prevT = (l.touches || []).filter(t => !tt.includes(t));
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
   const dateVal = v => localDay(v) || '';
   const hist = (l.history || []).slice().reverse();
@@ -1123,15 +1418,18 @@ function drawerHTML(l, id){
       ${l.handoff ? `<p class="hint">Com ${esc((S.sellers[l.handoff.to] || {}).name || 'o gestor')} desde ${fmtDM(localDay(l.handoff.at))}. Não aparece no Hoje nem nos atrasados do SDR; a comissão dele continua contando.</p><div class="actions"><button class="btn sm ghost" data-a="unhand" data-id="${id}">Trazer de volta para o SDR</button></div>` : `<p class="hint">Passe o processo para o gestor depois da reunião. O card sai do Hoje e dos atrasados do SDR, e o gestor recebe uma tarefa.</p><div class="actions"><button class="btn sm" data-a="handoff" data-id="${id}">Passar o processo para ${esc(manager().name.split(' ')[0])}</button></div>`}
     </section>` : ''}
     <section>
-      <h3>Cadência de toques <span class="hint">${dn} de ${tt.length} feitos</span></h3>
-      <div>${tt.map((t, i) => { const cls = t.done ? 'done' : t.due < t0 ? 'late' : t.due === t0 ? 'today' : ''; return `<div class="touch ${cls}">
-        <input type="checkbox" class="ck" data-c="touch" data-lead="${id}" data-touch="${t.id}" ${t.done ? 'checked' : ''} aria-label="Toque ${i+1} feito">
-        <span class="tn">T${i+1}</span>
-        <input class="in" data-c="touch-f" data-lead="${id}" data-touch="${t.id}" data-k="title" id="tt-${t.id}" value="${attr(t.title)}" aria-label="Descrição do toque">
+      <h3>Toques${cadD ? ' · ' + esc(st.name) : ''} <span class="hint">${dn} de ${tt.length} feitos</span></h3>
+      ${cadD ? `<p class="hint" style="margin:-4px 0 6px">Objetivo: ${esc(cadD.goal || '—')}${cadUse(l.stage) ? ' · usa a cadência de ' + esc(STAGE[cadUse(l.stage)].name) : ''}${cadD.end ? '. ' + esc(cadD.end) : ''}</p>` : `<p class="hint" style="margin:-4px 0 6px">${esc(st.name)} não tem cadência própria. Configure em Configurações › Cadências.</p>`}
+      <div>${tt.map((t, i) => { const cls = t.done ? 'done' : t.due < t0 ? 'late' : t.due === t0 ? 'today' : ''; const sp = cadStep(t); return `<div class="touch ${cls}">
+        <input type="checkbox" class="ck" data-c="touch" data-lead="${id}" data-touch="${t.id}" ${t.done ? 'checked' : ''} aria-label="Toque ${attr(t.code || i + 1)} feito">
+        ${t.code ? `<button class="tn tbtn" data-a="touch-msg" data-id="${id}" data-touch="${t.id}" title="Ver a mensagem recomendada">${esc(t.code)}</button>
+        <button class="ttl" data-a="touch-msg" data-id="${id}" data-touch="${t.id}" title="Ver a mensagem recomendada"><span>${esc(t.title)}</span><small>${esc([sp && sp.fmt, t.done ? 'feito ' + fmtDM(localDay(t.doneAt)) : touchWhen(t)].filter(Boolean).join(' · '))}</small></button>` : `<span class="tn">T${i+1}</span>
+        <input class="in" data-c="touch-f" data-lead="${id}" data-touch="${t.id}" data-k="title" id="tt-${t.id}" value="${attr(t.title)}" aria-label="Descrição do toque">`}
         <input class="in" type="date" data-c="touch-f" data-lead="${id}" data-touch="${t.id}" data-k="due" id="td-${t.id}" value="${t.due}" aria-label="Data do toque">
         <button class="icon-btn" data-a="del-touch" data-lead="${id}" data-touch="${t.id}" data-confirm="Remover" aria-label="Remover toque">×</button>
-      </div>` }).join('') || '<div class="empty">Sem toques.</div>'}</div>
-      <div class="actions" style="margin-top:8px"><button class="btn sm" data-a="add-touch" data-id="${id}">+ Adicionar toque</button><button class="btn sm ghost" data-a="reset-cadence" data-id="${id}" data-confirm="Recriar a partir de hoje?">Reiniciar cadência</button></div>
+      </div>` }).join('') || '<div class="empty">Sem toques nesta etapa.</div>'}</div>
+      <div class="actions" style="margin-top:8px">${cadD ? `<button class="btn sm" data-a="cad-replied" data-id="${id}" title="Respondeu sem avançar: os toques desta etapa voltam para o 1">Lead respondeu · reiniciar toques</button>` : ''}<button class="btn sm ghost" data-a="add-touch" data-id="${id}">+ Adicionar toque</button><button class="btn sm ghost" data-a="reset-cadence" data-id="${id}" data-confirm="Recriar a partir de agora?">Reiniciar cadência</button></div>
+      ${prevT.length ? `<details class="tprev"><summary>Toques de antes (${prevT.length})</summary>${prevT.slice().reverse().map(t => `<div class="tprev-r"><b>${esc(t.code || 'Toque')}</b> ${esc(t.title)} <span class="hint">${t.done ? 'feito ' + fmtDM(localDay(t.doneAt) || t.due) : 'não feito'}${t.stage && STAGE[t.stage] ? ' · ' + esc(STAGE[t.stage].name) : ''}</span></div>`).join('')}</details>` : ''}
     </section>
     <section>
       <h3>Observações</h3>
@@ -1203,14 +1501,47 @@ function renderCreative(host){
   host.dataset.m = 'creative'; crLast = html; host.innerHTML = html;
   const nl = host.querySelector('.cr-list'); if (nl && st) nl.scrollTop = st;
 }
+// Mensagem recomendada do toque: texto do documento com os dados do lead, para copiar ou abrir no WhatsApp já escrito.
+function touchModalHTML(id, l, t){
+  const sp = cadStep(t), cad = cadOf(t.stage) || cadOf(l.stage), t0 = today();
+  const audio = sp && /áudio/i.test(sp.fmt || ''), txt = sp ? cadFill(sp.text, l, id) : '', miss = cadMissing(txt);
+  const alts = cad && sp && sp.alt != null && sp.alt !== false ? cad.steps.filter(x => x.alt != null && x.alt !== false) : [];
+  const when = t.done ? 'feito ' + fmtDM(localDay(t.doneAt)) : t.due < t0 ? 'atrasado ' + daysBetween(t.due, t0) + 'd' : touchWhen(t);
+  const owner = S.sellers[touchOwner(l)];
+  return `<div class="modal-wrap"><div class="modal tmodal" role="dialog" aria-modal="true" aria-label="Mensagem do toque ${attr(t.code || '')}">
+    <div class="tm-h"><span class="tm-code">${esc(t.code || 'Toque')}</span><h2>${esc(t.title)}</h2><button class="icon-btn" data-a="close-modal" aria-label="Fechar">×</button></div>
+    <div class="tm-meta"><span class="chip ${t.done ? 'ok' : t.due < t0 ? 'late' : t.due === t0 ? 'today' : ''}">${esc(when)}</span>${sp && sp.fmt ? `<span class="chip">${esc(sp.fmt)}</span>` : ''}<span class="hint">${esc(l.name)}${l.contact && l.contact !== l.name ? ' · ' + esc(l.contact) : ''} · ${esc((STAGE[l.stage] || STAGE.novo).name)}${owner ? ' · ' + esc(owner.name.split(' ')[0]) : ''}</span></div>
+    ${alts.length > 1 ? `<div class="tm-alts" role="group" aria-label="Saída">${alts.map(x => `<button class="btn sm ${x.code === t.code ? 'primary' : 'ghost'}" data-a="tm-alt" data-v="${attr(x.code)}" title="${attr(x.title)}">${esc(x.code)} · ${esc(String(x.title).replace(/^Saída:\s*/, ''))}</button>`).join('')}</div>` : ''}
+    ${sp && sp.note ? `<p class="tm-note">${esc(sp.note)}</p>` : ''}
+    ${sp ? `<label class="f">${audio ? 'Roteiro do áudio' : 'Mensagem recomendada'}<textarea class="in" id="tm-text" rows="${Math.min(12, Math.max(4, txt.split('\n').length + Math.ceil(txt.length / 60)))}">${esc(txt)}</textarea></label>
+    ${miss.length ? `<p class="tm-miss">Complete antes de enviar: ${miss.map(m => `<b>${esc(m)}</b>`).join(', ')}</p>` : ''}
+    ${sp.next ? `<p class="hint">${esc(sp.next)}</p>` : ''}` : '<p class="hint">Sem mensagem cadastrada para este toque. Cadastre em Configurações › Cadências.</p>'}
+    <div class="foot tm-foot">
+      ${sp ? `<button class="btn" data-a="tm-copy">Copiar</button>` : ''}
+      ${l.phone ? `<button class="btn wa" data-a="tm-wa" title="${audio ? 'Abre a conversa para gravar o áudio' : 'Abre a conversa com a mensagem escrita'}${t.done ? '' : ' e marca o toque como feito'}">${IC.wa}<span>${audio ? 'Abrir conversa' : 'Enviar no WhatsApp'}</span></button>` : ''}
+      <button class="btn ${t.done ? 'ghost' : 'primary'}" data-a="tm-done">${t.done ? 'Desmarcar' : 'Marcar como feito'}</button>
+    </div>
+    <div class="tm-sub"><button class="btn sm ghost" data-a="tm-lead">Abrir card</button>${cadOf(l.stage) ? `<button class="btn sm ghost" data-a="cad-replied" data-id="${attr(id)}" title="Respondeu sem avançar: os toques desta etapa voltam para o 1">Lead respondeu · reiniciar toques</button>` : ''}</div>
+    <p class="hint tm-rule">Lead respondeu? Responda em até 15 minutos. Se ele não avançou de etapa, clique em “Lead respondeu”: os toques voltam para o 1.</p>
+  </div></div>`;
+}
+function renderTouch(host){
+  const tm = UI.tm, l = tm && S.leads[tm.lead], t = l && (l.touches || []).find(x => x.id === tm.touch);
+  if (!t){ UI.modal = null; UI.tm = null; host.innerHTML = ''; host.dataset.m = ''; return }
+  const key = 'touch:' + tm.lead + ':' + t.id + ':' + t.code + ':' + t.done;
+  if (host.dataset.m === key && host.innerHTML) return;
+  host.dataset.m = key; host.innerHTML = touchModalHTML(tm.lead, l, t);
+}
+function tmCtx(){ const tm = UI.tm, l = tm && S.leads[tm.lead], t = l && (l.touches || []).find(x => x.id === tm.touch); return t ? {id: tm.lead, l, t, txt: ($('#tm-text') || {}).value || ''} : null }
 function renderModal(){
   const host = $('#modal-host');
   if (!UI.modal){ if (host.innerHTML) host.innerHTML = ''; crLast = ''; offerLast = ''; return }
   if (UI.modal === 'creative') return renderCreative(host);
   if (UI.modal === 'offer') return renderOffer(host);
+  if (UI.modal === 'touch') return renderTouch(host);
   if (host.dataset.m === UI.modal && host.innerHTML) return;
   host.dataset.m = UI.modal;
-  const c = cfg(), cad = buildCadence(today());
+  const c = cfg(), cad = cadOf('novo') ? buildStageCadence({}, 'novo') : buildCadence(today());
   const me = validMe();
   host.innerHTML = `<div class="modal-wrap"><form class="modal" data-f="new-lead" role="dialog" aria-modal="true" aria-label="Novo lead">
     <h2>Novo lead</h2>
@@ -1222,7 +1553,7 @@ function renderModal(){
       <label class="f">Responsável<select class="in" name="ownerId" id="nl-owner">${c.autoAssign ? '<option value="__auto">Automático (rodízio)</option>' : ''}${ownerOptions(me, 'Sem responsável')}</select></label>
       <label class="f">Etapa inicial<select class="in" name="stage" id="nl-stage">${STAGES.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}</select></label>
     </div>
-    <p class="hint">Entra com ${cad.length} toques programados: ${cad.map(t => wdOf(t.due) + ' ' + fmtDM(t.due)).join(' · ')}.</p>
+    <p class="hint">Em Lead Novo, entra com ${cad.length} toques programados: ${cad.map(t => (t.code ? t.code + ' ' : '') + touchWhen(t)).join(' · ')}. Em outra etapa, entra com os toques dela.</p>
     <div class="foot"><button type="button" class="btn ghost" data-a="close-modal">Cancelar</button><button class="btn primary">Criar lead</button></div>
   </form></div>`;
   if (me) { const sel = host.querySelector('#nl-owner'); if (sel) sel.value = me }
@@ -1852,6 +2183,7 @@ async function agReserve(copyMsg){
 async function agConfirm(hid){
   const h = S.holds[hid], lead = h && S.leads[h.leadId]; if (!lead) return;
   const l = clone(lead); l.meetingAt = h.start; l.updatedAt = iso();
+  if (l.stage === 'marcada') cadMeeting(l);
   await put('leads', h.leadId, l);
   moveLead(h.leadId, 'marcada');
   Object.entries(S.holds || {}).filter(([, x]) => x.leadId === h.leadId).forEach(([id]) => del('holds', id));
@@ -1924,6 +2256,25 @@ function printPanelHTML(leads){
 }
 async function linkReceived(id){ if (S.leads[id] && S.leads[id].stage === 'novo') moveLead(id, 'link') }
 function printSent(id){ if (S.leads[id]) moveLead(id, 'print') }
+// Edita a cadência de uma etapa em Configurações (o restante fica como está).
+function cadsEdit(sid, fn){
+  if (!STAGE[sid]) return;
+  const all = clone(cfg().cadences || {}), c = all[sid] && typeof all[sid] === 'object' ? all[sid] : {};
+  if (!c.use && !Array.isArray(c.steps)) c.steps = [];
+  if (fn(c) === false) return;
+  all[sid] = c; saveCfg({cadences: all});
+}
+// "Lead respondeu" sem avançar (ou "Reiniciar cadência"): os toques da etapa voltam para o 1, contando de agora.
+function cadRestart(id, replied){
+  const cur = S.leads[id]; if (!cur) return;
+  const l = clone(cur), now = iso(); l.updatedAt = now; if (replied) l.repliedAt = now;
+  const n = cadOf(l.stage) ? restartCad(l, l.stage, now) : (l.touches = [...(l.touches || []).filter(t => t.done), ...buildCadence(today())], l.cadStage = '', l.cadRun = '', l.touches.length);
+  put('leads', id, l);
+  if (UI.modal === 'touch'){ UI.modal = null; UI.tm = null; renderModal() }
+  const nt = nextTouch(l);
+  toast(n ? `Toques de ${STAGE[l.stage].name} reiniciados${nt ? ' · próximo: ' + (nt.code || 'T1') + ' ' + touchWhen(nt) : ''}` : 'Esta etapa não tem toques programados');
+  render();
+}
 async function leadReplied(id){
   const cur = S.leads[id]; if (!cur) return;
   const l = clone(cur); l.repliedAt = iso(); delete l.printDue; l.updatedAt = iso();
@@ -2489,8 +2840,11 @@ async function runDistribution(btn){
   for (const l of list){
     const cur = clone(S.leads[l.id]); if (!cur) continue; const now = iso();
     cur.ownerId = d.to; cur.updatedAt = now;
-    if (d.cadence) cur.touches = [...(cur.touches || []).filter(x => x.done), ...buildCadence(today()).map(x => ({...x, title: 'Reativação · ' + x.title}))];
-    if (d.move !== 'keep' && cur.stage !== d.move){ cur.stage = d.move; cur.stageAt = now; cur.history = [...(cur.history || []), {s: d.move, at: now}].slice(-80); applyMilestones(cur, d.move, now) }
+    const moved = d.move !== 'keep' && cur.stage !== d.move;
+    if (moved){ cur.stage = d.move; cur.stageAt = now; cur.history = [...(cur.history || []), {s: d.move, at: now}].slice(-80); applyMilestones(cur, d.move, now) }
+    // Mudou de etapa: toques da etapa nova, do 1. Ficou na etapa e pediu cadência nova: lista de reativação a partir de hoje.
+    if (moved && cadOf(cur.stage)) restartCad(cur, cur.stage, now);
+    else if (d.cadence){ cur.touches = [...(cur.touches || []).filter(x => x.done), ...buildCadence(today()).map(x => ({...x, title: 'Reativação · ' + x.title}))]; cur.cadStage = cur.stage; cur.cadRun = '' }
     await put('leads', l.id, cur);
   }
   toast(`${list.length} leads passados para ${S.sellers[d.to].name}${d.cadence ? ' com cadência nova' : ''}`);
@@ -2498,7 +2852,7 @@ async function runDistribution(btn){
 }
 function viewConfig(){
   if (!loaded()) return loading();
-  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadência'], ['agenda', 'Agenda'], ['avisos', 'Avisos'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['meta', 'Meta (anúncios)'], ['dados', 'Dados']];
+  const tabs = [['equipe', 'Equipe'], ['distribuir', 'Distribuir leads'], ['comissao', 'Comissão'], ['cadencia', 'Cadências'], ['agenda', 'Agenda'], ['avisos', 'Avisos'], ['ideal', 'Metas ideais'], ['rotinas', 'Rotinas'], ['perdas', 'Motivos de perda'], ['webhook', 'Webhook e importação'], ['meta', 'Meta (anúncios)'], ['dados', 'Dados']];
   const c = cfg(); let body = '';
   if (UI.cfgTab === 'distribuir'){
     const d = UI.dist, cands = distCandidates(), qty = Math.min(Math.max(1, +d.qty || 1), 100, cands.length);
@@ -2560,14 +2914,47 @@ function viewConfig(){
       <div class="actions"><button class="btn sm" data-a="ideal-reset" data-confirm="Sim, restaurar padrão">Restaurar valores padrão</button></div>
     </div></section>`;
   } else if (UI.cfgTab === 'cadencia'){
-    const prev = buildCadence(today());
-    body = `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:14px;max-width:720px">
-      <div>${c.cadence.map((t, i) => `<div class="touch" style="grid-template-columns:30px minmax(0,1fr) 170px auto"><span class="tn">T${i + 1}</span><input class="in" data-c="cad-f" data-n="${i}" data-k="title" id="cad-t-${i}" value="${attr(t.title)}" aria-label="Nome do toque"><label class="f" style="grid-auto-flow:column;align-items:center;justify-content:start;gap:6px">${i === 0 ? '<span>no dia da entrada</span>' : `<input class="in" type="number" min="1" max="30" style="width:64px" data-c="cad-f" data-n="${i}" data-k="gap" id="cad-g-${i}" value="${t.gap}" aria-label="Dias após o toque anterior"><span>dias depois</span>`}</label><button class="icon-btn" data-a="cad-del" data-n="${i}" ${c.cadence.length <= 1 ? 'disabled' : ''} aria-label="Remover toque">×</button></div>`).join('')}</div>
-      <div class="actions"><button class="btn sm" data-a="cad-add">+ Adicionar toque ao modelo</button></div>
+    const sid = STAGE[UI.cadStage] ? UI.cadStage : 'novo', all = c.cadences || {}, own = all[sid] || {}, use = cadUse(sid), steps = use ? [] : (own.steps || []);
+    const eff = cadOf(sid), prev = eff ? buildStageCadence({}, sid) : [];
+    const legacy = leadsArr().filter(l => l.stage === sid && !l.example && !l.cadRun && ACTIVE(l.stage) && eff);
+    const fmts = ['Texto', 'Áudio', 'Imagem e texto', 'Múltipla escolha', 'Texto e PDF', 'Áudio do Renan'];
+    const meets = [['', 'por dia'], ['book', 'na hora de marcar'], ['eve', 'véspera ou manhã do dia'], ['-60', '1 hora antes'], ['0', 'no horário'], ['10', '10 min depois'], ['30', '30 min depois']];
+    const slots = [['', 'qualquer horário'], ['manha', 'de manhã'], ['tarde', 'de tarde'], ['oposto', 'oposto ao da entrada']];
+    const opt = (list, v) => list.map(([k, l]) => `<option value="${attr(k)}" ${String(v ?? '') === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+    const f = (n, k, v, lbl, extra = '') => `<label class="f">${lbl}<input class="in" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="${k}" id="cs-${k}-${n}" value="${attr(v ?? '')}" ${extra}></label>`;
+    const stepHTML = (s, n) => { const isMeet = s.meet != null && s.meet !== '', isAlt = s.alt != null && s.alt !== false; return `<details class="cad-step" ${UI.cadOpen === sid + n ? 'open' : ''}>
+      <summary data-a="cads-open" data-v="${sid + n}"><b class="tcode">${esc(s.code || '—')}</b><span>${esc(s.title || '')}</span><small>${esc(cadWhenLabel(s))}${s.fmt && s.fmt !== 'Texto' ? ' · ' + esc(s.fmt) : ''}</small></summary>
+      <div class="cad-grid">
+        ${f(n, 'code', s.code, 'Código', 'maxlength="12"')}${f(n, 'title', s.title, 'Nome do toque', 'maxlength="80"')}
+        <label class="f">Formato<select class="in" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="fmt" id="cs-fmt-${n}">${opt(fmts.map(x => [x, x]), s.fmt || 'Texto')}</select></label>
+        <label class="f">Em relação à reunião<select class="in" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="meet" id="cs-meet-${n}">${opt(meets, s.meet)}</select></label>
+        ${isMeet ? '' : `${f(n, 'day', s.day ?? 0, 'Dia (0 = entrada na etapa)', 'type="number" min="0" max="400"')}${+s.day ? `<label class="f">Período<select class="in" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="slot" id="cs-slot-${n}">${opt(slots, s.slot)}</select></label>` : f(n, 'hours', s.hours || '', 'Horas depois (no dia 0)', 'type="number" min="0" max="12" step="0.5"')}`}
+        ${f(n, 'every', s.every || '', 'Repetir a cada (dias)', 'type="number" min="0" max="400" placeholder="não repete"')}
+        ${isAlt || sid === 'desqualificado' ? f(n, 'alt', isAlt ? s.alt : '', 'Saída escolhida pelo motivo (palavras com |)', 'placeholder="vazio = toque normal"') : ''}
+      </div>
+      ${f(n, 'note', s.note, 'Observação para o SDR', 'maxlength="200" placeholder="Ex.: anexe o print de antes e depois"')}
+      <label class="f">Mensagem${/áudio/i.test(s.fmt || '') ? ' (roteiro do áudio)' : ''}<textarea class="in" rows="5" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="text" id="cs-text-${n}">${esc(s.text || '')}</textarea></label>
+      ${f(n, 'next', s.next, 'Sem resposta (próximo passo)', 'maxlength="160"')}
+      <div class="actions"><label class="switch"><input type="checkbox" class="ck" data-c="cads-f" data-st="${sid}" data-n="${n}" data-k="skipIfPrint" ${s.skipIfPrint ? 'checked' : ''}> Pular se o print já foi enviado</label><span style="flex:1"></span>
+        <button class="btn sm ghost" data-a="cads-move" data-n="${n}" data-v="-1" ${n === 0 ? 'disabled' : ''} aria-label="Subir">↑</button><button class="btn sm ghost" data-a="cads-move" data-n="${n}" data-v="1" ${n === steps.length - 1 ? 'disabled' : ''} aria-label="Descer">↓</button>
+        <button class="btn sm ghost danger" data-a="cads-del" data-n="${n}" data-confirm="Remover toque">Remover</button></div>
+    </details>` };
+    body = `<section class="panel"><div class="panel-b" style="padding-top:14px;display:grid;gap:14px">
+      <div class="cad-stages" role="tablist" aria-label="Etapa">${STAGES.map(s => { const cu = cadUse(s.id), n = cu ? 0 : ((all[s.id] || {}).steps || []).length; return `<button role="tab" class="cad-st ${s.id === sid ? 'on' : ''}" style="--c:${s.color}" data-a="cads-stage" data-v="${s.id}" aria-selected="${s.id === sid}">${esc(s.name)}<small>${cu ? 'usa ' + esc(STAGE[cu].name) : n ? n + ' toques' : 'sem toques'}</small></button>` }).join('')}</div>
+      <div class="fgrid">
+        <label class="f">Cadência de ${esc(STAGE[sid].name)}<select class="in" data-c="cads-meta" data-st="${sid}" data-k="use" id="cs-use">${opt([['', 'Própria (toques abaixo)'], ...STAGES.filter(s => s.id !== sid && !cadUse(s.id)).map(s => [s.id, 'Usar a de ' + s.name])], use)}</select></label>
+        ${use ? '<span></span>' : `<label class="f">Objetivo<input class="in" data-c="cads-meta" data-st="${sid}" data-k="goal" id="cs-goal" value="${attr(own.goal || '')}" maxlength="120"></label>`}
+      </div>
+      ${use ? `<p class="hint">Quem entra em ${esc(STAGE[sid].name)} recebe os toques de ${esc(STAGE[use].name)}${sid === 'print' ? ' (o QL-2 é pulado, porque o print já foi enviado)' : ''}.</p>` : `
+      <label class="f">Ao fim da cadência<input class="in" data-c="cads-meta" data-st="${sid}" data-k="end" id="cs-end" value="${attr(own.end || '')}" maxlength="160" placeholder="Ex.: sem resposta no último toque, mover para Frio"></label>
+      <div class="cad-steps">${steps.map(stepHTML).join('') || `<div class="empty">${esc(STAGE[sid].name)} não tem toques. ${sid === 'link' ? 'O lead que mandou o link segue pelo prazo do print.' : ''}</div>`}</div>
+      <div class="actions"><button class="btn sm" data-a="cads-add">+ Adicionar toque</button>${DEFAULT_CADENCES[sid] ? `<button class="btn sm ghost" data-a="cads-reset" data-confirm="Sim, voltar ao documento">Restaurar o padrão do documento</button>` : ''}</div>`}
+      ${prev.length ? `<div class="formula" style="font-size:13.5px">Quem entra agora: ${prev.map(t => `<b>${esc(t.code || 'T')}</b> ${esc(touchWhen(t))}`).join(' → ')}</div>` : ''}
+      ${legacy.length ? `<div class="banner"><span style="flex:1;min-width:200px">${legacy.length} lead${legacy.length > 1 ? 's' : ''} em ${esc(STAGE[sid].name)} ainda ${legacy.length > 1 ? 'estão' : 'está'} com a lista antiga de toques. Cada um troca sozinho quando mudar de etapa.</span><button class="btn sm" data-a="cads-apply" data-v="${sid}" data-confirm="Sim, aplicar a ${legacy.length}">Aplicar a cadência agora (começa do 1)</button></div>` : ''}
+      <p class="hint">Colchetes trocados sozinhos: <b>[nome]</b> primeiro nome do contato · <b>[loja]</b> · <b>[bom dia/boa tarde]</b> · <b>[amanhã/hoje]</b> e <b>[horário da reunião]</b> · <b>[dor dele]</b> (resposta do formulário) · <b>[Dia] às [horário 1] ou [horário 2]</b> (horários oferecidos ao lead na Agenda). Os outros ficam marcados para o SDR completar.</p>
+      <div class="cad-rules"><b>As regras</b><ol>${CAD_RULES.map(([a, b]) => `<li><b>${esc(a)}</b>${b ? ' ' + esc(b) : ''}</li>`).join('')}</ol></div>
       <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="skipWeekends" ${c.skipWeekends ? 'checked' : ''}> Pular fim de semana (toque que cairia no sábado ou domingo vai para segunda)</label>
-      <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="handoffOnDone" ${c.handoffOnDone !== false ? 'checked' : ''}> Ao marcar Reunião Feita, passar o processo para o gestor (sai do Hoje e dos atrasados do SDR, e o gestor recebe uma tarefa)</label>
-      <div class="formula" style="font-size:13.5px">Lead que entra hoje: ${prev.map(t => wdOf(t.due) + ' ' + fmtDM(t.due)).join(' → ')}</div>
-      <p class="hint">O modelo vale para leads novos. Leads que já estão no quadro mantêm as datas (use “Reiniciar cadência” no card se quiser recriar).</p>
+      <label class="switch"><input type="checkbox" class="ck" data-c="cfg-bool" data-k="handoffOnDone" ${c.handoffOnDone !== false ? 'checked' : ''}> Ao marcar Reunião Feita, passar o processo para o gestor (os toques da Reunião Feita vão para o Hoje dele, e ele recebe uma tarefa)</label>
       ${ptConfigHTML(c)}
     </div></section>`;
   } else if (UI.cfgTab === 'rotinas'){
@@ -3091,9 +3478,28 @@ const ACT = {
   'toggle-side': () => { UI.showSide = !UI.showSide; ls.set('brase.side', UI.showSide ? '1' : '0'); render() },
   'remove-examples': () => { const ex = leadsArr().filter(l => l.example); ex.forEach(l => del('leads', l.id)); toast(`${ex.length} leads de exemplo removidos`) },
   'meeting-done': t => moveLead(t.dataset.id, 'feita'),
-  'add-touch': t => { const cur = S.leads[t.dataset.id]; if (!cur) return; const l = clone(cur); l.touches = l.touches || []; const last = l.touches[l.touches.length - 1]; const base = last && last.due > today() ? last.due : today(); l.touches.push({id: uid(), title: 'Toque extra', due: adjWeekend(addDays(base, 2)), done: false, doneAt: null}); l.updatedAt = iso(); put('leads', t.dataset.id, l) },
+  'meeting-noshow': t => moveLead(t.dataset.id, 'noshow'),
+  'touch-msg': t => { UI.tm = {lead: t.dataset.id, touch: t.dataset.touch}; UI.modal = 'touch'; renderModal() },
+  'tm-copy': () => { const c = tmCtx(); if (c) copy(c.txt) },
+  'tm-wa': () => { const c = tmCtx(); if (!c || !c.l.phone) return; const sp = cadStep(c.t), audio = sp && /áudio/i.test(sp.fmt || '');
+    window.open(waLink(c.l.phone) + (audio || !c.txt ? '' : '?text=' + encodeURIComponent(c.txt)), '_blank', 'noopener');
+    if (!c.t.done) toggleTouch(c.id, c.t.id, true); UI.modal = null; UI.tm = null; renderModal(); render() },
+  'tm-done': () => { const c = tmCtx(); if (!c) return; toggleTouch(c.id, c.t.id, !c.t.done); UI.modal = null; UI.tm = null; renderModal(); render() },
+  'tm-lead': () => { const c = tmCtx(); UI.modal = null; UI.tm = null; renderModal(); if (c) openLead(c.id) },
+  'tm-alt': t => { const c = tmCtx(); if (!c) return; const cad = cadOf(c.t.stage), x = cad && cad.steps.find(y => y.code === t.dataset.v); if (!x) return; const l = clone(c.l), tt = l.touches.find(y => y.id === c.t.id); tt.code = x.code; tt.title = x.title; l.updatedAt = iso(); put('leads', c.id, l) },
+  'add-touch': t => { const cur = S.leads[t.dataset.id]; if (!cur) return; const l = clone(cur); l.touches = l.touches || []; const last = l.touches[l.touches.length - 1]; const base = last && last.due > today() ? last.due : today(); const x = {id: uid(), title: 'Toque extra', due: adjWeekend(addDays(base, 2)), done: false, doneAt: null}; if (l.cadRun){ if (l.cadRun === '-') l.cadRun = uid().slice(-6); x.stage = l.stage; x.run = l.cadRun } l.touches.push(x); l.updatedAt = iso(); put('leads', t.dataset.id, l) },
   'del-touch': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); l.touches = (l.touches || []).filter(x => x.id !== t.dataset.touch); put('leads', t.dataset.lead, l) },
-  'reset-cadence': t => { updateLead(t.dataset.id, {touches: buildCadence(today())}); toast('Cadência recriada a partir de hoje') },
+  'reset-cadence': t => cadRestart(t.dataset.id, false),
+  'cad-replied': t => cadRestart(t.dataset.id, true),
+  'cads-stage': t => { UI.cadStage = t.dataset.v; UI.cadOpen = ''; render() },
+  'cads-open': t => { UI.cadOpen = UI.cadOpen === t.dataset.v ? '' : t.dataset.v; render() },
+  'cads-add': () => cadsEdit(UI.cadStage, c => { const st = c.steps, last = st[st.length - 1] || {}; const pre = (last.code || '').replace(/-?\d+$/, '') || 'T'; st.push({code: pre + '-' + (st.length + 1), title: 'Toque ' + (st.length + 1), day: (+last.day || 0) + 2, fmt: 'Texto', text: '', next: ''}); UI.cadOpen = UI.cadStage + (st.length - 1) }),
+  'cads-del': t => cadsEdit(UI.cadStage, c => { c.steps.splice(+t.dataset.n, 1); UI.cadOpen = '' }),
+  'cads-move': t => cadsEdit(UI.cadStage, c => { const n = +t.dataset.n, m = n + +t.dataset.v; if (m < 0 || m >= c.steps.length) return; [c.steps[n], c.steps[m]] = [c.steps[m], c.steps[n]]; UI.cadOpen = UI.cadStage + m }),
+  'cads-reset': () => { const all = clone(cfg().cadences); all[UI.cadStage] = clone(DEFAULT_CADENCES[UI.cadStage]); saveCfg({cadences: all}); UI.cadOpen = ''; toast('Cadência de ' + STAGE[UI.cadStage].name + ' igual ao documento') },
+  'cads-apply': async t => { const sid = t.dataset.v, now = iso(); const list = leadsArr().filter(l => l.stage === sid && !l.example && !l.cadRun && ACTIVE(l.stage)); if (!cadOf(sid) || !list.length) return; t.disabled = true;
+    for (const x of list){ const l = clone(S.leads[x.id]); if (!l) continue; restartCad(l, sid, now); l.updatedAt = now; await put('leads', x.id, l) }
+    toast(`Cadência de ${STAGE[sid].name} aplicada a ${list.length} lead${list.length > 1 ? 's' : ''}`); render() },
   'handoff': t => { const id = t.dataset.id, cur = S.leads[id]; if (!cur) return; const l = clone(cur); if (applyHandoff(l, id)){ l.updatedAt = iso(); put('leads', id, l); toast('Processo passado para ' + manager().name.split(' ')[0]) } else toast('Não foi possível passar o processo (sem gestor cadastrado ou lead já é dele).', 'err') },
   'unhand': t => { const id = t.dataset.id, cur = S.leads[id]; if (!cur) return; const l = clone(cur); delete l.handoff; l.updatedAt = iso(); put('leads', id, l); toast('Voltou para o SDR') },
   'del-lead': t => { del('leads', t.dataset.id); UI.drawer = null; renderDrawer(); toast('Lead excluído') },
@@ -3124,8 +3530,6 @@ const ACT = {
   'ideal-reset': () => { saveCfg({ideal: {...DEFAULT_CONFIG.ideal}}); toast('Metas ideais restauradas') },
   'cfg-tab': t => { UI.cfgTab = t.dataset.v; render() },
   'del-seller': t => { del('sellers', t.dataset.id); toast('Vendedor removido') },
-  'cad-add': () => { const cad = clone(cfg().cadence); cad.push({title: 'Toque ' + (cad.length + 1), gap: 2}); saveCfg({cadence: cad}) },
-  'cad-del': t => { const cad = clone(cfg().cadence); cad.splice(+t.dataset.n, 1); if (cad[0]) cad[0].gap = 0; saveCfg({cadence: cad}) },
   'rot-day': t => { const r = S.routines[t.dataset.id]; if (!r) return; const d = +t.dataset.d, days = new Set(r.days || []); days.has(d) ? days.delete(d) : days.add(d); put('routines', t.dataset.id, {...clone(r), days: [...days].sort()}) },
   'del-rot': t => del('routines', t.dataset.id),
   'loss-del': t => { const lr = clone(cfg().lossReasons); lr.splice(+t.dataset.n, 1); saveCfg({lossReasons: lr}) },
@@ -3171,11 +3575,22 @@ const CHG = {
   task: t => { const x = S.tasks[t.dataset.id]; if (x) put('tasks', t.dataset.id, {...clone(x), done: t.checked, doneAt: t.checked ? iso() : null}) },
   routine: t => toggleRoutine(t.dataset.id, t.dataset.seller),
   'lead-stage': t => moveLead(t.dataset.id, t.value),
+  'cads-f': t => cadsEdit(t.dataset.st, c => { const s = c.steps[+t.dataset.n]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value;
+    if (k === 'day' || k === 'hours' || k === 'every'){ v = v === '' ? null : Math.max(0, Number(v) || 0); if (k === 'day' && v === null) v = 0 }
+    if (k === 'meet') v = v === '' ? null : /^-?\d+$/.test(v) ? Number(v) : v;
+    if (k === 'code'){ v = String(v).trim().toUpperCase(); if (!v) return }
+    if (v === null || v === '' || v === false){ if (k === 'day') s.day = 0; else delete s[k] } else s[k] = v;
+    if (k === 'meet' && v != null){ delete s.day; delete s.hours; delete s.slot } else if (k === 'meet') s.day = s.day || 0;
+    if (k === 'day' && v){ delete s.hours } else if (k === 'day') delete s.slot }),
+  'cads-meta': t => cadsEdit(t.dataset.st, c => { const k = t.dataset.k, v = t.value; if (k === 'use'){ if (v){ c.use = v; delete c.steps } else { delete c.use; if (!c.steps) c.steps = clone((DEFAULT_CADENCES[t.dataset.st] || {}).steps || []) } } else c[k] = v }),
   'lead-field': t => { const k = t.dataset.k; let v = t.value; if (k === 'value' || k === 'revenue') v = v === '' ? null : Number(v); if (k === 'name' && !v.trim()) return; const extra = {};
     if (k === 'ownerId'){ const cur = S.leads[t.dataset.id] || {}, nw = S.sellers[v], old = S.sellers[cur.ownerId];
       if (nw && nw.role === 'Gestor' && old && old.role !== 'Gestor' && !cur.sdrId){ extra.sdrId = cur.ownerId; toast('A comissão da reunião continua com ' + old.name.split(' ')[0]) }
       else if (!nw || nw.role !== 'Gestor') extra.sdrId = '' }
-    updateLead(t.dataset.id, {[k]: v, ...extra}); if (k === 'lostReason' && v) toast('Motivo registrado') },
+    if (k === 'meetingAt' || k === 'lostReason'){ const cur = S.leads[t.dataset.id]; if (!cur) return; const l = {...clone(cur), [k]: v, ...extra, updatedAt: iso()};
+      if (k === 'meetingAt') cadMeeting(l); const sw = k === 'lostReason' && cadExit(l); put('leads', t.dataset.id, l);
+      if (k === 'lostReason' && v) toast('Motivo registrado' + (sw ? ' · saída trocada para ' + l.touches.find(x => !x.done && x.stage === l.stage).code : '')); else if (k === 'meetingAt' && v && cadOf(l.stage)) toast('Toques da reunião reprogramados'); return }
+    updateLead(t.dataset.id, {[k]: v, ...extra}) },
   'lead-ms': t => { const v = t.value; updateLead(t.dataset.id, {[t.dataset.k]: v ? new Date(+v.slice(0, 4), +v.slice(5, 7) - 1, +v.slice(8, 10), 12).toISOString() : null}) },
   'touch-f': t => { const cur = S.leads[t.dataset.lead]; if (!cur) return; const l = clone(cur); const x = (l.touches || []).find(y => y.id === t.dataset.touch); if (!x || (t.dataset.k === 'due' && !t.value)) return; x[t.dataset.k] = t.value; put('leads', t.dataset.lead, l) },
   'seller-f': t => { const s = S.sellers[t.dataset.id]; if (!s) return; const k = t.dataset.k; let v = t.type === 'checkbox' ? t.checked : t.value; if (k === 'goalMeetings' || k === 'goalSales') v = v === '' ? null : Math.max(0, Number(v)); if (k === 'name' && !String(v).trim()) return; put('sellers', t.dataset.id, {...clone(s), [k]: v}) },
@@ -3212,7 +3627,6 @@ const CHG = {
   'wa-rule': t => saveCfg({waRules: {...cfg().waRules, [t.dataset.k]: t.checked}}),
   dist: t => { UI.dist[t.dataset.k] = t.type === 'checkbox' ? t.checked : t.value; render() },
   'cu-csv': t => { const f = t.files && t.files[0]; if (!f) return; importClickupCSV(f, {create: !!($('#cu-create') || {}).checked, status: !!($('#cu-status') || {}).checked}); t.value = '' },
-  'cad-f': t => { const cad = clone(cfg().cadence); const i = +t.dataset.n; if (!cad[i]) return; cad[i][t.dataset.k] = t.dataset.k === 'gap' ? Math.max(1, Math.min(30, Number(t.value) || 1)) : t.value; saveCfg({cadence: cad}) },
   'rot-f': t => { const r = S.routines[t.dataset.id]; if (r) put('routines', t.dataset.id, {...clone(r), [t.dataset.k]: t.value}) },
 };
 const INP = {
@@ -3226,9 +3640,10 @@ const FORM = {
     const dup = findByPhone(fd.get('phone'));
     if (dup){ UI.modal = null; renderModal(); openLead(dup); toast('Esse telefone já está no CRM: ' + (S.leads[dup].name || 'lead'), 'err'); return }
     let owner = fd.get('ownerId') || ''; if (owner === '__auto') owner = pickOwner();
-    createLead({name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), source: fd.get('source'), ownerId: owner, stage: fd.get('stage')});
+    const nid = createLead({name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), source: fd.get('source'), ownerId: owner, stage: fd.get('stage')});
     UI.modal = null; renderModal();
-    toast(`Lead criado${owner && S.sellers[owner] ? ' para ' + S.sellers[owner].name : ''} com ${cfg().cadence.length} toques programados`);
+    const nt = (S.leads[nid] && S.leads[nid].touches || []).length;
+    toast(`Lead criado${owner && S.sellers[owner] ? ' para ' + S.sellers[owner].name : ''}${nt ? ` com ${nt} toques programados` : ''}`);
   },
   'add-task': (f, fd) => { const title = String(fd.get('title') || '').trim(); if (!title) return; put('tasks', uid(), {title, due: fd.get('due') || today(), ownerId: fd.get('owner') || '', done: false, doneAt: null, createdAt: iso()}); f.reset(); toast('Tarefa adicionada') },
   'add-adj': (f, fd) => { const kind = fd.get('kind'), n = Number(fd.get('qty')); if (!isFinite(n) || n === 0) return; const a = {sellerId: fd.get('seller'), month: fd.get('month'), kind, note: String(fd.get('note') || '').trim(), createdAt: iso()}; if (kind === 'bonus') a.amount = n; else a.qty = Math.round(n); put('adjustments', uid(), a); toast('Lançamento registrado') },
@@ -3367,8 +3782,10 @@ async function boot(){
   render();
   if (UI.view === 'agenda') refreshCalendar(false, true);
   setTimeout(alertWatch, 1500);
+  setTimeout(cadSync, 2500);
 }
 setInterval(alertWatch, 10000);
+setInterval(cadSync, 12000);
 setInterval(alBlink, 1000);
 document.addEventListener('pointerdown', alUnlock, {passive: true});
 document.addEventListener('keydown', alUnlock);

@@ -308,6 +308,8 @@ Deno.test('Central Comercial: liga pelo código ou WhatsApp e separa agendou, fe
   assertEquals(crmFlags(rows[2].crm), {inCrm: true, booked: true, met: true, won: true});
   assertEquals(rows[2].crm.value, 1500);
   assertEquals(crmFlags({stage: 'frio'}), {inCrm: true, booked: false, met: false, won: false});
+  assertEquals(crmFlags({stage: 'noshow'}), {inCrm: true, booked: true, met: false, won: false});
+  assertEquals(parseCrm({codigo: 'Ab12cd', etapa: 'No-show'})[0].stage, 'noshow');
   assertEquals(crmFlags(null).inCrm, false);
   const sp = crmSpendRows({rows: [{adId: '120257610621130151', ad: 'IFood Escondeu 4.0', day: '2026-10-16', spend: 58.44, impressions: 1764, clicks: 39, lpv: 21, metaLeads: 3}, {adId: '1', month: '2026-07', spend: 9}]});
   assertEquals(sp.length, 1);
