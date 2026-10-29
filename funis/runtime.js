@@ -288,6 +288,27 @@ function phoneMask(v){
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 const DDDS = new Set('11 12 13 14 15 16 17 18 19 21 22 24 27 28 31 32 33 34 35 37 38 41 42 43 44 45 46 47 48 49 51 53 54 55 61 62 63 64 65 66 67 68 69 71 73 74 75 77 79 81 82 83 84 85 86 87 88 89 91 92 93 94 95 96 97 98 99'.split(' '));
+// Preenchimento automático (navegador e Instagram): o tipo vem do título do campo. "Nome da loja" é empresa, não pessoa;
+// com "name" (nome completo) nos dois campos, o nome completo da pessoa caía também no campo da loja.
+const plainLow = s => String(s == null ? '' : s).normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+function fieldAutocomplete(c){
+  if (c && c.autocomplete) return String(c.autocomplete);
+  const t = plainLow(((c && c.title) || '') + ' ' + ((c && c.placeholder) || ''));
+  if (/sobrenome|last name|surname/.test(t)) return 'family-name';
+  if (/primeiro nome|first name|apelido|chamad[oa]/.test(t)) return 'given-name';
+  const nome = /\bnome\b|\bname\b/.test(t);
+  if (nome && /\b(seu|sua) nome\b|responsavel|proprietari|\bdon[oa]\b|contato|completo/.test(t)) return 'name';
+  if (/\b(loja|empresa|restaurante|negocio|estabelecimento|marca|lanchonete|pizzaria|hamburgueria|confeitaria|padaria|razao social|fantasia)\b/.test(t)) return 'organization';
+  if (nome) return 'name';
+  return 'on';
+}
+const NAME_KINDS = new Set(['name', 'given-name', 'family-name']);
+// "Arthur Fonseca Fonseca" → "Arthur Fonseca": o preenchimento automático às vezes repete parte do nome no fim.
+function cleanName(v){
+  const w = String(v == null ? '' : v).trim().split(/\s+/).filter(Boolean);
+  for (let i = 1; i < w.length; i++) { const head = new Set(w.slice(0, i).map(plainLow)); if (w.slice(i).every(x => head.has(plainLow(x)))) return w.slice(0, i).join(' ') }
+  return w.join(' ');
+}
 function validateField(content, value){
   const v = value == null ? '' : String(value).trim();
   const type = content.type || 'text';
@@ -581,7 +602,7 @@ function stepsLeft(funnel, from){
 }
 
 /* ================= DOM (navegador) ================= */
-if (!doc) return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+if (!doc) return {fieldAutocomplete, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 
 const CSS = `
 .fnr{--fn-theme:#6366f1;font-family:var(--fn-font-text);font-size:var(--fn-size);color:var(--fn-content);background:var(--fn-bg);position:relative;min-height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;line-height:1.4;overflow-wrap:break-word}
@@ -1132,7 +1153,7 @@ function mount(el, funnel, opts){
     if (type === 'textarea') input = `<textarea ${attrs} maxlength="${num(c.maxlength, 1000)}">${esc(val)}</textarea>`;
     else {
       const t = {email: 'email', phone: 'tel', number: 'number', date: 'date'}[type] || 'text';
-      const ac = {email: 'email', phone: 'tel', text: /nome|name/i.test(c.title || '') ? 'name' : 'on'}[type] || 'on';
+      const ac = {email: 'email', phone: 'tel', text: fieldAutocomplete(c)}[type] || 'on';
       const minDate = type === 'date' && c.disablePast ? ` min="${new Date().toISOString().slice(0, 10)}"` : '';
       input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}"${minDate} ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
     }
@@ -1355,7 +1376,8 @@ function mount(el, funnel, opts){
   function onChange(e){
     const t = e.target, act = t.dataset && t.dataset.act; if (act !== 'field' && act !== 'range') return;
     const hit = layerOf(t); if (!hit) return;
-    const v = t.value; if (act === 'field' && !String(v).trim()) return;
+    let v = t.value; if (act === 'field' && !String(v).trim()) return;
+    if (act === 'field' && isNameField(hit.layer.content)) { v = cleanName(v); if (v !== t.value) t.value = v }
     (R.saved = R.saved || {})[hit.layer.id] = v;
     setAnswer(hit.step, hit.layer, {value: v});
   }
@@ -1387,15 +1409,24 @@ function mount(el, funnel, opts){
     return false;
   }
   // Confere campos e opções obrigatórios da etapa. Devolve true se está tudo certo.
+  const isNameField = c => (c.type || 'text') === 'text' && NAME_KINDS.has(fieldAutocomplete(c));
   function validateStep(step){
     let ok = true, first = null;
+    // Nomes da pessoa nesta etapa, para avisar quando o campo da loja veio igual (uma vez; tocando de novo, vai assim mesmo).
+    const names = new Set();
+    for (const l of visibleLayers(step)) {
+      if (l.type !== 'field' || !isNameField(l.content)) continue;
+      const inp = R.root.querySelector(`.fnr-l[data-lid="${l.id}"] [data-act="field"]`);
+      if (inp && String(inp.value).trim()) { inp.value = cleanName(inp.value); names.add(plainLow(inp.value)) }
+    }
     for (const l of visibleLayers(step)) {
       const w = R.root.querySelector(`.fnr-l[data-lid="${l.id}"]`); if (!w) continue;
       if (l.type === 'field' || l.type === 'date' || l.type === 'height' || l.type === 'weight') {
         const inp = w.querySelector('[data-act="field"],[data-act="range"]');
         const v = inp ? inp.value : '';
         if (inp && inp.dataset.act === 'range') { if (!R.answers[l.id]) setAnswer(step, l, {value: v}); continue }
-        const msg = validateField(l.content, v);
+        let msg = validateField(l.content, v);
+        if (!msg && inp && names.size && fieldAutocomplete(l.content) === 'organization' && names.has(plainLow(cleanName(v))) && inp.dataset.warned !== v) { inp.dataset.warned = v; msg = 'Esse é o seu nome? Aqui vai o nome da loja, como aparece no iFood.' }
         const box = w.querySelector('.fnr-field'); box.classList.toggle('has-err', !!msg); box.querySelector('.fnr-err').textContent = msg;
         if (msg) { ok = false; first = first || inp } else if (String(v).trim()) setAnswer(step, l, {value: l.content.type === 'phone' ? phoneMask(v) : String(v).trim()});
       } else if (l.type === 'ifood') {
@@ -1490,5 +1521,5 @@ function mount(el, funnel, opts){
   };
 }
 
-return {uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+return {fieldAutocomplete, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 });

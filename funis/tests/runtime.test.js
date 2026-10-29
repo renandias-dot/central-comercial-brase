@@ -209,6 +209,25 @@ test('Raio-X do iFood: componente e variáveis com os dados da loja', () => {
   assert.equal(R.interpolate('Você está em {{loja.posicao}}º de {{loja.total}}', {answers: {x: {name: 'loja', type: 'ifood', value: '', data: {posicao: 7, total: 24}}}}), 'Você está em 7º de 24');
 });
 
+test('formulário: preenchimento automático certo para nome e loja, e nome repetido limpo', () => {
+  const ac = (title, placeholder) => R.fieldAutocomplete({title, placeholder});
+  assert.strictEqual(ac('Seu primeiro nome', 'Digite seu primeiro nome'), 'given-name');
+  assert.strictEqual(ac('Nome da loja no iFood', 'Como ela aparece no iFood'), 'organization', 'loja não é o nome da pessoa');
+  assert.strictEqual(ac('Nome do restaurante'), 'organization');
+  assert.strictEqual(ac('Nome do responsável pela loja'), 'name');
+  assert.strictEqual(ac('Seu nome'), 'name');
+  assert.strictEqual(ac('Nome completo'), 'name');
+  assert.strictEqual(ac('Sobrenome'), 'family-name');
+  assert.strictEqual(ac('Cidade'), 'on');
+  assert.strictEqual(R.fieldAutocomplete({title: 'Nome', autocomplete: 'off'}), 'off');
+  assert.strictEqual(R.cleanName('Arthur janssen da Fonseca janssen da Fonseca'), 'Arthur janssen da Fonseca');
+  assert.strictEqual(R.cleanName('Paulo Henrique Mota Pinheiro Pinheiro'), 'Paulo Henrique Mota Pinheiro');
+  assert.strictEqual(R.cleanName('Eduardo Costa maia Eduardo costa'), 'Eduardo Costa maia');
+  assert.strictEqual(R.cleanName('aoqui aoqui'), 'aoqui');
+  assert.strictEqual(R.cleanName('  Maria da Silva da Costa '), 'Maria da Silva da Costa', 'nome sem repetição fica igual');
+  assert.strictEqual(R.cleanName('Erik Costa'), 'Erik Costa');
+});
+
 test('teste A/B: variante fixa por visitante, forçada pelo link e em @teste.nome', () => {
   const f = {settings: {ab: [{name: 'Capa', variants: 'atual, v1'}, {name: 'off', variants: 'a,b', enabled: false}, {name: 'uma', variants: 'só'}]}};
   const n = {atual: 0, v1: 0};
