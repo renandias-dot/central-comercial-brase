@@ -303,6 +303,21 @@ function fieldAutocomplete(c){
   return 'on';
 }
 const NAME_KINDS = new Set(['name', 'given-name', 'family-name']);
+// Nome e loja ficam sem preenchimento automático: o do Instagram ignora o tipo e põe o sobrenome no campo seguinte (a loja).
+// Telefone e e-mail continuam (vêm certos). Um campo pode definir o próprio autocomplete.
+function autocompleteAttr(c){
+  if (c && c.autocomplete) return String(c.autocomplete);
+  const k = fieldAutocomplete(c);
+  return NAME_KINDS.has(k) || k === 'organization' ? 'off' : k;
+}
+// Palavras do nome da pessoa (3 letras ou mais), para reconhecer o nome dela no campo da loja.
+const nameWords = v => plainLow(v).split(/[^a-z0-9]+/).filter(w => w.length >= 3);
+// Palavra de comércio no nome da loja ("Fonseca Burger", "Pizzaria do Gabriel"): é loja de verdade, mesmo com o nome do dono.
+const STORE_WORDS = new Set(('burger burguer hamburguer hamburgueria lanche lanches lanchonete pizza pizzas pizzaria acai sorvete sorveteria delivery bar restaurante '
+  + 'cozinha grill churrasco churrascaria espetinho espetinhos sushi temaki japa japones marmita marmitas marmitaria marmitex comida comidas sabor sabores bistro cafe '
+  + 'cafeteria padaria doceria doces bolos confeitaria food foods gourmet kitchen house casa cantina cantinho emporio pastel pastelaria esfiha esfiharia salgados frango '
+  + 'galeto beer chopp poke crepe tapioca massas fit saudavel natural gula delicia delicias petiscos porcoes buffet hotdog dog lanchao tempero espaco point').split(' '));
+const looksLikeStore = v => plainLow(v).split(/[^a-z0-9]+/).some(w => STORE_WORDS.has(w));
 // "Arthur Fonseca Fonseca" → "Arthur Fonseca": o preenchimento automático às vezes repete parte do nome no fim.
 function cleanName(v){
   const w = String(v == null ? '' : v).trim().split(/\s+/).filter(Boolean);
@@ -602,7 +617,7 @@ function stepsLeft(funnel, from){
 }
 
 /* ================= DOM (navegador) ================= */
-if (!doc) return {fieldAutocomplete, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+if (!doc) return {fieldAutocomplete, autocompleteAttr, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 
 const CSS = `
 .fnr{--fn-theme:#6366f1;font-family:var(--fn-font-text);font-size:var(--fn-size);color:var(--fn-content);background:var(--fn-bg);position:relative;min-height:100%;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased;line-height:1.4;overflow-wrap:break-word}
@@ -1153,9 +1168,9 @@ function mount(el, funnel, opts){
     if (type === 'textarea') input = `<textarea ${attrs} maxlength="${num(c.maxlength, 1000)}">${esc(val)}</textarea>`;
     else {
       const t = {email: 'email', phone: 'tel', number: 'number', date: 'date'}[type] || 'text';
-      const ac = {email: 'email', phone: 'tel', text: fieldAutocomplete(c)}[type] || 'on';
+      const ac = {email: 'email', phone: 'tel', text: autocompleteAttr(c)}[type] || 'on';
       const minDate = type === 'date' && c.disablePast ? ` min="${new Date().toISOString().slice(0, 10)}"` : '';
-      input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}"${minDate} ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
+      input = `<input type="${t}" ${attrs} value="${esc(val)}" autocomplete="${ac}"${ac === 'off' ? ' data-lpignore="true" data-1p-ignore data-form-type="other"' : ''}${minDate} ${type === 'phone' ? 'inputmode="tel"' : type === 'number' ? 'inputmode="decimal"' : ''}>`;
     }
     const consent = c.consent ? `<div class="fnr-consent">${rich(c.consent, ctx())}</div>` : '';
     return `<div class="fnr-field">${label}${input}<div class="fnr-err"></div>${consent}</div>`;
@@ -1412,12 +1427,13 @@ function mount(el, funnel, opts){
   const isNameField = c => (c.type || 'text') === 'text' && NAME_KINDS.has(fieldAutocomplete(c));
   function validateStep(step){
     let ok = true, first = null;
-    // Nomes da pessoa nesta etapa, para avisar quando o campo da loja veio igual (uma vez; tocando de novo, vai assim mesmo).
+    // Palavras do nome da pessoa nesta etapa, para avisar quando o campo da loja traz o nome ou o sobrenome dela
+    // (uma vez; tocando de novo, vai assim mesmo).
     const names = new Set();
     for (const l of visibleLayers(step)) {
       if (l.type !== 'field' || !isNameField(l.content)) continue;
       const inp = R.root.querySelector(`.fnr-l[data-lid="${l.id}"] [data-act="field"]`);
-      if (inp && String(inp.value).trim()) { inp.value = cleanName(inp.value); names.add(plainLow(inp.value)) }
+      if (inp && String(inp.value).trim()) { inp.value = cleanName(inp.value); nameWords(inp.value).forEach(w => names.add(w)) }
     }
     for (const l of visibleLayers(step)) {
       const w = R.root.querySelector(`.fnr-l[data-lid="${l.id}"]`); if (!w) continue;
@@ -1426,7 +1442,7 @@ function mount(el, funnel, opts){
         const v = inp ? inp.value : '';
         if (inp && inp.dataset.act === 'range') { if (!R.answers[l.id]) setAnswer(step, l, {value: v}); continue }
         let msg = validateField(l.content, v);
-        if (!msg && inp && names.size && fieldAutocomplete(l.content) === 'organization' && names.has(plainLow(cleanName(v))) && inp.dataset.warned !== v) { inp.dataset.warned = v; msg = 'Esse é o seu nome? Aqui vai o nome da loja, como aparece no iFood.' }
+        if (!msg && inp && names.size && fieldAutocomplete(l.content) === 'organization' && !looksLikeStore(v) && nameWords(v).some(w => names.has(w)) && !inp.dataset.warned) { inp.dataset.warned = '1'; msg = 'Esse é o seu nome? Aqui vai o nome da loja, como aparece no iFood.' }
         const box = w.querySelector('.fnr-field'); box.classList.toggle('has-err', !!msg); box.querySelector('.fnr-err').textContent = msg;
         if (msg) { ok = false; first = first || inp } else if (String(v).trim()) setAnswer(step, l, {value: l.content.type === 'phone' ? phoneMask(v) : String(v).trim()});
       } else if (l.type === 'ifood') {
@@ -1521,5 +1537,5 @@ function mount(el, funnel, opts){
   };
 }
 
-return {fieldAutocomplete, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
+return {fieldAutocomplete, autocompleteAttr, cleanName, uid, esc, clone, stripHtml, plainLabel, calcEval, replaceCalc, interpolate, evalRoles, evalCond, destinationOf, resolveDestination, phoneMask, validateField, fromInlead, newLayer, newStep, stepTemplate, newFunnel, reId, outlets, stepsLeft, totalScore, isUrl, cssVars, fontsUrl, mount, COMPONENTS, DEFAULT_DESIGN, STEP_TEMPLATES, TYPE_TITLE, FONTS, RADIUS, videoSrc, buildVars, replaceVars, buildRedirect, toE164, LINK_MODELS, buttonHref, ROLE_OPERATORS, normalizeLayer, INPUT_TYPES, TYPE_ALIAS, abAssign, abTests, abName, abVariants};
 });

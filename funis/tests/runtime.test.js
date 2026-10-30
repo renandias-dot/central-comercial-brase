@@ -220,6 +220,11 @@ test('formulário: preenchimento automático certo para nome e loja, e nome repe
   assert.strictEqual(ac('Sobrenome'), 'family-name');
   assert.strictEqual(ac('Cidade'), 'on');
   assert.strictEqual(R.fieldAutocomplete({title: 'Nome', autocomplete: 'off'}), 'off');
+  const attr = (title, type) => R.autocompleteAttr({title, type});
+  assert.strictEqual(attr('Seu primeiro nome'), 'off', 'nome sem preenchimento automático');
+  assert.strictEqual(attr('Nome da loja no iFood'), 'off', 'loja sem preenchimento automático');
+  assert.strictEqual(attr('Cidade'), 'on');
+  assert.strictEqual(R.autocompleteAttr({title: 'Seu nome', autocomplete: 'name'}), 'name', 'o campo pode ligar de novo');
   assert.strictEqual(R.cleanName('Arthur janssen da Fonseca janssen da Fonseca'), 'Arthur janssen da Fonseca');
   assert.strictEqual(R.cleanName('Paulo Henrique Mota Pinheiro Pinheiro'), 'Paulo Henrique Mota Pinheiro');
   assert.strictEqual(R.cleanName('Eduardo Costa maia Eduardo costa'), 'Eduardo Costa maia');
