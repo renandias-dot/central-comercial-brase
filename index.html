@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "c58c9c1138";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "e4de0f671c";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -662,6 +662,11 @@ const STAGES = [
 const STAGE = Object.fromEntries(STAGES.map(s => [s.id, s]));
 const CLOSED = new Set(['fechado','perdido','desqualificado']);
 const ACTIVE = s => !CLOSED.has(s);
+// Venda só vai para Fechado com o valor contratado total e a primeira parcela paga. Vendas fechadas antes desta regra
+// (SALE_RULE_FROM) sem pagamento registrado continuam valendo na comissão como eram; o card e a ficha pedem para completar.
+const SALE_RULE_FROM = '2026-11-09';
+const salePaid = l => !!l && Number(l.value) > 0 && Number(l.paidInitial) > 0;
+const saleCounts = l => !!(l && l.closedAt) && (salePaid(l) || localDay(l.closedAt) < SALE_RULE_FROM);
 const DEFAULT_CONFIG = {
   commission: {base:1000, perMeeting:50, perSale:150, cutDay:10},
   handoffOnDone: true,
@@ -1098,8 +1103,10 @@ const phoneKey = p => { let d = String(p || '').replace(/\D/g, ''); if (d.length
 function findByPhone(phone){ const k = phoneKey(phone); if (!k) return null; const hit = Object.entries(S.leads).find(([, l]) => phoneKey(l.phone) === k); return hit ? hit[0] : null }
 const splitUtm = v => { const s = String(v || '').trim(); const k = s.lastIndexOf('|'); return k > 0 && /^\d{6,}$/.test(s.slice(k + 1)) ? {name: s.slice(0, k).trim(), id: s.slice(k + 1)} : {name: s, id: ''} };
 function updateLead(id, p){ const cur = S.leads[id]; if (!cur) return; put('leads', id, {...clone(cur), ...p, updatedAt: iso()}) }
-function moveLead(id, stage){
-  const cur = S.leads[id]; if (!cur || cur.stage === stage || !STAGE[stage]) return;
+function moveLead(id, stage, extra){
+  const cur0 = S.leads[id]; if (!cur0 || cur0.stage === stage || !STAGE[stage]) return;
+  const cur = extra ? {...cur0, ...extra} : cur0; // extra: campos gravados junto com a mudança de etapa (venda)
+  if (stage === 'fechado' && !salePaid(cur)){ openSale(id); return }
   const l = clone(cur), now = iso();
   l.stage = stage; l.stageAt = now; l.updatedAt = now;
   l.history = [...(l.history || []), {s: stage, at: now}].slice(-80);
@@ -1157,7 +1164,7 @@ function commissionFor(sid, mk){
   const c = cfg().commission;
   const L = leadsArr().filter(l => (l.sdrId || l.ownerId) === sid && !l.example);
   const meetingsLeads = L.filter(l => l.meetingDoneAt && cycleOf(localDay(l.meetingDoneAt)) === mk);
-  const salesLeads = L.filter(l => l.closedAt && cycleOf(localDay(l.closedAt)) === mk);
+  const salesLeads = L.filter(l => saleCounts(l) && cycleOf(localDay(l.closedAt)) === mk);
   const adj = arr('adjustments').filter(a => a.sellerId === sid && a.month === mk);
   const adjM = sum(adj.filter(a => a.kind === 'meeting').map(a => a.qty));
   const adjS = sum(adj.filter(a => a.kind === 'sale').map(a => a.qty));
@@ -1328,7 +1335,7 @@ function cardHTML(l){
   const act = ACTIVE(l.stage), nt = TOUCHABLE(l) ? nextTouch(l) : null, ds = daysSince(l.stageAt);
   const tt = curTouches(l), dn = tt.filter(t => t.done).length;
   const lost = l.stage === 'perdido' || l.stage === 'desqualificado';
-  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) && (nt || tt.length) ? touchChip(l, nt) : '') + (l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
+  const chips = freshChip(l) + printChip(l) + pdChip(l) + (TOUCHABLE(l) && (nt || tt.length) ? touchChip(l, nt) : '') + (l.handoff && act ? `<span class="chip meet" title="O processo está com o gestor">Com ${esc(((S.sellers[l.handoff.to] || {}).name || 'gestor').split(' ')[0])}</span>` : '') + (l.meetingAt && (l.stage === 'marcada' || l.stage === 'agendando') ? meetChip(l.meetingAt) : '') + (l.stage === 'marcada' && !l.meetingAt ? `<span class="chip today" title="Defina a data da reunião no card">${I.cal}sem data</span>` : '') + (l.stage === 'fechado' && l.value ? `<span class="chip ok">${brl(l.value)}</span>` : '') + (l.stage === 'fechado' && !salePaid(l) ? '<span class="chip today" title="Falta registrar o valor contratado e a entrada paga">sem pagamento</span>' : '') + (l.revenue ? `<span class="chip" title="Faturamento mensal">Fat. ${fmtK(l.revenue)}</span>` : '');
   return `<article class="card ${freshOf(l) ? 'fresh' : ''}" ${PHONE() ? '' : `draggable="true" data-drag="${l.id}"`} data-a="open-lead" data-id="${l.id}" tabindex="0" aria-label="${attr(l.name)}">
     <div><div class="card-t">${esc(l.name)}</div>${l.company || l.contact ? `<div class="card-s">${esc([l.contact, l.company].filter(Boolean).join(' · '))}</div>` : ''}${lost ? `<div class="card-s ${l.lostReason ? '' : 'warn-t'}">${l.lostReason ? 'Motivo: ' + esc(l.lostReason) : 'Sem motivo registrado'}</div>` : ''}</div>
     ${chips ? `<div class="card-row">${chips}</div>` : ''}
@@ -1395,10 +1402,11 @@ function drawerHTML(l, id){
       <label class="f">Instagram<input class="in" data-c="lead-field" data-id="${id}" data-k="instagram" id="lf-ig" value="${attr(l.instagram)}" placeholder="@perfil"></label>
       <label class="f">Origem<input class="in" data-c="lead-field" data-id="${id}" data-k="source" id="lf-source" value="${attr(l.source)}" placeholder="Meta Ads, indicação…"></label>
       <label class="f">Faturamento mensal do lead (R$)<input class="in" type="number" min="0" step="1000" data-c="lead-field" data-id="${id}" data-k="revenue" id="lf-revenue" value="${l.revenue ?? ''}"></label>
-      <label class="f">Valor do contrato (R$/mês)<input class="in" type="number" min="0" step="50" data-c="lead-field" data-id="${id}" data-k="value" id="lf-value" value="${l.value ?? ''}"></label>
+      ${l.stage === 'fechado' ? '' : `<label class="f">Valor da proposta (R$)<input class="in" type="number" min="0" step="0.01" data-c="lead-field" data-id="${id}" data-k="value" id="lf-value" value="${l.value ?? ''}"></label>`}
     </div>
     ${l.phone || l.clickupUrl ? `<div class="actions" style="margin-top:-10px">${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Abrir no WhatsApp</a><button class="btn sm ghost" data-a="copy" data-v="${attr(l.phone)}">Copiar telefone</button>` : ''}${l.clickupUrl && /^https:\/\/app\.clickup\.com\//.test(l.clickupUrl) ? `<a class="btn sm ghost" href="${attr(l.clickupUrl)}" target="_blank" rel="noopener">Ver no ClickUp</a>` : ''}</div>` : ''}
     ${originHTML(l)}
+    ${l.stage === 'fechado' ? saleSectionHTML(l, id) : ''}
     ${lost ? `<section><h3>Motivo da perda</h3><select class="in" data-c="lead-field" data-id="${id}" data-k="lostReason" id="lf-lost" data-focus="loss"><option value="">Selecione o motivo…</option>${(l.lostReason && !c.lossReasons.includes(l.lostReason) ? [l.lostReason, ...c.lossReasons] : c.lossReasons).map(r => `<option ${r === l.lostReason ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></section>` : ''}
     <section>
       <h3>Reunião</h3>
@@ -1441,6 +1449,18 @@ function drawerHTML(l, id){
     </section>
     <div><button class="btn danger" data-a="del-lead" data-id="${id}" data-confirm="Confirmar exclusão">Excluir lead</button></div>
   </div>`;
+}
+function saleSectionHTML(l, id){
+  const ok = salePaid(l), old = l.closedAt && localDay(l.closedAt) < SALE_RULE_FROM;
+  return `<section>
+      <h3>Venda</h3>
+      ${ok ? '' : `<div class="banner" data-focus="sale" style="border-color:var(--warn)"><span>${old ? 'Venda registrada antes da regra de pagamento.' : 'Sem pagamento registrado.'} Preencha o valor contratado total e o que foi pago na entrada. Se o cliente não pagou, mova o card para Reunião Feita ou Perdido.</span></div>`}
+      <div class="fgrid">
+        <label class="f">Valor contratado total (R$)<input class="in" type="number" min="0" step="0.01" data-c="lead-field" data-id="${id}" data-k="value" id="lf-value" value="${l.value ?? ''}"></label>
+        <label class="f">Pago na entrada (R$)<input class="in" type="number" min="0" step="0.01" data-c="lead-field" data-id="${id}" data-k="paidInitial" id="lf-paid" value="${l.paidInitial ?? ''}"></label>
+      </div>
+      ${ok ? `<p class="hint" style="margin-top:8px">Falta receber ${brl(Math.max(0, l.value - l.paidInitial))}${l.paidAt ? ' · entrada registrada em ' + fmtDM(localDay(l.paidAt)) : ''}.</p>` : ''}
+    </section>`;
 }
 function originHTML(l){
   const u = l.utm || {}, c = l.createdAt ? new Date(l.createdAt) : null;
@@ -1539,6 +1559,7 @@ function renderModal(){
   if (UI.modal === 'creative') return renderCreative(host);
   if (UI.modal === 'offer') return renderOffer(host);
   if (UI.modal === 'touch') return renderTouch(host);
+  if (UI.modal === 'sale') return renderSale(host);
   if (host.dataset.m === UI.modal && host.innerHTML) return;
   host.dataset.m = UI.modal;
   const c = cfg(), cad = cadOf('novo') ? buildStageCadence({}, 'novo') : buildCadence(today());
@@ -1558,6 +1579,33 @@ function renderModal(){
   </form></div>`;
   if (me) { const sel = host.querySelector('#nl-owner'); if (sel) sel.value = me }
   setTimeout(() => { const n = host.querySelector('#nl-name'); if (n) n.focus() }, 0);
+}
+
+/* ---------- modal: registrar venda ---------- */
+// Pedido ao mover para Fechado (arrastar, etapa na ficha ou lead novo já fechado): sem os dois valores, o card fica onde está.
+function openSale(id, name){ UI.sale = {id, name: name || ''}; UI.modal = 'sale'; render() }
+function renderSale(host){
+  const sv = UI.sale || {}, l = S.leads[sv.id] || (sv.name ? {name: sv.name} : null); // lead recém-criado ainda pode estar gravando
+  if (!l){ UI.modal = null; UI.sale = null; host.innerHTML = ''; host.dataset.m = ''; return }
+  const key = 'sale:' + sv.id; if (host.dataset.m === key && host.innerHTML) return;
+  host.dataset.m = key;
+  host.innerHTML = `<div class="modal-wrap"><form class="modal" data-f="sale" role="dialog" aria-modal="true" aria-label="Registrar venda">
+    <h2>Registrar venda</h2>
+    <p class="hint"><b>${esc(l.name || 'Lead')}</b> só vai para Fechado com o valor contratado e a primeira parcela paga. Se o cliente disse sim mas ainda não pagou, deixe em Reunião Feita até o pagamento cair.</p>
+    <div class="fgrid">
+      <label class="f">Valor contratado total (R$) *<input class="in" type="number" name="total" id="sale-total" min="0.01" step="0.01" inputmode="decimal" required data-i="sale-calc" value="${l.value > 0 ? l.value : ''}" placeholder="Ex.: 3997"></label>
+      <label class="f">Valor pago na entrada (R$) *<input class="in" type="number" name="paid" id="sale-paid" min="0.01" step="0.01" inputmode="decimal" required data-i="sale-calc" value="${l.paidInitial > 0 ? l.paidInitial : ''}" placeholder="O que já caiu na conta"></label>
+    </div>
+    <p class="hint" id="sale-rest" aria-live="polite"></p>
+    <div class="foot"><button type="button" class="btn ghost" data-a="close-modal">Cancelar</button><button class="btn primary">Registrar venda</button></div>
+  </form></div>`;
+  saleCalc();
+  setTimeout(() => { const n = host.querySelector(l.value > 0 ? '#sale-paid' : '#sale-total'); if (n) n.focus() }, 0);
+}
+function saleCalc(){
+  const f = document.querySelector('#modal-host form[data-f="sale"]'), out = document.querySelector('#sale-rest'); if (!f || !out) return;
+  const tot = Number(f.elements.total.value), paid = Number(f.elements.paid.value);
+  out.textContent = !(tot > 0 && paid > 0) ? '' : paid > tot ? 'O valor pago na entrada está maior que o contratado.' : `Falta receber ${brl(tot - paid)} (${Math.round(100 * paid / tot)}% pago na entrada).`;
 }
 
 /* ---------- views: COMISSÃO ---------- */
@@ -1585,7 +1633,7 @@ function viewComissao(){
   const hist = []; for (let i = 5; i >= 0; i--){ const m = monthShift(mk, -i); if (!startMk || m >= startMk || i === 0) hist.push({m, v: commissionFor(pick, m).total}) }
   const maxH = Math.max(1, ...hist.map(h => h.v));
 
-  return head('Comissão', `Fixo + reuniões realizadas + vendas, no ciclo do dia ${cutDay()} de um mês até o dia ${cutDay() - 1} do seguinte (o dia ${cutDay()} já abre o ciclo novo). Atualiza sozinha quando os cards mudam de etapa.`,
+  return head('Comissão', `Fixo + reuniões realizadas + vendas, no ciclo do dia ${cutDay()} de um mês até o dia ${cutDay() - 1} do seguinte (o dia ${cutDay()} já abre o ciclo novo). Atualiza sozinha quando os cards mudam de etapa. A venda conta quando o card vai para Fechado com a entrada paga registrada.`,
     `<div class="pager"><button class="btn sm ghost" data-a="com-prev" aria-label="Ciclo anterior">‹</button><span class="lbl">${cycleLabel(mk)}</span><button class="btn sm ghost" data-a="com-next" ${isCur ? 'disabled' : ''} aria-label="Próximo ciclo">›</button></div>`)
   + `<div class="people" style="margin-bottom:14px">${el.map(x => `<button class="person" data-a="com-seller" data-id="${x.id}" aria-pressed="${x.id === pick}">${avatar(x.id)}${esc(x.name)}</button>`).join('')}</div>
   <div class="g-hoje">
@@ -1661,7 +1709,7 @@ function analytics(p, own){
   const ft = cohort.map(l => { const t = l.touches && l.touches[0]; return t && t.done && t.doneAt ? (new Date(t.doneAt) - new Date(l.createdAt)) / 36e5 : null }).filter(v => v != null && v >= 0);
   const t0 = today(); let due = 0, onTime = 0;
   all.forEach(l => (l.touches || []).forEach(t => { if (!inRange(t.due, p) || t.due > t0) return; if (!t.done && !ACTIVE(l.stage)) return; due++; if (t.done && localDay(t.doneAt) <= t.due) onTime++ }));
-  return {all, cohort, n, booked, done, won, actBooked, actDone, actWon: actWon.length, revenue: sum(actWon.map(l => l.value)), ft: ft.length ? sum(ft) / ft.length : null, ftN: ft.length, due, onTime};
+  return {all, cohort, n, booked, done, won, actBooked, actDone, actWon: actWon.length, revenue: sum(actWon.map(l => l.value)), paid: sum(actWon.map(l => l.paidInitial || 0)), ft: ft.length ? sum(ft) / ft.length : null, ftN: ft.length, due, onTime};
 }
 function niceTicks(max){
   const raw = max / 4, mag = Math.pow(10, Math.floor(Math.log10(raw || 1))), f = raw / mag;
@@ -1727,7 +1775,7 @@ function viewAnalises(){
     <div class="kpis">
       ${kpi('Reuniões marcadas', A.actBooked, `agendadas ${p.name}`)}
       ${kpi('Reuniões realizadas', A.actDone, `aconteceram ${p.name}`)}
-      ${kpi('Vendas', A.actWon, A.revenue ? `${brl(A.revenue)}/mês em contratos` : `fechadas ${p.name}`)}
+      ${kpi('Vendas', A.actWon, A.revenue ? `${brl(A.revenue)} em contratos${A.paid ? ' · ' + brl(A.paid) + ' de entrada' : ''}` : `fechadas ${p.name}`)}
       ${(() => { const w = waSla(p, own); return w.count ? kpi('SLA de resposta (WhatsApp)', fmtHours(w.avg / 60), `${pct(w.u5, w.count)} respondidas em até 5 min · ${w.count} conversas`) : kpi('SLA de resposta', '—', 'Aparece quando o WhatsApp estiver conectado', true) })()}
     </div>
     ${idealAnalyticsHTML(A, p, own)}
@@ -1755,7 +1803,7 @@ function weeklySummary(){
   const p = period(), own = UI.anOwner && S.sellers[UI.anOwner] ? UI.anOwner : '', A = analytics(p, own);
   const lines = [`Resumo comercial Brase · ${UI.anMode === 'week' ? 'semana ' + p.label : p.label}${own ? ' · ' + S.sellers[own].name : ''}`, '',
     `Leads novos: ${A.n}`, `Reuniões marcadas: ${A.actBooked}`, `Reuniões realizadas: ${A.actDone}`,
-    `Vendas: ${A.actWon}${A.revenue ? ' (' + brl(A.revenue) + '/mês)' : ''}`,
+    `Vendas: ${A.actWon}${A.revenue ? ' (' + brl(A.revenue) + ' em contratos' + (A.paid ? ', ' + brl(A.paid) + ' de entrada' : '') + ')' : ''}`,
     `Taxa de agendamento: ${pct(A.booked, A.n)}`, `Conversão em venda: ${pct(A.won, A.n)}`,
     `Tempo até o 1º toque: ${fmtHours(A.ft)}`, `Cadência em dia: ${pct(A.onTime, A.due)}`];
   const people = eligible().filter(s => !own || s.id === own);
@@ -3448,7 +3496,7 @@ const ACT = {
   'stage-pick': t => { UI.stage = t.dataset.v; ls.set('brase.stage', UI.stage); UI.sbCenter = true; render() },
   'close-drawer': () => { UI.drawer = null; renderDrawer() },
   'new-lead': () => { UI.modal = 'new-lead'; renderModal() },
-  'close-modal': () => { UI.modal = null; renderModal() },
+  'close-modal': () => { UI.modal = null; UI.sale = null; renderModal() },
   'link-received': t => linkReceived(t.dataset.id),
   'al-unlock': () => { alUnlock(); try { if (typeof Notification !== 'undefined' && Notification.permission === 'default') Notification.requestPermission().then(() => render()) } catch {} setTimeout(() => { if (alAudioReady()){ alBeep('new'); toast('Som e avisos liberados neste navegador') } else toast('Clique de novo se não ouvir o som', 'err'); render() }, 200) },
   'al-mute': () => { AL_MUTE_UNTIL = Date.now() + 15 * 60e3; toast('Som silenciado por 15 minutos'); render() },
@@ -3583,7 +3631,8 @@ const CHG = {
     if (k === 'meet' && v != null){ delete s.day; delete s.hours; delete s.slot } else if (k === 'meet') s.day = s.day || 0;
     if (k === 'day' && v){ delete s.hours } else if (k === 'day') delete s.slot }),
   'cads-meta': t => cadsEdit(t.dataset.st, c => { const k = t.dataset.k, v = t.value; if (k === 'use'){ if (v){ c.use = v; delete c.steps } else { delete c.use; if (!c.steps) c.steps = clone((DEFAULT_CADENCES[t.dataset.st] || {}).steps || []) } } else c[k] = v }),
-  'lead-field': t => { const k = t.dataset.k; let v = t.value; if (k === 'value' || k === 'revenue') v = v === '' ? null : Number(v); if (k === 'name' && !v.trim()) return; const extra = {};
+  'lead-field': t => { const k = t.dataset.k; let v = t.value; if (k === 'value' || k === 'revenue' || k === 'paidInitial') v = v === '' ? null : Number(v); if (k === 'name' && !v.trim()) return; const extra = {};
+    if (k === 'paidInitial' && v > 0 && !(S.leads[t.dataset.id] || {}).paidAt) extra.paidAt = iso();
     if (k === 'ownerId'){ const cur = S.leads[t.dataset.id] || {}, nw = S.sellers[v], old = S.sellers[cur.ownerId];
       if (nw && nw.role === 'Gestor' && old && old.role !== 'Gestor' && !cur.sdrId){ extra.sdrId = cur.ownerId; toast('A comissão da reunião continua com ' + old.name.split(' ')[0]) }
       else if (!nw || nw.role !== 'Gestor') extra.sdrId = '' }
@@ -3630,18 +3679,31 @@ const CHG = {
   'rot-f': t => { const r = S.routines[t.dataset.id]; if (r) put('routines', t.dataset.id, {...clone(r), [t.dataset.k]: t.value}) },
 };
 const INP = {
+  'sale-calc': () => saleCalc(),
   'ag-q': t => { if (!UI.ag) return; UI.ag.q = t.value; const r = document.querySelector('#ag-res'); if (r) r.innerHTML = agLeadResults(); offerLast = offerModalHTML() },
   'ag-msg': t => { if (UI.ag){ UI.ag.msg = t.value; offerLast = offerModalHTML() } },
   'pipe-search': t => { UI.search = t.value; const b = $('#board'); if (b) b.innerHTML = boardHTML(); else if ($('#stage-list')){ const p = phoneStageParts(); $('#stagebar').innerHTML = p.chips; $('#stage-list').innerHTML = p.list } },
   'doc-q': t => { UI.docQ = t.value; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
 };
 const FORM = {
+  'sale': (f, fd) => {
+    const id = UI.sale && UI.sale.id, l = id && S.leads[id];
+    if (!l){ if (UI.sale && UI.sale.name){ toast('O lead ainda está sendo salvo. Tente de novo em um instante.', 'err'); return } UI.modal = null; UI.sale = null; renderModal(); return }
+    const total = Math.round(Number(fd.get('total')) * 100) / 100, paid = Math.round(Number(fd.get('paid')) * 100) / 100;
+    if (!(total > 0) || !(paid > 0)){ toast('Preencha o valor contratado total e o valor pago na entrada.', 'err'); return }
+    if (paid > total){ toast('O valor pago na entrada não pode ser maior que o contratado.', 'err'); return }
+    const sale = {value: total, paidInitial: paid, paidAt: l.paidAt || iso()};
+    UI.modal = null; UI.sale = null; renderModal();
+    if (l.stage !== 'fechado') moveLead(id, 'fechado', sale); else { updateLead(id, sale); toast('Venda registrada'); render() }
+  },
   'new-lead': (f, fd) => {
     const dup = findByPhone(fd.get('phone'));
     if (dup){ UI.modal = null; renderModal(); openLead(dup); toast('Esse telefone já está no CRM: ' + (S.leads[dup].name || 'lead'), 'err'); return }
     let owner = fd.get('ownerId') || ''; if (owner === '__auto') owner = pickOwner();
-    const nid = createLead({name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), source: fd.get('source'), ownerId: owner, stage: fd.get('stage')});
+    const want = fd.get('stage'), sale = want === 'fechado';
+    const nid = createLead({name: fd.get('name'), contact: fd.get('contact'), phone: fd.get('phone'), source: fd.get('source'), ownerId: owner, stage: sale ? 'feita' : want});
     UI.modal = null; renderModal();
+    if (sale){ toast('Lead criado em Reunião Feita. Registre a venda para ele ir para Fechado.'); openSale(nid, String(fd.get('name') || '')); return }
     const nt = (S.leads[nid] && S.leads[nid].touches || []).length;
     toast(`Lead criado${owner && S.sellers[owner] ? ' para ' + S.sellers[owner].name : ''}${nt ? ` com ${nt} toques programados` : ''}`);
   },
