@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-api/wa.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {brIso, inWaHours, nicoTime, waFacts, waLeadIndex, waLeadPatch, waPhoneKey, waSnippet, waStatsDocs, type WaMsg} from './logic.ts';
+import {brIso, inWaHours, nicoTime, waIfoodLink, waFacts, waLeadIndex, waLeadPatch, waPhoneKey, waSnippet, waStatsDocs, type WaMsg} from './logic.ts';
 
 // Segunda, 9/11/2026, em Brasília (UTC-3).
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
@@ -109,4 +109,26 @@ Deno.test('horário do NicoChat vem em UTC', () => {
 Deno.test('horários gravados em Brasília', () => {
   assertEquals(brIso(Date.parse('2026-11-09T03:11:10Z')), '2026-11-09T00:11:10-03:00');
   assertEquals(Date.parse(brIso(Date.parse('2026-11-09T03:11:10Z'))), Date.parse('2026-11-09T03:11:10Z'));
+});
+
+Deno.test('link do iFood que o lead mandou e a última imagem da equipe', () => {
+  const {facts} = waFacts([
+    msg('in', t('10:00'), 'oi, tudo bem?'),
+    msg('agent', t('10:02'), 'me manda o link da loja'),
+    msg('in', t('10:05'), 'segue: https://www.ifood.com.br/delivery/sao-paulo-sp/pizzaria-teste/1f2e3d4c-5b6a-4789-9abc-def012345678.'),
+    msg('agent', t('10:20'), '', {msg_type: 'image'}),
+    msg('agent', t('10:21'), 'olha esse concorrente'),
+  ]);
+  assertEquals(facts.ifoodLink, 'https://www.ifood.com.br/delivery/sao-paulo-sp/pizzaria-teste/1f2e3d4c-5b6a-4789-9abc-def012345678');
+  assertEquals(facts.ifoodLinkAt, '2026-11-09T10:05:00-03:00');
+  assertEquals(facts.lastOutImageAt, '2026-11-09T10:20:00-03:00');
+  const none = waFacts([msg('in', t('10:00'), 'oi'), msg('agent', t('10:01'), 'oi')]).facts;
+  assertEquals([none.ifoodLink, none.ifoodLinkAt, none.lastOutImageAt], [null, null, null]);
+});
+
+Deno.test('formatos de link do iFood', () => {
+  assertEquals(waIfoodLink(msg('in', 1, 'ifood.com.br/delivery/rio-de-janeiro-rj/x/abc')), 'https://ifood.com.br/delivery/rio-de-janeiro-rj/x/abc');
+  assertEquals(waIfoodLink(msg('in', 1, 'Peça pelo app: https://ifd.io/AbC123!')), 'https://ifd.io/AbC123');
+  assertEquals(waIfoodLink(msg('in', 1, 'meu instagram é @ifood')), null);
+  assertEquals(waIfoodLink(msg('in', 1, '', {msg_type: 'image'})), null);
 });

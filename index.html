@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3d71c503b7";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "d4a7ab2226";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -846,7 +846,7 @@ let db = null, MCP = null;
 const HOST = window.BRASE_HOST || null;
 let HOSTCALL = null, HOSTMETA = false, HOSTCAL = null, HOSTPUSH = '', HOSTPOLL = null, HOSTCAPI = null, HOSTKEY = '';
 
-const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons, cadences: {...DEFAULT_CADENCES, ...(c.cadences && typeof c.cadences === 'object' ? c.cadences : {})}} };
+const cfg = () => { const c = S.config.main || {}; return {...DEFAULT_CONFIG, ...c, commission: {...DEFAULT_CONFIG.commission, ...(c.commission || {})}, ideal: {...DEFAULT_CONFIG.ideal, ...(c.ideal || {})}, agenda: {...DEFAULT_CONFIG.agenda, ...(c.agenda || {})}, printTimer: {...DEFAULT_CONFIG.printTimer, ...(c.printTimer || {})}, alerts: {...DEFAULT_CONFIG.alerts, ...(c.alerts || {})}, capi: capiMerge(c.capi), waRules: {markTouch: true, linkMove: true, printMove: true, moveOnReply: false, ...(c.waRules || {})}, cadence: (c.cadence && c.cadence.length) ? c.cadence : DEFAULT_CONFIG.cadence, lossReasons: c.lossReasons || DEFAULT_CONFIG.lossReasons, cadences: {...DEFAULT_CADENCES, ...(c.cadences && typeof c.cadences === 'object' ? c.cadences : {})}} };
 const arr = col => Object.entries(S[col] || {}).map(([id, d]) => ({id, ...d}));
 const leadsArr = () => arr('leads');
 const sellersList = () => arr('sellers').sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || '') || a.name.localeCompare(b.name));
@@ -2696,8 +2696,10 @@ function viewWhats(){
       <section class="panel feat"><h3>SLA de atendimento</h3><p>Aparece em Análises assim que conectar.</p><ul><li>Tempo até a primeira resposta</li><li>Tempo médio de resposta por SDR</li><li>Leads esperando resposta há mais de 1 hora</li></ul></section>
       <section class="panel feat"><h3>Quadro automático</h3><p>Regras sugeridas para mover os cards sozinhos:</p><ul><li>Primeira mensagem enviada → marca o Toque 1</li><li>Imagem enviada ao lead → Print Enviado</li><li>Lead respondeu → Qualificando</li><li>Data e hora combinadas → Reunião Marcada</li><li>Cadência encerrada sem resposta → Frio</li></ul></section>
     </div>
-    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Automações</h2><span class="sub">${on ? 'Ainda não aplicadas pela conexão: por enquanto ela mostra quem espera resposta e mede o SLA' : 'Valem assim que o WhatsApp estiver conectado'}</span></div><div class="panel-b" style="display:grid;gap:10px">
+    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Automações</h2><span class="sub">${on ? 'Valem para o BraseBot: a Central aplica quando a conversa chega (a cada 2 min). "Lead respondeu" ainda não é aplicada.' : 'Valem assim que o WhatsApp estiver conectado'}</span></div><div class="panel-b" style="display:grid;gap:10px">
       <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="markTouch" ${cfg().waRules.markTouch ? 'checked' : ''}> Mensagem enviada ao lead marca o toque do dia como feito</label>
+      <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="linkMove" ${cfg().waRules.linkMove ? 'checked' : ''}> Lead mandou o link do iFood em Lead Novo: mover para Link recebido e guardar o link no card</label>
+      <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="printMove" ${cfg().waRules.printMove ? 'checked' : ''}> Imagem enviada ao lead em Link recebido: mover para Print Enviado</label>
       <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="moveOnReply" ${cfg().waRules.moveOnReply ? 'checked' : ''}> Lead respondeu: mover de Lead Novo, Link recebido ou Print Enviado para Qualificando (e cancelar o prazo do print)</label>
     </div></section>
     <div class="g2">
@@ -3420,7 +3422,48 @@ function navHTML0(){
     <nav class="nav-list" aria-label="Seções">${items.map(([id, l, ic]) => `<button class="nav-item" data-a="nav" data-v="${id}" ${UI.view === id ? 'aria-current="page"' : ''}>${ic}<span>${l}</span>${id === 'hoje' && badge ? `<span class="nav-badge" title="Toques pendentes até hoje">${badge}</span>` : ''}</button>`).join('')}</nav>
     <div class="nav-foot"><label class="who-label" for="me-sel">Você está como</label><select class="in" id="me-sel" data-c="me" aria-label="Você está como"><option value="">Gestão · todos</option>${sellersList().filter(s => s.active !== false).map(s => `<option value="${s.id}" ${validMe() === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>${sync}<button class="btn sm ghost theme-btn" data-a="theme" title="Trocar entre escuro, claro e automático">${MOON}Tema: ${THEME_NAME[themePref()]}</button></div>`;
 }
+// Regras do WhatsApp do SDR (BraseBot pela ponte do NicoChat, que grava o campo wa do lead a cada 2 min).
+// Aplicadas aqui, com as mesmas funções dos botões, para o histórico, os toques e a comissão saírem certos.
+// waDone guarda o que já foi aplicado, para a mesma mensagem não valer duas vezes (em nenhum aparelho).
+//   markTouch: mensagem da equipe depois do início da cadência marca o toque pendente de hoje (o primeiro).
+//   linkMove:  lead mandou o link do iFood em Lead Novo → Link recebido (e o link vai para o card).
+//   printMove: imagem da equipe com o lead em Link recebido → Print Enviado.
+let waRulesAt = 0;
+function waRulesTick(){
+  if (!loaded() || Date.now() - waRulesAt < 5000) return;
+  waRulesAt = Date.now();
+  const R = cfg().waRules || {}, t0 = today(), ms = v => { const x = Date.parse(v || ''); return isNaN(x) ? 0 : x };
+  for (const l0 of leadsArr()) {
+    const w = l0.wa, cur = S.leads[l0.id]; if (!w || w.source !== 'nicochat' || !cur) continue;
+    // Uma gravação por lead por rodada: as gravações do mesmo lead entram numa fila e a segunda partiria de uma
+    // cópia antiga. A mudança (etapa ou toque) leva junto as marcas; o que sobrar fica para a próxima rodada (5 s).
+    const id = l0.id, prev = cur.waDone || {}, done = {...prev}, extra = {};
+    let act = null;
+    if (w.ifoodLink && !cur.ifoodUrl) extra.ifoodUrl = w.ifoodLink;
+    if (R.linkMove && w.ifoodLink && w.ifoodLinkAt && done.link !== w.ifoodLinkAt) {
+      done.link = w.ifoodLinkAt;
+      if (cur.stage === 'novo') act = () => moveLead(id, 'link');
+    }
+    if (!act && R.printMove && w.lastOutImageAt && done.img !== w.lastOutImageAt) {
+      done.img = w.lastOutImageAt;
+      if (cur.stage === 'link' && ms(w.lastOutImageAt) >= ms(cur.linkAt)) act = () => moveLead(id, 'print');
+    }
+    if (w.lastOutAt && done.out !== w.lastOutAt) {
+      const at = ms(w.lastOutAt);
+      // Se a etapa muda nesta rodada, a mensagem já foi usada pela mudança: não marca toque da etapa nova.
+      const t = !act && R.markTouch && localDay(w.lastOutAt) === t0 && at > ms(cur.cadAt || cur.stageAt)
+        ? (cur.touches || []).filter(x => !x.done && x.stage === cur.stage && x.due <= t0 && (!x.at || ms(x.at) <= at)).sort((a, b) => touchAt(a).localeCompare(touchAt(b)))[0]
+        : null;
+      done.out = w.lastOutAt;
+      if (t) act = () => toggleTouch(id, t.id, true);
+    }
+    const changed = extra.ifoodUrl || ['link', 'img', 'out'].some(k => done[k] !== prev[k]);
+    if (act) { Object.assign(cur, extra, {waDone: done}); act() }
+    else if (changed) updateLead(id, {...extra, waDone: done});
+  }
+}
 function render(){
+  try { waRulesTick() } catch (e) { console.error('regras do WhatsApp', e) }
   openPendingLead();
   const b = $('#board'), sl = b ? b.scrollLeft : 0, sb = $('.stagebar'), sbl = sb && typeof sb.scrollLeft === 'number' ? sb.scrollLeft : -1;
   $('#nav').innerHTML = navHTML();
