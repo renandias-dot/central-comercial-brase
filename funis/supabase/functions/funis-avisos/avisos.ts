@@ -171,7 +171,7 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
   }
   return {lastBrase, waiting, risks};
 }
-// Áudio do grupo: a funis-avisos baixa o arquivo (payload.url), transcreve (OpenAI) e guarda em fn_audios; o texto entra no
+// Áudio do grupo: a funis-avisos baixa o arquivo (payload.url), transcreve (Whisper) e guarda em fn_audios; o texto entra no
 // lugar de "[áudio]" com 🎤 na frente, e vale para os avisos (risco, espera) e para os pedidos de alteração (OPS).
 const AV_AUDIO_KINDS = ['audio', 'voice', 'ptt'];
 export const AV_AUDIO_SEM_AUTOR = 'Autor não identificado (áudio)';

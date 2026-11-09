@@ -4,8 +4,9 @@
 //   AVISOS - OPERACIONAIS: grupos dos clientes ("BRASE - " e "DI "): sem resposta da Brase, sinal de risco e silêncio longo.
 // Configuração em fn_config (k = 'avisos'); estado da última rodada em fn_config (k = 'avisos_state'); fila em fn_avisos
 // (id = a chave do evento, então nada sai duas vezes); grupos dos clientes em fn_grupos. Segredos: NICOCHAT_OPS_KEY (canal
-// Operacional, lê os grupos e envia) e NICOCHAT_API_KEY (canal do SDR, o mesmo da ponte cron.wa da funis-api); OPENAI_API_KEY
-// (opcional) transcreve os áudios dos grupos dos clientes (fn_audios). Só envia para os grupos AVISOS: nunca no grupo do cliente.
+// Operacional, lê os grupos e envia) e NICOCHAT_API_KEY (canal do SDR, o mesmo da ponte cron.wa da funis-api); GROQ_API_KEY
+// (opcional, plano gratuito) transcreve os áudios dos grupos dos clientes com o Whisper (fn_audios). Só envia para os grupos
+// AVISOS: nunca no grupo do cliente.
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
@@ -16,7 +17,7 @@ const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeo
 const NICO_API = (env('NICOCHAT_API') || 'https://app.nicochat.com/api').replace(/\/$/, '');
 const SDR_KEY = env('NICOCHAT_API_KEY');
 const OPS_KEY = env('NICOCHAT_OPS_KEY');
-const OPENAI_KEY = env('OPENAI_API_KEY');
+const GROQ_KEY = env('GROQ_API_KEY');
 const CRM_API = env('CRM_API') || 'https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api';
 const SEND_MAX = 8;        // avisos enviados por rodada; o resto vai na próxima
 const READ_MAX = 15;       // grupos dos clientes relidos por rodada
@@ -24,7 +25,7 @@ const SDR_READ_MAX = 20;   // conversas do SDR relidas por rodada (só as que a 
 const AG_READ_MAX = 20;    // conversas do Renan relidas por rodada atrás de horário sugerido
 const SELLERS_TTL = 6 * 3600e3;
 const AUDIO_MAX = 6;           // áudios transcritos por rodada (o resto fica pendente para a próxima)
-const AUDIO_BYTES = 20e6;      // a OpenAI aceita até 25 MB
+const AUDIO_BYTES = 24e6;      // o plano gratuito do Groq aceita até 25 MB
 const AUDIO_JANELA = 6 * 3600e3; // só áudio das últimas 6 h (o mesmo prazo dos pedidos)
 type Row = Record<string, any>;
 type AvRow = {id: string; canal: 'comercial' | 'operacional'; tipo: string; texto: string};
@@ -132,29 +133,38 @@ async function opsContacts(){
   }
   return contacts;
 }
-// Transcrição de um áudio (OpenAI, /v1/audio/transcriptions). Modelo em fn_config avisos.op.audioModelo (padrão gpt-transcribe);
-// se a OpenAI recusar o arquivo ou o modelo (400/404), tenta o gpt-4o-mini-transcribe, que aceita mais formatos.
-const AUDIO_MIME: Record<string, string> = {mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpga: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg'};
+// Transcrição de um áudio com o Whisper (modelo aberto da OpenAI) rodando no Groq, plano gratuito: sem custo, até 2 mil
+// áudios e 8 h de áudio por dia. Sempre em português (language = pt). Modelo em fn_config avisos.op.audioModelo (padrão
+// whisper-large-v3-turbo); se o Groq recusar o modelo (400/404), tenta o whisper-large-v3. Limite do dia (429): o áudio
+// fica pendente e a rodada para, sem gastar tentativa.
+const AUDIO_MIME: Record<string, string> = {mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpga: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', flac: 'audio/flac'};
+const AUDIO_DICA = 'Áudio de WhatsApp do dono de um restaurante para a agência que cuida do iFood dele: cardápio, preços, pausar e ativar produtos, horário da loja.';
 class AudioGrande extends Error {}
+class AudioLimite extends Error {}
 async function transcrever(url: string, modelo: string){
   const a = await fetch(url, {signal: AbortSignal.timeout(20000)});
   if (!a.ok) throw new Error('O áudio não baixou (HTTP ' + a.status + ')');
-  if (Number(a.headers.get('content-length') || 0) > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 20 MB');
+  if (Number(a.headers.get('content-length') || 0) > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 24 MB');
   const buf = new Uint8Array(await a.arrayBuffer());
-  if (buf.byteLength > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 20 MB');
+  if (buf.byteLength > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 24 MB');
   const hdr = (a.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
   const ext = ((/\.([a-z0-9]{2,4})(?:\?|$)/i.exec(new URL(url).pathname) || [])[1] || '').toLowerCase();
   const tipo = AUDIO_MIME[ext] ? ext : (Object.entries(AUDIO_MIME).find(([, v]) => v === hdr) || ['mp3'])[0];
   let ultimo = '';
-  for (const m of [...new Set([modelo, 'gpt-4o-mini-transcribe'])]) {
+  for (const m of [...new Set([modelo, 'whisper-large-v3'])]) {
     const fd = new FormData();
     fd.append('file', new Blob([buf], {type: AUDIO_MIME[tipo]}), 'audio.' + tipo);
     fd.append('model', m);
-    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {method: 'POST', headers: {authorization: 'Bearer ' + OPENAI_KEY}, body: fd, signal: AbortSignal.timeout(60000)});
+    fd.append('language', 'pt');
+    fd.append('temperature', '0');
+    fd.append('response_format', 'json');
+    fd.append('prompt', AUDIO_DICA);
+    const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY}, body: fd, signal: AbortSignal.timeout(60000)});
     const j = await r.json().catch(() => ({}));
-    if (r.ok) return {texto: String(j.text || '').trim(), modelo: m, bytes: buf.byteLength, usage: j.usage || null};
-    ultimo = 'A OpenAI respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
-    if (r.status !== 400 && r.status !== 404) break;   // chave, saldo ou fora do ar: outro modelo não resolve
+    if (r.ok) return {texto: String(j.text || '').trim(), modelo: m, bytes: buf.byteLength, usage: j.x_groq || j.usage || null};
+    ultimo = 'O Groq respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
+    if (r.status === 429) throw new AudioLimite(ultimo);
+    if (r.status !== 400 && r.status !== 404) break;   // chave ou fora do ar: outro modelo não resolve
   }
   throw new Error(ultimo);
 }
@@ -173,7 +183,7 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
   const st: Row = {novos: novos.length};
   const feitos: Row[] = [];
   if (op.audio === false) st.skipped = 'desligado';
-  else if (!OPENAI_KEY) st.skipped = 'sem o segredo OPENAI_API_KEY';
+  else if (!GROQ_KEY) st.skipped = 'sem o segredo GROQ_API_KEY';
   else {
     const pend = await sql`select mid, group_ns, grupo, ts, url, tries from fn_audios where status = 'pendente' and tries < 3 and ts >= ${Math.floor(desde / 1000)} order by ts limit ${AUDIO_MAX}`;
     const t0 = Date.now();
@@ -181,10 +191,11 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
     for (const a of pend) {
       if (Date.now() - t0 > 60e3) break;
       try {
-        const r = await transcrever(String(a.url), String(op.audioModelo || 'gpt-transcribe'));
+        const r = await transcrever(String(a.url), String(op.audioModelo || 'whisper-large-v3-turbo'));
         await sql`update fn_audios set status = 'ok', texto = ${r.texto}, modelo = ${r.modelo}, bytes = ${r.bytes}, usage = ${json(r.usage)}, erro = null, updated_at = now() where mid = ${a.mid}`;
         feitos.push({...a, texto: r.texto});
       } catch (e) {
+        if (e instanceof AudioLimite) { st.limite = errText(e).slice(0, 200); break }   // limite do plano gratuito: tenta na próxima
         falhas++;
         const status = e instanceof AudioGrande ? 'grande' : Number(a.tries) + 1 >= 3 ? 'erro' : 'pendente';
         await sql`update fn_audios set tries = tries + 1, status = ${status}, erro = ${errText(e).slice(0, 300)}, updated_at = now() where mid = ${a.mid}`;
