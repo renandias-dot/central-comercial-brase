@@ -4,23 +4,28 @@
 //   AVISOS - OPERACIONAIS: grupos dos clientes ("BRASE - " e "DI "): sem resposta da Brase, sinal de risco e silêncio longo.
 // Configuração em fn_config (k = 'avisos'); estado da última rodada em fn_config (k = 'avisos_state'); fila em fn_avisos
 // (id = a chave do evento, então nada sai duas vezes); grupos dos clientes em fn_grupos. Segredos: NICOCHAT_OPS_KEY (canal
-// Operacional, lê os grupos e envia) e NICOCHAT_API_KEY (canal do SDR, o mesmo da ponte cron.wa da funis-api).
+// Operacional, lê os grupos e envia) e NICOCHAT_API_KEY (canal do SDR, o mesmo da ponte cron.wa da funis-api); OPENAI_API_KEY
+// (opcional) transcreve os áudios dos grupos dos clientes (fn_audios). Só envia para os grupos AVISOS: nunca no grupo do cliente.
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, AV_AUDIO_SEM_AUTOR, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
 const NICO_API = (env('NICOCHAT_API') || 'https://app.nicochat.com/api').replace(/\/$/, '');
 const SDR_KEY = env('NICOCHAT_API_KEY');
 const OPS_KEY = env('NICOCHAT_OPS_KEY');
+const OPENAI_KEY = env('OPENAI_API_KEY');
 const CRM_API = env('CRM_API') || 'https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api';
 const SEND_MAX = 8;        // avisos enviados por rodada; o resto vai na próxima
 const READ_MAX = 15;       // grupos dos clientes relidos por rodada
 const SDR_READ_MAX = 20;   // conversas do SDR relidas por rodada (só as que a ponte acabou de atualizar)
 const AG_READ_MAX = 20;    // conversas do Renan relidas por rodada atrás de horário sugerido
 const SELLERS_TTL = 6 * 3600e3;
+const AUDIO_MAX = 6;           // áudios transcritos por rodada (o resto fica pendente para a próxima)
+const AUDIO_BYTES = 20e6;      // a OpenAI aceita até 25 MB
+const AUDIO_JANELA = 6 * 3600e3; // só áudio das últimas 6 h (o mesmo prazo dos pedidos)
 type Row = Record<string, any>;
 type AvRow = {id: string; canal: 'comercial' | 'operacional'; tipo: string; texto: string};
 const json = (v: unknown) => (sql as any).json(v);
@@ -127,6 +132,83 @@ async function opsContacts(){
   }
   return contacts;
 }
+// Transcrição de um áudio (OpenAI, /v1/audio/transcriptions). Modelo em fn_config avisos.op.audioModelo (padrão gpt-transcribe);
+// se a OpenAI recusar o arquivo ou o modelo (400/404), tenta o gpt-4o-mini-transcribe, que aceita mais formatos.
+const AUDIO_MIME: Record<string, string> = {mp3: 'audio/mpeg', mpeg: 'audio/mpeg', mpga: 'audio/mpeg', m4a: 'audio/mp4', mp4: 'audio/mp4', wav: 'audio/wav', webm: 'audio/webm', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg'};
+class AudioGrande extends Error {}
+async function transcrever(url: string, modelo: string){
+  const a = await fetch(url, {signal: AbortSignal.timeout(20000)});
+  if (!a.ok) throw new Error('O áudio não baixou (HTTP ' + a.status + ')');
+  if (Number(a.headers.get('content-length') || 0) > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 20 MB');
+  const buf = new Uint8Array(await a.arrayBuffer());
+  if (buf.byteLength > AUDIO_BYTES) throw new AudioGrande('Áudio maior que 20 MB');
+  const hdr = (a.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  const ext = ((/\.([a-z0-9]{2,4})(?:\?|$)/i.exec(new URL(url).pathname) || [])[1] || '').toLowerCase();
+  const tipo = AUDIO_MIME[ext] ? ext : (Object.entries(AUDIO_MIME).find(([, v]) => v === hdr) || ['mp3'])[0];
+  let ultimo = '';
+  for (const m of [...new Set([modelo, 'gpt-4o-mini-transcribe'])]) {
+    const fd = new FormData();
+    fd.append('file', new Blob([buf], {type: AUDIO_MIME[tipo]}), 'audio.' + tipo);
+    fd.append('model', m);
+    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {method: 'POST', headers: {authorization: 'Bearer ' + OPENAI_KEY}, body: fd, signal: AbortSignal.timeout(60000)});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) return {texto: String(j.text || '').trim(), modelo: m, bytes: buf.byteLength, usage: j.usage || null};
+    ultimo = 'A OpenAI respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
+    if (r.status !== 400 && r.status !== 404) break;   // chave, saldo ou fora do ar: outro modelo não resolve
+  }
+  throw new Error(ultimo);
+}
+// Áudios dos grupos dos clientes: registra os novos em fn_audios, transcreve os pendentes e manda para o passo "pedidos" os
+// que parecem pedido de alteração (com o autor herdado da mensagem anterior, ou "não identificado"). Devolve os textos
+// (mid → transcrição) dos últimos 3 dias para os avisos de risco e de espera lerem o que foi dito.
+type Lido = {ns: string; name: string; raw: Row[]; msgs: GrpMsg[]};
+async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], sink: Row[]){
+  const op = c.op || {}, now = Date.now(), desde = Math.max(c.sinceMs, now - AUDIO_JANELA);
+  const novos: Row[] = [];
+  for (const l of lidos) for (const r of l.raw) {
+    const url = avAudioUrl(r);
+    if (url && typeof r.ts === 'number' && r.ts * 1000 >= desde) novos.push({mid: String(r.mid || r.id || r.ts), group_ns: l.ns, grupo: l.name, ts: r.ts, url});
+  }
+  if (novos.length) await sql`insert into fn_audios ${sql(novos, 'mid', 'group_ns', 'grupo', 'ts', 'url')} on conflict (mid) do nothing`;
+  const st: Row = {novos: novos.length};
+  const feitos: Row[] = [];
+  if (op.audio === false) st.skipped = 'desligado';
+  else if (!OPENAI_KEY) st.skipped = 'sem o segredo OPENAI_API_KEY';
+  else {
+    const pend = await sql`select mid, group_ns, grupo, ts, url, tries from fn_audios where status = 'pendente' and tries < 3 and ts >= ${Math.floor(desde / 1000)} order by ts limit ${AUDIO_MAX}`;
+    const t0 = Date.now();
+    let falhas = 0;
+    for (const a of pend) {
+      if (Date.now() - t0 > 60e3) break;
+      try {
+        const r = await transcrever(String(a.url), String(op.audioModelo || 'gpt-transcribe'));
+        await sql`update fn_audios set status = 'ok', texto = ${r.texto}, modelo = ${r.modelo}, bytes = ${r.bytes}, usage = ${json(r.usage)}, erro = null, updated_at = now() where mid = ${a.mid}`;
+        feitos.push({...a, texto: r.texto});
+      } catch (e) {
+        falhas++;
+        const status = e instanceof AudioGrande ? 'grande' : Number(a.tries) + 1 >= 3 ? 'erro' : 'pendente';
+        await sql`update fn_audios set tries = tries + 1, status = ${status}, erro = ${errText(e).slice(0, 300)}, updated_at = now() where mid = ${a.mid}`;
+      }
+    }
+    Object.assign(st, {pendentes: pend.length, transcritos: feitos.length, falhas});
+  }
+  const textos = new Map<string, string>((await sql`select mid, texto from fn_audios where status = 'ok' and ts >= ${Math.floor((now - 3 * 864e5) / 1000)}`).map((r: Row) => [String(r.mid), String(r.texto || '')]));
+  // Pedido de alteração em áudio: só os transcritos agora (cada áudio vai uma vez), com as mensagens anteriores de contexto.
+  const cand = feitos.filter(a => avPedidoCandidato(a.texto));
+  if (cand.length) {
+    const ns = [...new Set(cand.map(a => String(a.group_ns)))];
+    const fatos = new Map<string, GrpMsg[]>((await sql`select user_ns, facts->'msgs' as msgs from fn_grupos where user_ns = any(${ns})`).map((r: Row) => [String(r.user_ns), r.msgs || []]));
+    for (const a of cand) {
+      const msgs = avComAudios((lidos.find(l => l.ns === String(a.group_ns)) || {msgs: fatos.get(String(a.group_ns)) || []}).msgs, textos);
+      const autor = avAutores(msgs).get(String(a.mid)) || '';
+      if (autor && (avNameIn(autor, team) || avNameIn(autor, ignore) || /brase/i.test(autor))) continue;   // áudio da equipe
+      const contexto = msgs.filter(x => x.ts < Number(a.ts)).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author || 'não identificado', texto: x.text, quando: brIso(x.ts * 1000)}));
+      sink.push({mid: String(a.mid), grupo: String(a.grupo), autor: autor || AV_AUDIO_SEM_AUTOR, texto: avAudioTexto(a.texto), ts: Number(a.ts), contexto, audio: true});
+    }
+    st.pedidos = cand.length;
+  }
+  return {textos, st};
+}
 // 3. Grupos dos clientes: relê os que tiveram mensagem nova, guarda as últimas 40 mensagens e avalia todos os grupos conhecidos.
 async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
@@ -136,11 +218,11 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const known = new Map<string, Row>((ns.length ? await sql`select user_ns, last_message_at, facts from fn_grupos where user_ns = any(${ns})` : []).map((r: Row) => [String(r.user_ns), r]));
   const changed = groups.filter(x => { const at = nicoTime(x.last_message_at), k = known.get(String(x.user_ns)); return at > 0 && at > (k && k.last_message_at ? new Date(k.last_message_at).getTime() : 0) })
     .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, READ_MAX);
-  const lidos: {name: string; raw: Row[]; msgs: GrpMsg[]}[] = [];
+  const lidos: Lido[] = [];
   for (const x of changed) {
     const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: String(x.user_ns), limit: 100});
     const msgs = (Array.isArray(j.data) ? j.data : []).map(grpMsg).filter(Boolean).sort((a: GrpMsg, b: GrpMsg) => a.ts - b.ts) as GrpMsg[];
-    lidos.push({name: avGroupLabel(x.name), raw: Array.isArray(j.data) ? j.data : [], msgs});
+    lidos.push({ns: String(x.user_ns), name: avGroupLabel(x.name), raw: Array.isArray(j.data) ? j.data : [], msgs});
     const old = (known.get(String(x.user_ns)) || {}).facts || {};
     const authors = [...new Set([...(old.authors || []), ...msgs.filter(m => !m.own && m.author).map(m => m.author)])].slice(-60);
     const facts = {name: avGroupLabel(x.name), msgs: msgs.slice(-40), authors, firstSeen: old.firstSeen || brIso(now)};
@@ -156,6 +238,8 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const count = new Map<string, number>();
   for (const r of all) for (const a of new Set<string>((r.facts && r.facts.authors) || [])) count.set(a, (count.get(a) || 0) + 1);
   const team = [...(c.team || []), ...[...count].filter(([, n]) => n >= minGroups).map(([a]) => a)], ignore = c.ignore || [];
+  // Áudios: transcreve e já põe no passo "pedidos" os que pedem alteração; os textos entram nos avisos abaixo.
+  const aud = await audios(c, lidos, team, ignore, sink);
   // Mensagens do cliente que parecem pedido de alteração no iFood: vão para o passo "pedidos" (OPS), com as anteriores de contexto.
   for (const l of lidos) for (const m of l.msgs) {
     if (m.own || !m.author || avNameIn(m.author, team) || avNameIn(m.author, ignore) || /brase/i.test(m.author) || m.ts * 1000 < Math.max(c.sinceMs, now - 6 * 3600e3)) continue;
@@ -168,7 +252,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
-    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(f.msgs || [], team, ignore);
+    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.textos), team, ignore);
     const lm = lastMeet.get(String(r.user_ns));
     if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays))
       rows.push({id: `reuniao30:${r.user_ns}:${lm.dia}`, canal: 'operacional', tipo: 'reuniao_30d', texto: avReuniao30Text(name, lm.dia, lm.status, meetDays)});
@@ -179,7 +263,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
     const ref = st.lastBrase ? st.lastBrase * 1000 : Date.parse(f.firstSeen || '') || now;
     if (now - ref >= quietDays * 864e5) rows.push({id: `silencio:${r.user_ns}:${st.lastBrase || 'nunca'}`, canal: 'operacional', tipo: 'silencio', texto: avSilencioText(name, Math.floor((now - ref) / 864e5))});
   }
-  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, queued: await queue(rows)};
+  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, queued: await queue(rows)};
 }
 // 4. Horário que o Renan sugere: bloqueia a agenda da Central (holds sem lead) e avisa no AVISOS - COMERCIAIS. Prioridade: só
 // conta horário com cliente ou com lead; compromisso pessoal e o grupo de anotações do Renan não contam (reunião tem prioridade).
@@ -296,10 +380,13 @@ async function targets(c: Row){
 async function send(groups: Row, mode: string){
   if (mode !== 'on') return {sent: 0, pending: Number((await sql`select count(*)::int as n from fn_avisos where sent_at is null and tries < 3`)[0].n)};
   const rows = await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 order by created_at, id limit ${SEND_MAX}`;
+  if (!rows.length) return {sent: 0, failed: 0};
+  // Trava: só sai mensagem para os grupos AVISOS. Nada é enviado no grupo do cliente (decisão do dono).
+  const clientes = new Set((await sql`select user_ns from fn_grupos`).map((r: Row) => String(r.user_ns)));
   let sent = 0, failed = 0;
   for (const r of rows) {
     const to = groups[r.canal];
-    if (!to) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = 'grupo de aviso não encontrado' where id = ${r.id}`; continue }
+    if (!to || clientes.has(String(to))) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = ${to ? 'destino é grupo de cliente: bloqueado' : 'grupo de aviso não encontrado'} where id = ${r.id}`; continue }
     try { await nicoSend(String(to), String(r.texto)); sent++; await sql`update fn_avisos set sent_at = now(), erro = null where id = ${r.id}` }
     catch (e) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = ${errText(e).slice(0, 300)} where id = ${r.id}` }
   }

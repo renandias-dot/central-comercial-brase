@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, AV_AUDIO_SEM_AUTOR, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -179,4 +179,30 @@ Deno.test('pedido de alteração no grupo: filtro e aviso com o gestor marcado',
   assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('@Felipe Araújo, resolva com o cliente.'));
   assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com nenhum cliente do OPS.'));
   assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).includes('✅ Pão de queijo ativado\n@Gabriel'));
+});
+
+Deno.test('áudio: link só de outro participante, transcrição no lugar de [áudio], autor herdado', () => {
+  const raw = (over: Partial<WaMsg>): WaMsg => ({mid: 'a1', type: 'in', msg_type: 'audio', content: '', ts: t('10:00'), payload: {url: 'https://nicozap.uazapi.com/files/abc.mp3'}, ...over});
+  assertEquals(avAudioUrl(raw({})), 'https://nicozap.uazapi.com/files/abc.mp3');
+  assertEquals(avAudioUrl(raw({type: 'agent'})), '');
+  assertEquals(avAudioUrl(raw({msg_type: 'image'})), '');
+  assertEquals(avAudioUrl(raw({payload: {url: 'http://x/a.mp3'}})), '');
+  assertEquals(avAudioUrl(raw({payload: null})), '');
+  assertEquals(avAudioTexto('  acabou o  frango '), '🎤 acabou o frango');
+  assertEquals(avAudioTexto(''), '🎤 (áudio sem fala)');
+  const audio = (mid: string, at: number): GrpMsg => ({mid, ts: at, own: false, author: '', text: '[áudio]', kind: 'audio'});
+  const msgs = [g('Carla', 'Bom dia', t('09:00')), audio('x1', t('09:05')), audio('x2', t('09:15')), audio('x3', t('11:00')), g('Felipe Araújo', 'Vou ver', t('11:05')), audio('x4', t('11:06'))];
+  const com = avComAudios(msgs, new Map([['x1', 'tira o strogonoff hoje'], ['x9', 'outro']]));
+  assertEquals(com[1].text, '🎤 tira o strogonoff hoje');
+  assertEquals(com[2].text, '[áudio]');
+  const aut = avAutores(msgs);
+  assertEquals([aut.get('x1'), aut.get('x2'), aut.get('x3'), aut.get('x4')], ['Carla', 'Carla', undefined, 'Felipe Araújo']);
+});
+Deno.test('áudio transcrito sem autor: não abre espera, mas risco aparece', () => {
+  const solto: GrpMsg = {mid: 'y1', ts: t('10:00'), own: false, author: '', text: '🎤 tô pensando em cancelar o serviço de vocês', kind: 'audio'};
+  const s = avGroupState([solto], []);
+  assertEquals(s.waiting, null);
+  assertEquals(s.risks.length, 1);
+  assertEquals(s.risks[0].author, AV_AUDIO_SEM_AUTOR);
+  assertEquals(avGroupState([{...solto, text: '[áudio]'}], []).risks.length, 0);
 });

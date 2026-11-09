@@ -2,7 +2,7 @@
 // As funções de telefone, trecho, horário e etapa são cópias das de funis-api/logic.ts, para esta função ser publicada sozinha.
 // deno-lint-ignore-file no-explicit-any
 
-export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string};
+export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string; payload?: {url?: unknown} | null};
 export function normPhone(v: unknown){
   const d = String(v ?? '').replace(/\D/g, '');
   if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return d;
@@ -156,7 +156,11 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
   for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
     let m = m0;
     if (!m.own && !m.author) {
-      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
+      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) {
+        // Áudio transcrito sem autor: não abre espera (pode ser da equipe), mas sinal de risco no que foi dito aparece.
+        if (avIsAudio(m) && avIsRisk(m.text)) risks.push({...m, author: AV_AUDIO_SEM_AUTOR});
+        continue;
+      }
       m = {...m, author: prev.author};
     }
     prev = m;
@@ -166,6 +170,36 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
     if (!waiting && !avIsAck(m)) waiting = m;
   }
   return {lastBrase, waiting, risks};
+}
+// Áudio do grupo: a funis-avisos baixa o arquivo (payload.url), transcreve (OpenAI) e guarda em fn_audios; o texto entra no
+// lugar de "[áudio]" com 🎤 na frente, e vale para os avisos (risco, espera) e para os pedidos de alteração (OPS).
+const AV_AUDIO_KINDS = ['audio', 'voice', 'ptt'];
+export const AV_AUDIO_SEM_AUTOR = 'Autor não identificado (áudio)';
+export const avIsAudio = (m: GrpMsg) => AV_AUDIO_KINDS.includes(m.kind);
+// Áudio de outro participante (o do Renan não precisa) com link https para baixar.
+export function avAudioUrl(m: WaMsg){
+  if (!m || m.type !== 'in' || !AV_AUDIO_KINDS.includes(String(m.msg_type || ''))) return '';
+  const u = m.payload && m.payload.url;
+  return typeof u === 'string' && /^https:\/\/\S+$/i.test(u) ? u : '';
+}
+export const avAudioTexto = (t: unknown) => { const s = String(t ?? '').replace(/\s+/g, ' ').trim(); return '🎤 ' + (s ? (s.length > 600 ? s.slice(0, 599) + '…' : s) : '(áudio sem fala)') };
+// Põe a transcrição (mapa mid → texto) no lugar de "[áudio]".
+export const avComAudios = (msgs: GrpMsg[], textos: Map<string, string>) => (msgs || []).map(m => avIsAudio(m) && textos.has(m.mid) ? {...m, text: avAudioTexto(textos.get(m.mid))} : m);
+// Autor de cada mensagem pela mesma regra do avGroupState: sem nome (áudio, imagem) = o da mensagem anterior de outro
+// participante, se de até 15 min antes; senão fica de fora do mapa (não identificado).
+export function avAutores(msgs: GrpMsg[]){
+  const out = new Map<string, string>();
+  let prev: GrpMsg | null = null;
+  for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
+    let m = m0;
+    if (!m.own && !m.author) {
+      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
+      m = {...m, author: prev.author};
+    }
+    prev = m;
+    out.set(m.mid, m.author);
+  }
+  return out;
 }
 export const avDur = (ms: number) => { const m = Math.max(0, Math.floor(ms / 60e3)), h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? String(r).padStart(2, '0') : ''}` : `${r} min` };
 export const avSemRespostaText = (group: string, w: GrpMsg, ms: number) => `⏰ *Sem resposta há ${avDur(ms)}*\n${group}\n${w.author || 'Cliente'}: ${avQuote(w.text)}`;
