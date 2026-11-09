@@ -674,7 +674,8 @@ export function importRow(x: any, funnel: Funnel){
 // Tipos de mensagem do NicoChat: "in" = o lead; "agent" = uma pessoa da equipe pela caixa de entrada. Robô e
 // disparo automático não contam como resposta: o lead continua esperando uma pessoa.
 export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number};
-export type WaFacts = {waitingSince: string | null; lastSnippet: string; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null; inCount: number; outCount: number};
+export type WaFacts = {waitingSince: string | null; lastSnippet: string; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null; inCount: number; outCount: number;
+  ifoodLink: string | null; ifoodLinkAt: string | null; lastOutImageAt: string | null};
 export type WaResponse = {id: string; inAt: string; outAt: string; minutes: number; day: string};
 // Horário em que se mede o SLA (Brasília, sem horário de verão): mensagem do lead fora dele não entra na conta.
 export const WA_HOURS = {start: 9, end: 19, days: [1, 2, 3, 4, 5]};
@@ -697,16 +698,31 @@ export function waSnippet(m: WaMsg){
 // Horário de Brasília (UTC-3, sem horário de verão) no formato ISO, para ler fácil no banco e na Central: "2026-11-09T11:00:00-03:00".
 export const brIso = (ms: number) => new Date(ms - 3 * 3600e3).toISOString().slice(0, 19) + '-03:00';
 const waIso = (ts: number) => brIso(ts * 1000);
+// Link do iFood numa mensagem do lead (loja no app ou link curto de compartilhar).
+const IFOOD_LINK = /(?:https?:\/\/)?(?:www\.)?(?:ifood\.com\.br|ifd\.io)\/[^\s<>"']+/i;
+export function waIfoodLink(m: WaMsg){
+  const t = typeof m.content === 'string' ? m.content : '';
+  const hit = IFOOD_LINK.exec(t);
+  if (!hit) return null;
+  const url = hit[0].replace(/[).,;!?]+$/, '');
+  return /^https?:/i.test(url) ? url : 'https://' + url;
+}
 // Mensagens de uma conversa (em qualquer ordem) → o estado da conversa e as respostas da equipe.
 // Uma resposta é a 1ª mensagem da equipe depois de uma ou mais do lead; o tempo conta da 1ª mensagem do lead.
 export function waFacts(list: WaMsg[], hours = WA_HOURS){
   const msgs = (Array.isArray(list) ? list : []).filter(m => m && typeof m.ts === 'number' && (m.type === 'in' || m.type === 'agent'))
     .sort((a, b) => (a.ts as number) - (b.ts as number) || Number(a.id ?? 0) - Number(b.id ?? 0));
   let wait: WaMsg | null = null, lastIn: WaMsg | null = null, lastOut: WaMsg | null = null, firstOut: WaMsg | null = null, inCount = 0, outCount = 0;
+  let link: string | null = null, linkAt: number | null = null, lastImg: number | null = null;
   const responses: WaResponse[] = [];
   for (const m of msgs) {
-    if (m.type === 'in') { inCount++; lastIn = m; if (!wait) wait = m; continue }
+    if (m.type === 'in') {
+      inCount++; lastIn = m; if (!wait) wait = m;
+      const l = waIfoodLink(m); if (l) { link = l; linkAt = m.ts as number }
+      continue;
+    }
     outCount++; lastOut = m; if (!firstOut) firstOut = m;
+    if (m.msg_type === 'image') lastImg = m.ts as number;
     if (wait) {
       const t0 = wait.ts as number, t1 = m.ts as number;
       if (inWaHours(t0 * 1000, hours)) responses.push({id: String(wait.mid || wait.id || t0), inAt: waIso(t0), outAt: waIso(t1), minutes: Math.round((t1 - t0) / 6) / 10, day: brDay(t0 * 1000)});
@@ -714,12 +730,14 @@ export function waFacts(list: WaMsg[], hours = WA_HOURS){
     }
   }
   const facts: WaFacts = {waitingSince: wait ? waIso(wait.ts as number) : null, lastSnippet: lastIn ? waSnippet(lastIn) : '', lastInAt: lastIn ? waIso(lastIn.ts as number) : null,
-    lastOutAt: lastOut ? waIso(lastOut.ts as number) : null, firstOutAt: firstOut ? waIso(firstOut.ts as number) : null, inCount, outCount};
+    lastOutAt: lastOut ? waIso(lastOut.ts as number) : null, firstOutAt: firstOut ? waIso(firstOut.ts as number) : null, inCount, outCount,
+    ifoodLink: link, ifoodLinkAt: linkAt ? waIso(linkAt) : null, lastOutImageAt: lastImg ? waIso(lastImg) : null};
   return {facts, responses};
 }
 // O que a Central guarda no lead (campo wa). null = já está igual, não precisa gravar.
-const WA_FIELDS = ['waitingSince', 'lastSnippet', 'lastInAt', 'lastOutAt', 'firstOutAt'] as const;
-export type WaLeadField = {waitingSince: string | null; lastSnippet: string | null; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null; source: 'nicochat'};
+const WA_FIELDS = ['waitingSince', 'lastSnippet', 'lastInAt', 'lastOutAt', 'firstOutAt', 'ifoodLink', 'ifoodLinkAt', 'lastOutImageAt'] as const;
+export type WaLeadField = {waitingSince: string | null; lastSnippet: string | null; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null;
+  ifoodLink: string | null; ifoodLinkAt: string | null; lastOutImageAt: string | null; source: 'nicochat'};
 // deno-lint-ignore no-explicit-any
 export function waLeadPatch(lead: any, f: WaFacts): WaLeadField | null {
   const cur = (lead && typeof lead.wa === 'object' && lead.wa) || {};

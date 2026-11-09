@@ -191,7 +191,8 @@ O canal do SDR no NicoChat (**BraseBot**, API oficial, `flow_ns` f302947) chega 
 - **Chave:** segredo `NICOCHAT_API_KEY` (a chave da API do workspace no NicoChat).
 - **Banco:** `fn_wa_contacts` (estado de cada conversa) e `fn_wa_responses` (cada resposta), na migração `20261109000000_whatsapp_sdr.sql`.
 - **Status:** `select v from fn_config where k = 'wa_sync'` mostra a última rodada (conversas lidas, leads casados, quantos esperam resposta, o que foi gravado ou o erro).
-- Ainda não marca toques nem move cards sozinho (as regras da aba WhatsApp da Central): hoje mostra quem espera resposta e mede o SLA.
+- Também grava no `wa` o link do iFood que o lead mandou (`ifoodLink`, `ifoodLinkAt`) e a última imagem enviada pela equipe (`lastOutImageAt`).
+- **Regras do card (desde 09/11/2026):** a própria Central aplica, com as mesmas funções dos botões, o que estiver ligado em WhatsApp › Automações: mensagem da equipe marca o toque pendente de hoje (`markTouch`); link do iFood em Lead Novo move para Link recebido e guarda o link no card (`linkMove`); imagem da equipe em Link recebido move para Print Enviado (`printMove`). "Lead respondeu → Qualificando" (`moveOnReply`) continua desligada. O que já foi aplicado fica em `waDone` no lead, para a mesma mensagem não valer duas vezes.
 
 ### Links dos anúncios
 
