@@ -114,13 +114,17 @@ export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
-export type GrpMsg = {mid: string; ts: number; own: boolean; author: string; text: string; kind: string};
+export type GrpMsg = {mid: string; ts: number; own: boolean; author: string; text: string; kind: string; meet?: string};
+// Link do Meet (meet.google.com/abc-defg-hij): o código fica na mensagem, lido do texto inteiro (o trecho é cortado em 140).
+const AV_MEET = /meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i;
 export function grpMsg(m: WaMsg): GrpMsg | null {
   if (!m || typeof m.ts !== 'number' || (m.type !== 'in' && m.type !== 'agent')) return null;
   const raw = typeof m.content === 'string' ? m.content : '';
   const hit = /^\s*👤\s*([^\n:]{1,60}):[ \t]*\n?/u.exec(raw);
-  const body = hit ? raw.slice(hit[0].length) : raw;
-  return {mid: String(m.mid || m.id || m.ts), ts: m.ts, own: m.type === 'agent', author: hit ? hit[1].trim() : m.type === 'agent' ? 'Renan' : '', text: waSnippet({...m, content: body}), kind: String(m.msg_type || 'text')};
+  const body = hit ? raw.slice(hit[0].length) : raw, meet = AV_MEET.exec(body);
+  const g: GrpMsg = {mid: String(m.mid || m.id || m.ts), ts: m.ts, own: m.type === 'agent', author: hit ? hit[1].trim() : m.type === 'agent' ? 'Renan' : '', text: waSnippet({...m, content: body}), kind: String(m.msg_type || 'text')};
+  if (meet) g.meet = meet[1].toLowerCase();
+  return g;
 }
 // Mensagem que não pede resposta: "ok", "obrigado", "bom dia", só emoji, figurinha, reação.
 const AV_ACK = /^(ok|okay|okk+|blz|beleza|obrigad[oa]s?|obg|brigad[oa]|valeu|vlw|show|top|perfeito|certo|combinado|tranquilo|fechado|otimo|massa|boa|bom dia|boa tarde|boa noite|amem|sim|isso|entendi|joia|ta bom|ta otimo|tudo bem|tudo certo|maravilha|kk+|(ha)+|rs+)(?![a-z])/;
@@ -167,3 +171,80 @@ export const avDur = (ms: number) => { const m = Math.max(0, Math.floor(ms / 60e
 export const avSemRespostaText = (group: string, w: GrpMsg, ms: number) => `⏰ *Sem resposta há ${avDur(ms)}*\n${group}\n${w.author || 'Cliente'}: ${avQuote(w.text)}`;
 export const avRiscoText = (group: string, m: GrpMsg) => `🚨 *Atenção: possível risco*\n${group}\n${m.author || 'Cliente'}: ${avQuote(m.text, 220)}`;
 export const avSilencioText = (group: string, days: number) => `😶 *${days} dias sem mensagem da Brase*\n${group}`;
+
+// Reunião com o cliente: cada link do Meet num grupo de cliente vira uma reunião "provável" no dia do link (Brasília); a rotina
+// de IA confirma (realizada / não realizada) pelo contexto e pelas Anotações do Gemini, e corrige o dia. Id = grupo:código:dia.
+export const brDate = (ms: number) => new Date(ms - 3 * 3600e3).toISOString().slice(0, 10);
+export function avMeetings(groupNs: string, groupName: string, msgs: GrpMsg[]){
+  const seen = new Set<string>(), out: {id: string; group_ns: string; grupo: string; dia: string; link_at: Date; meet: string; autor: string}[] = [];
+  for (const m of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
+    if (!m.meet) continue;
+    const dia = brDate(m.ts * 1000), id = `${groupNs}:${m.meet}:${dia}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({id, group_ns: groupNs, grupo: groupName, dia, link_at: new Date(m.ts * 1000), meet: m.meet, autor: m.own ? 'Renan' : m.author || ''});
+  }
+  return out;
+}
+// Aviso de 30 dias: a última reunião do grupo (provável ou realizada) fez N dias. Sai às 9h (Brasília) do 30º dia, um por reunião.
+export function avReuniao30Due(lastDia: string, nowMs: number, days = 30){
+  const t = Date.parse(lastDia + 'T09:00:00-03:00');
+  return !isNaN(t) && nowMs - t >= days * 864e5;
+}
+export const avReuniao30Text = (group: string, dia: string, status: string, days: number) =>
+  `📆 *${days} dias desde a última reunião*\n${group}\nÚltima: ${dia.slice(8, 10)}/${dia.slice(5, 7)} (${status === 'realizada' ? 'confirmada' : 'link do Meet no grupo'}). Hora de marcar a próxima.`;
+
+// Horário que o Renan sugere (em grupo ou no privado): os horários da mensagem como data e hora (Brasília), para avisar o
+// comercial e bloquear a agenda da Central. Dia: "hoje", "amanhã", "depois de amanhã", dia da semana (o próximo; o mesmo dia
+// da semana = semana que vem), "12/11" ou "dia 12"; sem dia, hoje se o horário ainda não passou, senão amanhã. Vários horários
+// viram vários ("10h ou 15h"). Só horários futuros e até 30 dias.
+const AV_WD: Record<string, number> = {domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6};
+const AV_TIME_G = [/(?:^|[^\d:])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])/g, /(?:^|[^\d])(0?[7-9]|1\d|2[0-2]) ?h(?:rs?|s)?(?: ?([0-5]\d))?(?![a-z\d])/g,
+  /(?:^|\s)as (0?[7-9]|1\d|2[0-2])(?![\d%:h])(?! ?(?:reais|dias|lojas|vezes|pessoas|pedidos|unidades))/g];
+export function avParseSlots(text: unknown, msgMs: number): number[] {
+  const t = fold(text);
+  if (!avHasTime(t)) return [];
+  const b = new Date(msgMs - 3 * 3600e3), y = b.getUTCFullYear(), mo = b.getUTCMonth(), d = b.getUTCDate(), nowMin = b.getUTCHours() * 60 + b.getUTCMinutes();
+  let off: number | null = null, date: [number, number, number] | null = null, m: RegExpExecArray | null;
+  if (/depois de amanha/.test(t)) off = 2;
+  else if (/(?:^|[^a-z])amanha(?![a-z])/.test(t)) off = 1;
+  else if (/(?:^|[^a-z])hoje(?![a-z])/.test(t)) off = 0;
+  else if ((m = /(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/.exec(t)) && +m[1] >= 1 && +m[1] <= 31 && +m[2] >= 1 && +m[2] <= 12) {
+    const yy = Date.UTC(y, +m[2] - 1, +m[1]) < Date.UTC(y, mo, d) - 30 * 864e5 ? y + 1 : y;
+    date = [yy, +m[2] - 1, +m[1]];
+  } else if ((m = /(?:^|[^a-z])(segunda|terca|quarta|quinta|sexta|sabado|domingo)(?![a-z])/.exec(t))) off = (AV_WD[m[1]] - b.getUTCDay() + 7) % 7 || 7;
+  else if ((m = /(?:^|[^a-z])dia (\d{1,2})(?![\d/])/.exec(t)) && +m[1] >= 1 && +m[1] <= 31) date = +m[1] >= d ? [y, mo, +m[1]] : [y, mo + 1, +m[1]];
+  const mins = new Set<number>();
+  for (const r of AV_TIME_G) for (const x of t.matchAll(r)) mins.add(+x[1] * 60 + (x[2] ? +x[2] : 0));
+  const out = new Set<number>();
+  for (const mi of mins) {
+    const at = date ? Date.UTC(date[0], date[1], date[2], 0, mi) : Date.UTC(y, mo, d + (off ?? (mi > nowMin ? 0 : 1)), 0, mi);
+    const ms = at + 3 * 3600e3;
+    if (ms > msgMs && ms < msgMs + 30 * 864e5) out.add(ms);
+  }
+  return [...out].sort((a, c) => a - c).slice(0, 4);
+}
+// Prioridade na agenda: só conta horário combinado com cliente ou com lead. Compromisso pessoal (amigo, família) e o grupo de
+// anotações do Renan não contam: reunião tem prioridade. Grupo "D.I - " é a 1ª reunião do cliente, e o Renan fica só 5 a 10 min:
+// não fecha o horário, só avisa e bloqueia 10 min (dá para marcar logo antes ou depois).
+export type AvAgendaKind = 'di' | 'cliente' | 'lead';
+export const avIsDi = (name: unknown) => /^(g:\s*)?d\.?\s?i\.?(\s|-)/i.test(String(name || '').trim());
+// Conversa no privado com quem escreve num grupo de cliente: é cliente daquele grupo (o nome do contato é o mesmo do "👤 Nome:").
+export function avClientOf(contactName: unknown, groups: {nome: string; authors: string[]}[]){
+  const n = fold(contactName).trim();
+  if (n.length < 3) return null;
+  for (const g of groups || []) if ((g.authors || []).some(a => { const x = fold(a).trim(); return x === n || (x.length >= 3 && (x.startsWith(n + ' ') || n.startsWith(x + ' '))) })) return g.nome;
+  return null;
+}
+export const AV_DI_MIN = 10;
+export function avAgendaText(where: string, kind: AvAgendaKind, slots: number[], snippet: string, blocked: boolean){
+  const when = slots.map(s => avWhen(brIso(s))).join(' ou '), quote = snippet ? '\n' + avQuote(snippet) : '';
+  if (kind === 'di') {
+    const near = slots.length === 1 ? ` (${avWhen(brIso(slots[0] - 30 * 60e3)).slice(-5)} ou ${avWhen(brIso(slots[0] + 30 * 60e3)).slice(-5)}, por exemplo)` : '';
+    return `🗓 *Renan: reunião rápida (5 a 10 min)*\n${where}\n${when}${quote}\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois${near}.`;
+  }
+  return `🗓 *Renan sugeriu horário*\n${where}\n${when}${quote}\n${blocked ? 'Bloqueado na agenda da Central: não ofereça esse horário.' : 'Não ofereça esse horário (não deu para bloquear na agenda da Central).'}`;
+}
+// Bloqueio na agenda da Central (coleção holds, sem lead): id e início no formato da tela ("r202611101500", "2026-11-10T15:00").
+export const avHoldId = (ms: number) => 'r' + brIso(ms).slice(0, 16).replace(/\D/g, '');
+export const avHoldStart = (ms: number) => brIso(ms).slice(0, 16);
