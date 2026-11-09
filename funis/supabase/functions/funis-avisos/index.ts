@@ -8,7 +8,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -128,7 +128,7 @@ async function opsContacts(){
   return contacts;
 }
 // 3. Grupos dos clientes: relê os que tiveram mensagem nova, guarda as últimas 40 mensagens e avalia todos os grupos conhecidos.
-async function grupos(c: Row, contacts: Row[]){
+async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
   const waitMin = Number(op.semRespostaMin) || 120, quietDays = Number(op.silencioDias) || 5, minGroups = Number(op.equipeGrupos) || 4;
   const groups = contacts.filter(x => avClientGroup(x.name));
@@ -136,9 +136,11 @@ async function grupos(c: Row, contacts: Row[]){
   const known = new Map<string, Row>((ns.length ? await sql`select user_ns, last_message_at, facts from fn_grupos where user_ns = any(${ns})` : []).map((r: Row) => [String(r.user_ns), r]));
   const changed = groups.filter(x => { const at = nicoTime(x.last_message_at), k = known.get(String(x.user_ns)); return at > 0 && at > (k && k.last_message_at ? new Date(k.last_message_at).getTime() : 0) })
     .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, READ_MAX);
+  const lidos: {name: string; raw: Row[]; msgs: GrpMsg[]}[] = [];
   for (const x of changed) {
     const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: String(x.user_ns), limit: 100});
     const msgs = (Array.isArray(j.data) ? j.data : []).map(grpMsg).filter(Boolean).sort((a: GrpMsg, b: GrpMsg) => a.ts - b.ts) as GrpMsg[];
+    lidos.push({name: avGroupLabel(x.name), raw: Array.isArray(j.data) ? j.data : [], msgs});
     const old = (known.get(String(x.user_ns)) || {}).facts || {};
     const authors = [...new Set([...(old.authors || []), ...msgs.filter(m => !m.own && m.author).map(m => m.author)])].slice(-60);
     const facts = {name: avGroupLabel(x.name), msgs: msgs.slice(-40), authors, firstSeen: old.firstSeen || brIso(now)};
@@ -154,6 +156,14 @@ async function grupos(c: Row, contacts: Row[]){
   const count = new Map<string, number>();
   for (const r of all) for (const a of new Set<string>((r.facts && r.facts.authors) || [])) count.set(a, (count.get(a) || 0) + 1);
   const team = [...(c.team || []), ...[...count].filter(([, n]) => n >= minGroups).map(([a]) => a)], ignore = c.ignore || [];
+  // Mensagens do cliente que parecem pedido de alteração no iFood: vão para o passo "pedidos" (OPS), com as anteriores de contexto.
+  for (const l of lidos) for (const m of l.msgs) {
+    if (m.own || !m.author || avNameIn(m.author, team) || avNameIn(m.author, ignore) || /brase/i.test(m.author) || m.ts * 1000 < Math.max(c.sinceMs, now - 6 * 3600e3)) continue;
+    const raw = l.raw.find((r: Row) => String(r.mid || r.id || r.ts) === m.mid), texto = typeof raw?.content === 'string' ? raw.content.replace(/^\s*👤[^\n]*\n?/u, '').trim() : '';
+    if (!texto || !avPedidoCandidato(texto)) continue;
+    const contexto = l.msgs.filter(x => x.ts < m.ts).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author, texto: x.text, quando: brIso(x.ts * 1000)}));
+    sink.push({mid: m.mid, grupo: l.name, autor: m.author, texto, ts: m.ts, contexto});
+  }
   const rows: AvRow[] = [], meetDays = Number(op.reuniaoDias) || 30;
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
@@ -233,6 +243,42 @@ async function agendaFila(c: Row){
   await sql`update fn_config set v = v - 'agendaFila', updated_at = now() where k = 'avisos'`;
   return {n: ok};
 }
+// 5. Pedido de alteração no iFood feito pelo cliente no grupo: manda para a função whatsapp-pedidos do OPS, que lê com IA contra
+// o cardápio real, aplica sozinha (snapshot antes) e devolve o que fez; o aviso vai para o AVISOS - OPERACIONAIS marcando o
+// gestor. fn_config (k = 'ops_pedidos'): {url, key, mode: 'on' | 'simular' | 'off'}. Também roda as alterações com hora marcada.
+const PEDIDOS_MAX = 3;
+async function opsPedidos(conf: Row, body: Row){
+  const r = await fetch(String(conf.url), {method: 'POST', headers: {'content-type': 'application/json', 'x-pedidos-key': String(conf.key)}, body: JSON.stringify(body), signal: AbortSignal.timeout(100000)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
+  return j as Row;
+}
+async function pedidos(sink: Row[]){
+  const conf = await getConf('ops_pedidos');
+  if (!conf.url || !conf.key || conf.mode === 'off' || !conf.mode) return {skipped: 'desligado'};
+  let enviados = 0, avisos = 0;
+  for (const p of sink) {
+    if (enviados >= PEDIDOS_MAX) break;
+    const id = 'pedido:' + p.mid;
+    if ((await sql`select 1 from fn_avisos where id = ${id}`).length) continue;
+    enviados++;
+    let r: Row;
+    // Falha do OPS não pode sumir com o pedido: vira aviso "NÃO aplicado" com o erro, para o gestor fazer à mão.
+    try { r = await opsPedidos(conf, {op: 'pedido', grupo: p.grupo, autor: p.autor, texto: p.texto, mensagem_id: p.mid, enviado_em: brIso(p.ts * 1000), contexto: p.contexto, simular: conf.mode === 'simular'}) }
+    catch (e) { r = {status: 'erro', erro: 'O OPS não respondeu: ' + errText(e).slice(0, 200)} }
+    if (r.status === 'nada' || r.repetido) {
+      await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${id}, 'operacional', 'pedido_nada', ${String(r.resumo || 'não é pedido').slice(0, 500)}, now()) on conflict (id) do nothing`;
+      continue;
+    }
+    avisos += await queue([{id, canal: 'operacional', tipo: 'pedido_ifood', texto: avPedidoText(p.grupo, p.autor, p.texto, r)}]);
+  }
+  let horaMarcada = 0;
+  if (conf.mode === 'on') {
+    const ag = await opsPedidos(conf, {op: 'agendados'});
+    for (const e of Array.isArray(ag.executados) ? ag.executados : []) { horaMarcada++; avisos += await queue([{id: 'agendado:' + crypto.randomUUID(), canal: 'operacional', tipo: 'pedido_agendado', texto: avAgendadoText(e)}]) }
+  }
+  return {candidatos: sink.length, enviados, horaMarcada, avisos};
+}
 // Acha os grupos de aviso pelo nome ("AVISOS - COMERCIAIS" e "AVISOS - OPERACIONAIS") e guarda o id deles na configuração.
 async function targets(c: Row){
   const g = {...(c.groups || {})};
@@ -282,7 +328,9 @@ async function run(){
   await step('contatos', async () => { contacts = await opsContacts(); return {n: contacts.length} });
   if (contacts) {
     const list: Row[] = contacts;
-    await step('grupos', () => grupos(c, list));
+    const sink: Row[] = [];
+    await step('grupos', () => grupos(c, list, sink));
+    await step('pedidos', () => pedidos(sink));
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }

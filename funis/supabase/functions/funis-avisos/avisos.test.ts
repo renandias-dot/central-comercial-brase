@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -160,7 +160,7 @@ Deno.test('aviso do horário do Renan: D.I é reunião rápida; cliente e lead b
   const s = [Date.parse('2026-11-10T15:00:00-03:00')];
   assertEquals(avAgendaText('D.I - Point da Lolo', 'di', s, 'amanhã 15h?', true), '🗓 *Renan: reunião rápida (5 a 10 min)*\nD.I - Point da Lolo\nter 10/11 às 15:00\n“amanhã 15h?”\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois (14:30 ou 15:30, por exemplo).');
   assertEquals(avAgendaText('BRASE - Texas Burger', 'cliente', s, 'quinta 15h', true), '🗓 *Renan sugeriu horário*\nBRASE - Texas Burger\nter 10/11 às 15:00\n“quinta 15h”\nBloqueado na agenda da Central: não ofereça esse horário.');
-  assert(avIsDi('G: D.I - Liz Café') && avIsDi('D.I - Liz Café') && avIsDi('G: DI Sushi') && !avIsDi('G: BRASE - X') && !avIsDi('G: Desconto em Games'));
+  assert(avIsDi('G: D.I - Liz Café') && avIsDi('D.I - Liz Café') && avIsDi('G: D.I. Sushi') && !avIsDi('G: DI Blasi - Batel') && !avIsDi('G: BRASE - X') && !avIsDi('G: Desconto em Games'));
 });
 Deno.test('privado com cliente: o nome do contato é o mesmo de quem escreve no grupo', () => {
   const groups = [{nome: 'D.I - Liz Café', authors: ['Fabiola']}, {nome: 'D.I - Point da Lolo', authors: ['Patrick William', 'Felipe Araújo']}];
@@ -169,4 +169,14 @@ Deno.test('privado com cliente: o nome do contato é o mesmo de quem escreve no 
   assertEquals(avClientOf('Patrick', groups), 'D.I - Point da Lolo');
   assertEquals(avClientOf('Rodrigo', groups), null);
   assertEquals(avClientOf('Jo', groups), null);
+});
+Deno.test('pedido de alteração no grupo: filtro e aviso com o gestor marcado', () => {
+  for (const x of ['Acabou o pão de queijo', 'pausa o X-Bacon hoje', 'Pode tirar o açaí 500ml', 'amanhã não vamos abrir', 'o valor do combo agora é 39,90', 'pode ativar o X-Tudo de novo', 'Sem estoque de coca lata']) assert(avPedidoCandidato(x), x);
+  for (const x of ['Bom dia, tudo certo?', 'Obrigado pelo relatório', 'Como vai ser as próximas etapas?', 'Chegou pedido agora']) assert(!avPedidoCandidato(x), x);
+  const feito = avPedidoText('D.I - Liz Café', 'Fabiola', 'acabou o pão de queijo', {status: 'aplicado', gestor: 'Gabriel', feitos: ['Pão de queijo pausado']});
+  assertEquals(feito, '🛠 *Alteração feita no iFood*\nD.I - Liz Café\nFabiola: “acabou o pão de queijo”\n✅ Pão de queijo pausado\n@Gabriel, revise no OPS (Cardápio iFood › histórico do item).');
+  const nao = avPedidoText('BRASE - Texas Burger', 'João', 'pausa a coca', {status: 'nao_aplicado', gestor: 'Felipe Araújo', nao_feitos: [{pedido: 'pausar Coca', motivo: 'não ficou claro (duas cocas)'}]});
+  assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('@Felipe Araújo, resolva com o cliente.'));
+  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com nenhum cliente do OPS.'));
+  assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).includes('✅ Pão de queijo ativado\n@Gabriel'));
 });
