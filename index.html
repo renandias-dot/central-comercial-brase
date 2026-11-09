@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "1c859df8bb";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "3d71c503b7";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -687,25 +687,26 @@ const CAD_PRINT = 'Anexe o print de antes e depois do case.', CAD_AUDIO = 'Áudi
 const DEFAULT_CADENCES = {
   novo: {goal: 'O link da loja', end: 'Sem resposta no último toque: mover para Frio.', steps: [
     {code: 'LN-1', title: 'Abertura', day: 0, fmt: 'Texto', next: 'Sem resposta: LN-2 em 2 horas.', text: 'Fala [nome], [bom dia/boa tarde]! Tudo bem com você?\nEu sou o Luiz Felipe, da Brase. Recebi sua resposta ao formulário de diagnóstico! 🔥🚀\nPra fazer o seu diagnóstico, só vou precisar que me envie o link da sua loja no iFood, poderia me enviar por favor? 🚀'},
-    {code: 'LN-2', title: 'Passo a passo do link', day: 0, hours: 2, fmt: 'Texto', next: 'Sem resposta: LN-3 amanhã, em outro período do dia.', text: 'Pra facilitar, o passo a passo pra achar o link da sua loja é esse:\n1. Entre na sua loja pelo app do iFood, como cliente\n2. Toque no nome da loja pra ver mais informações\n3. Toque no botão de compartilhar, lá em cima à direita\nAí é só colar aqui 🚀'},
+    {code: 'LN-2', title: 'Áudio com o passo a passo do link', day: 0, hours: 2, offHours: true, fmt: 'Áudio', note: 'Áudio de 20 a 30 segundos (o texto é o roteiro). Mande junto o vídeo do passo a passo. Lead que chegou fora do horário (19h às 9h ou fim de semana) recebe este toque às 9h do próximo dia útil.', next: 'Sem resposta: LN-3 amanhã, em outro período do dia.', text: 'Fala [nome], aqui é o Luiz Felipe, da Brase! Pra eu montar o seu diagnóstico, preciso do link da [loja] no iFood. É rapidinho: entra na sua loja pelo app, como cliente, toca no nome dela e depois em compartilhar, lá em cima. Se não achar o link, me manda o nome da loja e a cidade que eu tento achar por aqui.'},
     {code: 'LN-3', title: 'Áudio para mostrar que é gente', day: 1, slot: 'oposto', fmt: 'Áudio', note: CAD_AUDIO, next: 'Sem resposta: LN-4 em 2 dias.', text: 'Fala [nome], aqui é o Luiz Felipe, da Brase! Seu diagnóstico tá reservado aqui, só falta o link da [loja] no iFood pra eu puxar os dados. Me manda quando puder que eu já te mostro quem tá disputando cliente com você aí na região.'},
-    {code: 'LN-4', title: 'Movimento da região', day: 3, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: LN-5 em 3 dias.', text: 'Opa [nome], [bom dia/boa tarde]! Dei uma olhada no movimento da sua região aqui no sistema e tem [segmento, no plural] crescendo forte aí. Quer que eu veja como tá a [loja] no ranking? Só me mandar o link 🚀'},
+    {code: 'LN-4', title: 'Movimento da região', day: 3, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: LN-5 em 3 dias.', text: 'Opa [nome], [bom dia/boa tarde]! Dei uma olhada no movimento da sua região e tem loja do seu segmento crescendo forte aí. Quer que eu veja como tá a [loja] no ranking? Só me mandar o link 🚀'},
     {code: 'LN-5', title: 'Case do segmento', day: 6, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: LN-6 em 4 dias.', text: '[Nome], olha esse resultado: [case, ex.: uma hamburgueria saiu de R$ 83 mil para R$ 180 mil por mês no iFood em 5 meses]. O primeiro passo foi o mesmo que o seu, entender onde a loja tava travando. Me manda o link que eu começo o diagnóstico da [loja] 🚀'},
     {code: 'LN-6', title: 'Encerramento', day: 10, fmt: 'Texto', next: 'Sem resposta: mover para Frio.', text: '[Nome], vou liberar sua vaga do diagnóstico pra próxima loja da fila. Se mais pra frente quiser ver como a [loja] tá em relação aos concorrentes, é só me chamar aqui 🚀'},
   ]},
   link: {use: ''},
   print: {use: 'qualificando'},
   qualificando: {goal: 'A dor e o faturamento', end: 'Sem resposta no último toque: mover para Frio.', steps: [
-    {code: 'QL-1', title: 'Retomada leve', day: 0, hours: 3, fmt: 'Texto', next: 'Sem resposta: QL-2 amanhã.', text: '[Nome], conseguiu ver minha mensagem? 👀 Me conta rapidinho como tá o momento da [loja] que eu já fecho seu diagnóstico com o Renan.'},
-    {code: 'QL-2', title: 'Print dos concorrentes', day: 1, fmt: 'Imagem e texto', skipIfPrint: true, note: 'Anexe o print do concorrente, nunca o do ranking. Se o print já foi enviado, pule para o QL-3.', next: 'Sem resposta: QL-3 em 2 dias.', text: 'Opa [nome]! Voltei no sistema hoje e o [concorrente] tá vendendo muito aí na sua região. O Renan já viu o que ele tá fazendo diferente. Me conta como tá o momento aí que a gente destrava isso 🚀'},
-    {code: 'QL-3', title: 'Faturamento em um número', day: 3, fmt: 'Múltipla escolha', note: 'As faixas seguem a régua; ajuste quando ela estiver definida.', next: 'Sem resposta: QL-4 em 3 dias.', text: 'Pra eu fechar seu diagnóstico com o Renan, me responde só com o número 😄\nHoje a [loja] fatura por mês no iFood:\n1) até R$ 15 mil\n2) de R$ 15 a 30 mil\n3) acima de R$ 30 mil'},
-    {code: 'QL-4', title: 'Dor comum da região', day: 6, fmt: 'Áudio', note: CAD_AUDIO, next: 'Sem resposta: QL-5 em 4 dias.', text: 'Fala [nome]! O que mais tenho visto travar as lojas aí da região é depender de promoção pra vender: a loja só aparece quando dá desconto, e a margem vai embora. Isso tá acontecendo aí também? Me conta que eu te mostro o caminho.'},
+    {code: 'QL-1', title: 'Print do concorrente com uma leitura', day: 0, fmt: 'Imagem e texto', skipIfPrint: true, note: 'Em até 15 min depois do link. Anexe o print do concorrente, nunca o do ranking, e diga o que você viu na loja (só o que o dado mostra, sem chutar a dor). Na mesma conversa, mande o QL-2.', next: 'Logo depois: QL-2, no mesmo atendimento.', text: 'Achei a [loja]! 🔎 Olha o [concorrente], aqui perto de você: ele tá com [avaliações dele] avaliações no iFood, e a [loja] com [avaliações da loja]. [O que você viu na loja]'},
+    {code: 'QL-2', title: 'As duas perguntas', day: 0, fmt: 'Texto', note: 'Logo depois do print, no mesmo atendimento. Perguntas abertas: sem opções para escolher.', next: 'Sem resposta: QL-3 em 3 horas.', text: 'Hoje você sente que depende de promoção pra vender?\n\nE mais ou menos quanto a [loja] fatura hoje por mês no iFood?'},
+    {code: 'QL-3', title: 'Retomada leve', day: 0, hours: 3, fmt: 'Texto', next: 'Sem resposta: QL-4 em 3 dias.', text: '[Nome], conseguiu ver minha mensagem? 👀 Me conta rapidinho como tá o momento da [loja] que eu já fecho seu diagnóstico com o Renan.'},
+    {code: 'QL-4', title: 'Dor comum da região', day: 3, fmt: 'Áudio', note: CAD_AUDIO, next: 'Sem resposta: QL-5 em 7 dias.', text: 'Fala [nome]! O que mais tenho visto travar as lojas aí da região é depender de promoção pra vender: a loja só aparece quando dá desconto, e a margem vai embora. Isso tá acontecendo aí também? Me conta que eu te mostro o caminho.'},
     {code: 'QL-5', title: 'Encerramento', day: 10, fmt: 'Texto', next: 'Sem resposta: mover para Frio.', text: 'Vou arquivar seu diagnóstico, [nome], pra abrir espaço pros novos. Se quiser retomar, é só me chamar aqui 🚀'},
   ]},
   agendando: {goal: 'O horário da reunião', end: 'Sem resposta no último toque: mover para Frio.', steps: [
-    {code: 'AG-1', title: 'Reservar um horário', day: 0, hours: 2, fmt: 'Texto', next: 'Sem resposta: AG-2 amanhã de manhã.', text: '[Nome], consigo deixar um desses horários reservado pra você? [Dia] às [horário 1] ou [horário 2] 🚀'},
-    {code: 'AG-2', title: 'Pergunta aberta', day: 1, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: AG-3 amanhã.', text: 'Opa [nome], [bom dia/boa tarde]! Os horários que te passei não funcionaram? Me fala o melhor dia e período pra você que eu ajusto aqui 🚀'},
-    {code: 'AG-3', title: 'A dor dele e o programa', day: 2, fmt: 'Texto', next: 'Sem resposta: AG-4 em 2 dias.', text: '[Nome], lembra que você me falou sobre [dor dele]? Nós temos um programa de aceleração justamente pra quem tem esse problema! O objetivo é adicionar +R$ 10.000/mês no seu faturamento em 3 meses, com garantia 🚀\nSão 30 minutos com o Renan. [Dia] às [horário 1] ou [horário 2]?'},
+    {code: 'AG-1', title: 'Reservar um horário', day: 0, fmt: 'Texto', note: 'Na hora em que o lead qualifica, sempre com 2 horários nas próximas 24 h. Se ele propuser um horário, confirme em até 5 min ou ofereça o mais próximo. Nunca pergunte a disponibilidade sem dar opções.', next: 'Sem resposta: AG-2 amanhã de manhã.', text: '[Nome], consigo deixar um desses horários reservado pra você? [Dia] às [horário 1] ou [horário 2] 🚀'},
+    {code: 'AG-2', title: 'Dois horários novos', day: 1, slot: 'manha', fmt: 'Texto', next: 'Sem resposta: AG-3 amanhã.', text: 'Opa [nome], [bom dia/boa tarde]! Se aqueles não deram, tenho [dia] às [horário 1] ou [horário 2]. Qual fica melhor? 🚀'},
+    {code: 'AG-3', title: 'A dor dele e o programa', day: 2, fmt: 'Texto', next: 'Sem resposta: OB-1 amanhã (ou na hora, se ele perguntar o valor).', text: '[Nome], lembra que você me falou sobre [dor dele]? Nós temos um programa de aceleração justamente pra quem tem esse problema! O objetivo é adicionar +R$ 10.000/mês no seu faturamento em 3 meses, com garantia 🚀\nSão 30 minutos com o Renan. [Dia] às [horário 1] ou [horário 2]?'},
+    {code: 'OB-1', title: 'Objeção de preço', day: 3, fmt: 'Texto', note: 'Use também na hora, sempre que o lead perguntar o valor antes da reunião.', next: 'Sem resposta: AG-4 amanhã.', text: 'Ótima pergunta, [nome]! O investimento depende do que o Renan encontrar na [loja]: na reunião ele mostra o plano e o valor, sem compromisso. Faz sentido ver primeiro se dá pra destravar? [Dia] às [horário 1] ou [horário 2]?'},
     {code: 'AG-4', title: 'Case do segmento', day: 4, fmt: 'Imagem e texto', note: CAD_PRINT, next: 'Sem resposta: AG-5 em 2 dias.', text: '[Nome], olha esse resultado: [case]. É esse caminho que o Renan te mostra na reunião, com os dados da [loja] na tela. [Dia] às [horário 1] ou [horário 2]?'},
     {code: 'AG-5', title: 'Áudio do Renan', day: 6, fmt: 'Áudio do Renan', note: CAD_RENAN, next: 'Sem resposta: AG-6 em 2 dias.', text: 'Fala [nome], aqui é o Renan! O Felipe me mostrou a [loja] e vi umas coisas que dá pra destravar rápido. Separa 30 minutos comigo que vai valer a pena. Me fala o melhor horário pra ele.'},
     {code: 'AG-6', title: 'Agenda fechando', day: 8, fmt: 'Texto', note: 'Só use se for verdade.', next: 'Sem resposta: mover para Frio.', text: 'Opa [nome]! A agenda do Renan dessa semana tá fechando. Sobraram [dia] às [horário 1] e [horário 2]. Quer um deles?'},
@@ -946,7 +947,8 @@ function buildStageCadence(l, stage, from){
       due = gap > 0 ? adjWeekend(addDays(prevDay, gap)) : prevDay;
       if (!off && +s.hours > 0){
         const t = new Date(+base + s.hours * 36e5);
-        if (t.getHours() >= 21){ const n = parseYmd(adjWeekend(addDays(ymd(t), 1))); n.setHours(9, 0, 0, 0); at = +n }
+        // offHours: fora do horário comercial (das 19h às 9h) o toque vai para as 9h do próximo dia útil.
+        if (t.getHours() >= (s.offHours ? 19 : 21)){ const n = parseYmd(adjWeekend(addDays(ymd(t), 1))); n.setHours(9, 0, 0, 0); at = +n }
         else if (t.getHours() < 8){ t.setHours(9, 0, 0, 0); at = +t } else at = +t;
         due = ymd(new Date(at));
       }
@@ -1227,7 +1229,7 @@ function viewHoje(){
   leadsArr().filter(l => !own || touchOwner(l) === own).forEach(l => { const ok = TOUCHABLE(l); (l.touches || []).forEach((t, i) => { const it = {l, t, i}; if (!t.done){ if (!ok) return; if (t.due < t0) late.push(it); else if (t.due === t0) due.push(it) } else if (localDay(t.doneAt) === t0) doneT.push(it) }) });
   late.sort((a, b) => touchAt(a.t).localeCompare(touchAt(b.t)));
   due.sort((a, b) => touchAt(a.t).localeCompare(touchAt(b.t)));
-  const waiting = leads.filter(l => l.wa && l.wa.waitingSince && ACTIVE(l.stage)).sort((a, b) => a.wa.waitingSince.localeCompare(b.wa.waitingSince));
+  const waiting = leads.filter(l => l.wa && l.wa.waitingSince && (ACTIVE(l.stage) || l.stage === 'desqualificado' || l.stage === 'perdido')).sort((a, b) => a.wa.waitingSince.localeCompare(b.wa.waitingSince));
   const meetings = leads.filter(l => l.meetingAt && l.meetingAt.slice(0, 10) === t0).sort((a, b) => a.meetingAt.localeCompare(b.meetingAt));
   const tasks = arr('tasks').filter(x => (!own || x.ownerId === own) && ((!x.done && x.due <= t0) || (x.done && localDay(x.doneAt) === t0))).sort((a, b) => (a.done - b.done) || a.due.localeCompare(b.due));
   const wd = new Date().getDay();
@@ -1290,7 +1292,7 @@ function viewHoje(){
     <div class="stack">
       ${freshPanelHTML(leads)}
       ${ptCfg().on ? printPanelHTML(leads) : ''}
-      ${waiting.length ? `<section class="panel"><div class="panel-h"><h2>Aguardando resposta no WhatsApp</h2><span class="sub">Ideal: responder em até 5 minutos</span></div><div class="panel-b"><div class="rows">${waiting.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)} <span class="chip ${Date.now() - new Date(l.wa.waitingSince) > 3e5 ? 'late' : 'today'}">há ${minsAgo(l.wa.waitingSince)}</span></div><div class="row-s">${esc(l.wa.lastSnippet || '')}</div></div>${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Responder</a>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('')}</div></div></section>` : ''}
+      ${waiting.length ? `<section class="panel"><div class="panel-h"><h2>Aguardando resposta no WhatsApp</h2><span class="sub">Ideal: responder em até 5 minutos</span></div><div class="panel-b"><div class="rows">${waiting.map(l => `<div class="row"><div class="row-main" data-a="open-lead" data-id="${l.id}"><div class="row-t">${esc(l.name)} <span class="chip ${Date.now() - new Date(l.wa.waitingSince) > 3e5 ? 'late' : 'today'}">há ${minsAgo(l.wa.waitingSince)}</span>${ACTIVE(l.stage) ? '' : ` <span class="chip" title="Lead ${esc(STAGE[l.stage].name.toLowerCase())}: responda com a mensagem de saída (DQ) em até 24 h">mandar a saída</span>`}</div><div class="row-s">${esc(l.wa.lastSnippet || '')}</div></div>${l.phone ? `<a class="btn sm" href="${attr(waLink(l.phone))}" target="_blank" rel="noopener">Responder</a>` : ''}${own ? '' : avatar(l.ownerId)}</div>`).join('')}</div></div></section>` : ''}
       <section class="panel"><div class="panel-h"><h2>Cadência de toques</h2><span class="sub">Marque na hora em que fizer o contato</span></div><div class="panel-b">
         ${late.length ? `<div class="sec-t crit">Atrasados <span class="n">${late.length}</span></div><div class="rows">${late.map(x => touchRow(x, 'late')).join('')}</div>` : ''}
         <div class="sec-t">Para hoje <span class="n">${due.length}</span></div>
@@ -1532,6 +1534,13 @@ function renderTouch(host){
   const key = 'touch:' + tm.lead + ':' + t.id + ':' + t.code + ':' + t.done;
   if (host.dataset.m === key && host.innerHTML) return;
   host.dataset.m = key; host.innerHTML = touchModalHTML(tm.lead, l, t);
+}
+// Mensagem com marcador sem preencher ([nome], [concorrente]…) não sai: avisa e põe o cursor no primeiro.
+function tmBlocked(c){
+  const miss = cadMissing(c.txt); if (!miss.length) return false;
+  toast('Complete antes de enviar: ' + miss.join(', '), 'err');
+  const ta = $('#tm-text'); if (ta){ const i = ta.value.indexOf(miss[0]); ta.focus(); if (i >= 0) ta.setSelectionRange(i, i + miss[0].length) }
+  return true;
 }
 function tmCtx(){ const tm = UI.tm, l = tm && S.leads[tm.lead], t = l && (l.touches || []).find(x => x.id === tm.touch); return t ? {id: tm.lead, l, t, txt: ($('#tm-text') || {}).value || ''} : null }
 function renderModal(){
@@ -3492,8 +3501,9 @@ const ACT = {
   'meeting-done': t => moveLead(t.dataset.id, 'feita'),
   'meeting-noshow': t => moveLead(t.dataset.id, 'noshow'),
   'touch-msg': t => { UI.tm = {lead: t.dataset.id, touch: t.dataset.touch}; UI.modal = 'touch'; renderModal() },
-  'tm-copy': () => { const c = tmCtx(); if (c) copy(c.txt) },
+  'tm-copy': () => { const c = tmCtx(); if (!c || tmBlocked(c)) return; copy(c.txt) },
   'tm-wa': () => { const c = tmCtx(); if (!c || !c.l.phone) return; const sp = cadStep(c.t), audio = sp && /áudio/i.test(sp.fmt || '');
+    if (!audio && tmBlocked(c)) return;
     window.open(waLink(c.l.phone) + (audio || !c.txt ? '' : '?text=' + encodeURIComponent(c.txt)), '_blank', 'noopener');
     if (!c.t.done) toggleTouch(c.id, c.t.id, true); UI.modal = null; UI.tm = null; renderModal(); render() },
   'tm-done': () => { const c = tmCtx(); if (!c) return; toggleTouch(c.id, c.t.id, !c.t.done); UI.modal = null; UI.tm = null; renderModal(); render() },
