@@ -178,6 +178,21 @@ Passos na Cloudflare: Workers & Pages › Create › Pages › Connect to Git �
 
 Abra o BRASE 2 no editor › Configurações › Webhooks, cole a chave do webhook da Central no campo **TOKEN** e clique em **Salvar webhook**. **Testar envio** manda um lead de exemplo para conferir. Enquanto o token não estiver lá, o CRM recusa o envio (nenhum lead de teste entra) e o lead fica marcado com o erro na aba Leads, de onde dá para reenviar.
 
+### WhatsApp do SDR na Central (desde 09/11/2026)
+
+O canal do SDR no NicoChat (**BraseBot**, API oficial, `flow_ns` f302947) chega à Central pela operação `cron.wa` da `funis-api`, que o pg_cron chama a cada 2 minutos (`funis-wa`):
+
+1. Lê no NicoChat as conversas com mensagem nas últimas 24 h e relê só as que mudaram (até 40 por rodada).
+2. Para cada conversa calcula: desde quando o lead espera resposta de uma pessoa, a última mensagem dele, a última resposta da equipe e o tempo de cada resposta. Robô e disparo automático não contam como resposta. O SLA só mede mensagens do lead que chegaram de segunda a sexta, das 9h às 19h de Brasília.
+3. Casa a conversa com o lead pelo telefone (DDD + 8 últimos dígitos; com telefone repetido, vale o lead em andamento mais novo) e grava no lead o campo `wa` (tela **Hoje** › esperando resposta) e, por dia, o documento `wa_stats` (KPI de SLA em **Análises**). Os horários ficam no formato de Brasília (`2026-11-09T11:00:00-03:00`).
+4. Sem mensagem nova, confere a Central a cada 10 minutos e refaz o campo `wa` se a tela tiver regravado o lead por cima.
+
+- **Configuração:** `fn_config` (k = `wa`): `{flow, business, mode}`. `mode` = `off`, `preview` (calcula e mostra em `fn_config` k = `wa_sync` o que gravaria, sem gravar) ou `on`.
+- **Chave:** segredo `NICOCHAT_API_KEY` (a chave da API do workspace no NicoChat).
+- **Banco:** `fn_wa_contacts` (estado de cada conversa) e `fn_wa_responses` (cada resposta), na migração `20261109000000_whatsapp_sdr.sql`.
+- **Status:** `select v from fn_config where k = 'wa_sync'` mostra a última rodada (conversas lidas, leads casados, quantos esperam resposta, o que foi gravado ou o erro).
+- Ainda não marca toques nem move cards sozinho (as regras da aba WhatsApp da Central): hoje mostra quem espera resposta e mede o SLA.
+
 ### Links dos anúncios
 
 Desde 15/10/2026 os anúncios levam para `https://app.brasemarketing.com.br/funis/f/?f=brase-2-otimizado`, com os parâmetros de URL da Meta (`utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}`).
@@ -204,6 +219,7 @@ O projeto está no plano grátis do Supabase, que pausa projetos sem uso por uma
 ```bash
 node --test funis/tests/*.test.js
 deno test --allow-read funis/supabase/functions/funis-api/logic.test.ts
+deno test --allow-read funis/supabase/functions/funis-api/wa.test.ts
 ```
 
 Cobrem o motor (contas, variáveis com `{{}}` e `@`, celular válido, Raio-X, regras com todos os operadores do InLead, links com os parâmetros da URL, modelos de link do botão, máscara de telefone, importação do InLead), a navegação e o score do BRASE 2 iguais aos do InLead, a junção das respostas no servidor, o gatilho e o corpo do webhook no formato do InLead e do CRM, a conta de qualificados, a guarda do token e a leitura dos leads no servidor (regras iguais às do funil, nota, perfil, abandono, vendas da Kirvano, etapas do CRM, relatório por anúncio, caminhos, eventos da API de Conversões, importação do InLead, etiquetas e relatório por variante do teste A/B) e o sorteio do teste A/B (variante fixa por visitante, forçada pelo link).

@@ -5,7 +5,7 @@
 // SUPABASE_DB_URL, SUPABASE_URL e SUPABASE_SERVICE_ROLE_KEY já vêm do Supabase.
 import postgres from 'npm:postgres@3.4.5';
 import {evalRoles} from './rules.ts';
-import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendDoc, crmSpendRows, encodeBody, ifoodSummary, importRow, isBotUA, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
+import {GRAPH_VERSION, SESSION_RE, SLUG_RE, aggregateAccount, aggregateAds, aggregateE2E, aggregatePaths, attributeSpend, brDay, buildPayload, capiEvent, crmLeadFacts, crmLeadRows, crmSpendDoc, crmSpendRows, encodeBody, ifoodSummary, importRow, isBotUA, leadMetrics, merchantIdFrom, mergeSession, mergeWebhook, parseCrm, parseSale, payloadExtras, periodStart, ruleVars, sameKey, sampleSession, sanitizeParams, sanitizeTracking, sha256, slugify, webhookDue, webhookForEditor, brIso, nicoTime, waFacts, waLeadIndex, waLeadPatch, waPhoneKey, waStatsDocs, type AdSpendRow, type CrmInfo, type CrmLeadFact, type Event, type LeadSettings, type Session, type SpendRow, type Webhook} from './logic.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: Number(env('FUNIS_DB_POOL')) || 4, idle_timeout: 20});
@@ -437,9 +437,106 @@ async function crmPushSpend(rows: AdSpendRow[]){
     return st;
   }
 }
+/* ---------- WhatsApp do SDR (NicoChat) → Central Comercial ---------- */
+// Canal e modo em fn_config (k = 'wa'): {flow, business, mode}. mode: 'off' | 'preview' | 'on'. Em 'preview' lê o NicoChat
+// e calcula tudo, mas não grava na Central: o que gravaria fica em fn_config (k = 'wa_sync'). A chave da API do NicoChat é o
+// segredo NICOCHAT_API_KEY. Roda a cada 2 min (pg_cron, op cron.wa).
+const NICO_API = (env('NICOCHAT_API') || 'https://app.nicochat.com/api').replace(/\/$/, '');
+const NICO_KEY = env('NICOCHAT_API_KEY');
+const WA_MAX_READS = 40;      // conversas lidas por rodada; o resto fica para a próxima
+const WA_HEAL = 10 * 60e3;    // sem mensagem nova, confere a Central a cada 10 min (refaz o que a tela regravou por cima)
+async function nico(path: string, params: Record<string, string | number>){
+  const qs = new URLSearchParams(Object.entries(params).map(([k, v]) => [k, String(v)]));
+  const r = await fetch(`${NICO_API}/${path}?${qs}`, {headers: {authorization: 'Bearer ' + NICO_KEY, accept: 'application/json'}, signal: AbortSignal.timeout(20000)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw bad('O NicoChat respondeu ' + r.status + (j && j.message ? ': ' + String(j.message).slice(0, 200) : ''), 502);
+  return j;
+}
+async function crmCall(body: Row){
+  const conf = await getConf('crm');
+  if (!conf.key) throw bad('Sem o código de acesso da Central Comercial.', 502);
+  const r = await fetch(conf.url || CRM_API, {method: 'POST', headers: {'content-type': 'application/json', 'x-crm-key': conf.key}, body: JSON.stringify(body), signal: AbortSignal.timeout(40000)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw bad('A Central Comercial respondeu ' + (j.error || 'HTTP ' + r.status), 502);
+  return j;
+}
+// Grava na Central (ou só calcula, na prévia) o campo wa de cada lead com conversa nos últimos 3 dias e o SLA dos dias mexidos.
+async function waApply(flow: string, business: string, mode: string, days: Set<string>){
+  const docs: Row[] = (await crmCall({op: 'load'})).docs || [];
+  const idx = waLeadIndex(docs);
+  const recent = await sql`select user_ns, phone_key, facts from fn_wa_contacts where flow_ns = ${flow} and phone_key <> '' and last_message_at > now() - interval '3 days' order by last_message_at desc`;
+  const writes: {col: string; id: string; data: Row}[] = [], seen = new Set<string>();
+  let matched = 0, unmatched = 0, waiting = 0;
+  for (const r of recent) {
+    const lead = idx.get(r.phone_key);
+    if (!lead) { unmatched++; continue }
+    if (seen.has(lead.id)) continue;
+    seen.add(lead.id); matched++;
+    if (r.facts && r.facts.waitingSince) waiting++;
+    const patch = waLeadPatch(lead.data, r.facts || {});
+    if (patch) writes.push({col: 'leads', id: lead.id, data: {...lead.data, wa: patch}});
+  }
+  days.add(brDay(Date.now()));
+  const resp = await sql`select day::text as day, business, minutes::float8 as minutes from fn_wa_responses where flow_ns = ${flow} and day = any(${[...days]}::date[])`;
+  const cur = new Map(docs.filter(d => d && d.col === 'wa_stats').map(d => [String(d.id), d.data || {}]));
+  for (const st of waStatsDocs(resp as unknown as {day: string; business: string; minutes: number}[])) {
+    const c = cur.get(st.id);
+    if (!c || c.count !== st.data.count || c.totalMin !== st.data.totalMin || c.under5 !== st.data.under5) writes.push({col: 'wa_stats', id: st.id, data: st.data});
+  }
+  if (mode === 'on') for (const w of writes) await crmCall({op: 'set', col: w.col, id: w.id, data: w.data});
+  return {matched, unmatched, waiting, writes: writes.length, written: mode === 'on' ? writes.length : 0,
+    preview: mode === 'preview' ? writes.slice(0, 30).map(w => w.col === 'leads' ? {lead: w.id, waitingSince: w.data.wa.waitingSince, lastOutAt: w.data.wa.lastOutAt} : {stats: w.id, ...w.data}) : undefined};
+}
+async function waSync(){
+  const conf = await getConf('wa'), mode = conf.mode === 'on' || conf.mode === 'preview' ? conf.mode : 'off';
+  if (mode === 'off' || !conf.flow) return {skipped: 'desligado'};
+  if (!NICO_KEY) return {skipped: 'sem o segredo NICOCHAT_API_KEY'};
+  const t0 = Date.now(), flow = String(conf.flow), business = String(conf.business || '').replace(/\D/g, ''), prev = await getConf('wa_sync');
+  try {
+    // 1. Conversas com mensagem nas últimas 24 h.
+    const contacts: Row[] = [];
+    for (let page = 1; page <= 10; page++) {
+      const j = await nico('subscribers', {flow_ns: flow, limit: 100, page, is_last_message_in_last_24h: 'yes'});
+      contacts.push(...(Array.isArray(j.data) ? j.data : []));
+      if (!j.meta || page >= Number(j.meta.last_page || 1)) break;
+    }
+    // 2. Relê só a conversa que mudou desde a última leitura (a mais antiga primeiro).
+    const ns = contacts.map(c => String(c.user_ns));
+    const known = new Map<string, number>((ns.length ? await sql`select user_ns, last_message_at from fn_wa_contacts where user_ns = any(${ns})` : []).map((r: Row) => [String(r.user_ns), new Date(r.last_message_at).getTime()]));
+    const changed = contacts.filter(c => { const at = nicoTime(c.last_message_at); return at > 0 && at > (known.get(String(c.user_ns)) || 0) })
+      .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, WA_MAX_READS);
+    let responses = 0;
+    const days = new Set<string>();
+    for (const c of changed) {
+      const j = await nico('subscriber/chat-messages', {user_ns: String(c.user_ns), limit: 100});
+      const {facts, responses: rs} = waFacts(Array.isArray(j.data) ? j.data : []);
+      await sql`insert into fn_wa_contacts (user_ns, flow_ns, phone_key, last_message_at, facts, updated_at)
+        values (${String(c.user_ns)}, ${flow}, ${waPhoneKey(c.phone || c.user_id)}, ${new Date(nicoTime(c.last_message_at))}, ${json(facts)}, now())
+        on conflict (user_ns) do update set phone_key = excluded.phone_key, last_message_at = excluded.last_message_at, facts = excluded.facts, updated_at = now()`;
+      if (rs.length) {
+        const rows = rs.map(r => ({id: r.id, flow_ns: flow, business, user_ns: String(c.user_ns), day: r.day, in_at: r.inAt, out_at: r.outAt, minutes: r.minutes}));
+        await sql`insert into fn_wa_responses ${sql(rows as unknown as Row[], 'id', 'flow_ns', 'business', 'user_ns', 'day', 'in_at', 'out_at', 'minutes')}
+          on conflict (id) do update set out_at = excluded.out_at, minutes = excluded.minutes, day = excluded.day`;
+        rs.forEach(r => days.add(r.day));
+        responses += rs.length;
+      }
+    }
+    // 3. Central: com mensagem nova ou de tempos em tempos.
+    const lastCrm = Date.parse(prev.crmAt || '') || 0;
+    const crm: Row = changed.length || Date.now() - lastCrm >= WA_HEAL ? await waApply(flow, business, mode, days) : {skipped: 'nada novo'};
+    const st = {ok: true, at: brIso(Date.now()), mode, contacts: contacts.length, read: changed.length, responses, ...crm,
+      crmAt: crm.skipped ? prev.crmAt || null : brIso(Date.now()), ms: Date.now() - t0};
+    await setConf('wa_sync', st);
+    return st;
+  } catch (e) {
+    await setConf('wa_sync', {...prev, ok: false, at: brIso(Date.now()), error: errText(e)});
+    throw e;
+  }
+}
 // Operações de máquina (cron e a rotina diária da Meta): cabeçalho x-fn-cron com a chave guardada em fn_config (k = 'cron').
 const MACHINE: Record<string, (b: Row) => Promise<unknown>> = {
   async 'cron.sync'(){ return await cronSync() },
+  async 'cron.wa'(){ return await waSync() },
   async 'cron.spend'(b){
     const rows = Array.isArray(b.rows) ? b.rows : [];
     return {rows: await upsertAdSpend(rows, /^[a-z-]{2,20}$/.test(String(b.source)) ? String(b.source) : 'meta'), meta: await metaStatus(), crm: await crmPushSpend(rows)};

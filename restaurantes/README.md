@@ -19,6 +19,13 @@ App separado da Central Comercial para pesquisar restaurantes do iFood e montar 
 | **Incluir lojas** | Cola links de lojas do iFood (até 30 por vez) para entrarem na base, ou baixa a extensão do Chrome. |
 | **Cobertura** | Mapa do Brasil com as lojas da base: bolinhas que agrupam as lojas próximas (o tamanho mostra quantas) e se dividem com o zoom; a partir do zoom 14, uma bolinha por loja, que abre a ficha. Filtro por todas, com avaliações ou incluídas pela equipe. Abaixo, lojas ativas por estado e por cidade, quantas a equipe incluiu hoje e nos últimos 7 dias e quem incluiu (nome preenchido na extensão). Os 27 estados aparecem, inclusive os que ainda não têm lojas. |
 
+### Links da Central Comercial
+
+- `#/?ifood=<link ou ID da loja>` busca a loja (e a inclui na base, se ainda não estiver) e abre a ficha com o ranking de 5 km.
+- `#/?modo=ifood` abre a busca já em “Link ou ID do iFood”, para colar o link.
+
+A Central usa esses links no botão **Ranking 5 km** (lead em Link recebido e painel Print para enviar) e lê o link do campo **Link da loja no iFood** da ficha do lead. É o caminho para o print com os concorrentes sair daqui, e não do Power Data.
+
 ### As contas (as mesmas do Power Data)
 
 - **Pedidos estimados** = avaliações no iFood × 2.

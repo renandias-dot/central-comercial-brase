@@ -410,7 +410,12 @@ function render(){
   if (path === '/incluir') return viewInclude();
   if (path === '/cobertura') return viewCoverage(q);
   if (path === '/regiao') return viewArea(q);
+  // Vindo da Central Comercial: #/?ifood=<link ou ID> busca a loja e abre a ficha (raio de 5 km);
+  // #/?modo=ifood só deixa pronta a busca por link, para colar o link da loja.
+  const link = q.get('ifood');
+  if (link || q.get('modo') === 'ifood'){ S.mode = 'ifood'; if (link) S.text = link }
   viewSearch();
+  if (link && S.autoFor !== link){ S.autoFor = link; $('#search-form').requestSubmit() }
 }
 window.addEventListener('hashchange', render);
 const head = (title, sub = '', actions = '') => `<header class="head"><div><h1>${esc(title)}</h1>${sub ? `<p>${sub}</p>` : ''}</div>${actions ? `<div class="actions">${actions}</div>` : ''}</header>`;
