@@ -158,7 +158,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const team = [...(c.team || []), ...[...count].filter(([, n]) => n >= minGroups).map(([a]) => a)], ignore = c.ignore || [];
   // Mensagens do cliente que parecem pedido de alteração no iFood: vão para o passo "pedidos" (OPS), com as anteriores de contexto.
   for (const l of lidos) for (const m of l.msgs) {
-    if (m.own || !m.author || avNameIn(m.author, team) || avNameIn(m.author, ignore) || /brase/i.test(m.author) || m.ts * 1000 < c.sinceMs) continue;
+    if (m.own || !m.author || avNameIn(m.author, team) || avNameIn(m.author, ignore) || /brase/i.test(m.author) || m.ts * 1000 < Math.max(c.sinceMs, now - 6 * 3600e3)) continue;
     const raw = l.raw.find((r: Row) => String(r.mid || r.id || r.ts) === m.mid), texto = typeof raw?.content === 'string' ? raw.content.replace(/^\s*👤[^\n]*\n?/u, '').trim() : '';
     if (!texto || !avPedidoCandidato(texto)) continue;
     const contexto = l.msgs.filter(x => x.ts < m.ts).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author, texto: x.text, quando: brIso(x.ts * 1000)}));
