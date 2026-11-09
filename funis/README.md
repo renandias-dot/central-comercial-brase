@@ -194,6 +194,23 @@ O canal do SDR no NicoChat (**BraseBot**, API oficial, `flow_ns` f302947) chega 
 - Também grava no `wa` o link do iFood que o lead mandou (`ifoodLink`, `ifoodLinkAt`) e a última imagem enviada pela equipe (`lastOutImageAt`).
 - **Regras do card (desde 09/11/2026):** a própria Central aplica, com as mesmas funções dos botões, o que estiver ligado em WhatsApp › Automações: mensagem da equipe marca o toque pendente de hoje (`markTouch`); link do iFood em Lead Novo move para Link recebido e guarda o link no card (`linkMove`); imagem da equipe em Link recebido move para Print Enviado (`printMove`). "Lead respondeu → Qualificando" (`moveOnReply`) continua desligada. O que já foi aplicado fica em `waDone` no lead, para a mesma mensagem não valer duas vezes.
 
+### Avisos nos grupos de WhatsApp (desde 09/11/2026)
+
+A função `funis-avisos` (separada da `funis-api`, para mexer nela sem tocar nos funis públicos) manda avisos automáticos, 24 h por dia, em dois grupos internos do WhatsApp, pelo canal **Operacional** do NicoChat (o número do Renan, conexão não oficial, `flow_ns` f316913). O pg_cron chama a operação `cron.avisos` a cada 2 minutos (`funis-avisos`).
+
+- **AVISOS - COMERCIAIS:**
+  - 🕐/🙋 horário sugerido na conversa do SDR, pelo SDR ou pelo lead (mensagem com horário concreto e um dia ou uma palavra de agenda). A função relê só as conversas que a ponte `cron.wa` acabou de atualizar.
+  - 📅 reunião marcada na Central: etapa Reunião Marcada com `bookedAt` depois de os avisos ligarem. Lê só o que mudou (`changes` da crm-api). Sem horário preenchido, espera 10 minutos. Se o horário muda depois, sai 🔁 remarcada.
+- **AVISOS - OPERACIONAIS:** grupos dos clientes, cujo nome no NicoChat chega como `G: BRASE - Loja` ou `G: DI Loja`:
+  - ⏰ cliente sem resposta da Brase há 2 h ou mais (um aviso por espera; "ok", "obrigado", só emoji ou figurinha não contam como pedido de resposta);
+  - 🚨 sinal de risco (cancelar, contrato, "não está dando resultado", vendas caindo, caro), no máximo um por grupo a cada 6 h ("cancelar o pedido" não conta);
+  - 😶 5 dias sem mensagem da Brase.
+  - **Quem é da Brase:** o número do Renan; os nomes em `team`; quem escreve em 4 ou mais grupos de clientes; ou quem tem "Brase" no nome. O autor de cada mensagem vem na 1ª linha (`👤 Nome:`). Quem está em `ignore` (o Kauã, que não é da Brase) é ignorado.
+- **Configuração:** `fn_config` (k = `avisos`): `{mode, since, flow, groups, com: {horarios, reunioes}, op: {semRespostaMin, risco, silencioDias, equipeGrupos}, team, ignore}`. `mode` = `off`, `preview` (põe na fila sem enviar) ou `on`. Nada antes de `since` vira aviso; a 1ª rodada com a chave grava o horário. Os grupos de aviso são achados pelo nome e guardados em `groups`.
+- **Chaves:** segredo `NICOCHAT_OPS_KEY` (canal Operacional: lê os grupos e envia) e `NICOCHAT_API_KEY` (canal do SDR, o mesmo da ponte).
+- **Banco:** `fn_avisos` (a fila; o id é a chave do evento, então nada sai duas vezes; até 8 envios por rodada, 3 tentativas) e `fn_grupos` (últimas 40 mensagens de cada grupo de cliente). Migrações `20261109120000_avisos_grupos.sql` e `20261109121000_avisos_grupos_cron.sql`.
+- **Status:** `select v from fn_config where k = 'avisos_state'`; o que saiu: `select created_at, tipo, texto, sent_at, erro from fn_avisos order by created_at desc limit 20`.
+
 ### Links dos anúncios
 
 Desde 15/10/2026 os anúncios levam para `https://app.brasemarketing.com.br/funis/f/?f=brase-2-otimizado`, com os parâmetros de URL da Meta (`utm_source=FB&utm_campaign={{campaign.name}}|{{campaign.id}}&utm_medium={{adset.name}}|{{adset.id}}&utm_content={{ad.name}}|{{ad.id}}&utm_term={{placement}}`).
@@ -209,6 +226,7 @@ Depois de mudar `supabase/functions/funis-api` ou `supabase/functions/funis-cdn`
 ```bash
 supabase functions deploy funis-api --project-ref covwdaygoorabowiuyfr --no-verify-jwt
 supabase functions deploy funis-cdn --project-ref covwdaygoorabowiuyfr --no-verify-jwt
+supabase functions deploy funis-avisos --project-ref covwdaygoorabowiuyfr --no-verify-jwt
 ```
 
 A função tem três arquivos: `index.ts` (rotas), `logic.ts` (regras de negócio) e `rules.ts` (o mesmo motor de variáveis e regras do `runtime.js`). O Raio-X usa o app de Restaurantes (`brase-restaurantes`); para apontar para outro, use o segredo `RESTAURANTES_API` (e `RESTAURANTES_ACCESS_CODE` se ele pedir código).
@@ -221,6 +239,7 @@ O projeto está no plano grátis do Supabase, que pausa projetos sem uso por uma
 node --test funis/tests/*.test.js
 deno test --allow-read funis/supabase/functions/funis-api/logic.test.ts
 deno test --allow-read funis/supabase/functions/funis-api/wa.test.ts
+deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 ```
 
 Cobrem o motor (contas, variáveis com `{{}}` e `@`, celular válido, Raio-X, regras com todos os operadores do InLead, links com os parâmetros da URL, modelos de link do botão, máscara de telefone, importação do InLead), a navegação e o score do BRASE 2 iguais aos do InLead, a junção das respostas no servidor, o gatilho e o corpo do webhook no formato do InLead e do CRM, a conta de qualificados, a guarda do token e a leitura dos leads no servidor (regras iguais às do funil, nota, perfil, abandono, vendas da Kirvano, etapas do CRM, relatório por anúncio, caminhos, eventos da API de Conversões, importação do InLead, etiquetas e relatório por variante do teste A/B) e o sorteio do teste A/B (variante fixa por visitante, forçada pelo link).
