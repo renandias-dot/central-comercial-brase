@@ -228,7 +228,8 @@ export function avParseSlots(text: unknown, msgMs: number): number[] {
 // anotações do Renan não contam: reunião tem prioridade. Grupo "D.I - " é a 1ª reunião do cliente, e o Renan fica só 5 a 10 min:
 // não fecha o horário, só avisa e bloqueia 10 min (dá para marcar logo antes ou depois).
 export type AvAgendaKind = 'di' | 'cliente' | 'lead';
-export const avIsDi = (name: unknown) => /^(g:\s*)?d\.?\s?i\.?(\s|-)/i.test(String(name || '').trim());
+// Só "D.I" com ponto: "Di Blasi" (rede de clientes) também começa com DI e não é 1ª reunião.
+export const avIsDi = (name: unknown) => /^(g:\s*)?d\.\s?i(?![a-z])/i.test(String(name || '').trim());
 // Conversa no privado com quem escreve num grupo de cliente: é cliente daquele grupo (o nome do contato é o mesmo do "👤 Nome:").
 export function avClientOf(contactName: unknown, groups: {nome: string; authors: string[]}[]){
   const n = fold(contactName).trim();
@@ -248,3 +249,23 @@ export function avAgendaText(where: string, kind: AvAgendaKind, slots: number[],
 // Bloqueio na agenda da Central (coleção holds, sem lead): id e início no formato da tela ("r202611101500", "2026-11-10T15:00").
 export const avHoldId = (ms: number) => 'r' + brIso(ms).slice(0, 16).replace(/\D/g, '');
 export const avHoldStart = (ms: number) => brIso(ms).slice(0, 16);
+
+// Pedido de alteração no iFood no grupo do cliente ("acabou o X", "pausa a loja amanhã", "o X agora é 32,90"): filtro barato
+// antes de mandar a mensagem para a função whatsapp-pedidos do OPS, que lê com IA contra o cardápio real e aplica sozinha.
+const AV_PEDIDO = /(paus[ae]|pausar|tira(r)? (o|a|os|as|do|da|esse|essa)\b|desativ|deslig|acabou|acabaram|esgot|sem estoque|nao tem mais|nao temos mais|faltou|volt(a|ou|ar) (o|a|os|as|com)\b|reativ|ativa(r)? (o|a|os|as)\b|liber(a|ar) (o|a|os|as)\b|preco|valor d|fecha(r)? a loja|fechar hoje|nao (vamos|vai|vou) abrir|abrir mais tarde|feriado)/;
+export const avPedidoCandidato = (text: unknown) => AV_PEDIDO.test(fold(text));
+export type AvPedidoResp = {status?: string; cliente?: string; gestor?: string | null; resumo?: string; feitos?: string[]; nao_feitos?: {pedido: string; motivo: string}[]; duvida?: string | null; erro?: string; simulado?: boolean};
+// Aviso no AVISOS - OPERACIONAIS com o que o OPS fez (ou não), marcando o gestor do cliente para revisar.
+export function avPedidoText(grupo: string, autor: string, texto: string, r: AvPedidoResp){
+  const quem = r.gestor ? '@' + r.gestor : 'Gestor', feitos = r.feitos || [], nao = r.nao_feitos || [];
+  const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (cliente não está no OPS)*'
+    : feitos.length ? (r.simulado ? '🧪 *Alteração no iFood (simulação, nada foi gravado)*' : '🛠 *Alteração feita no iFood*') : '🛠 *Pedido de alteração NÃO aplicado*';
+  const linhas = [head, grupo, `${autor || 'Cliente'}: ${avQuote(texto, 220)}`, ...feitos.map(f => '✅ ' + f), ...nao.map(n => `⚠️ ${n.pedido}: ${n.motivo}`)];
+  if (r.duvida) linhas.push('❓ ' + r.duvida);
+  if (r.erro) linhas.push('⚠️ ' + r.erro);
+  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com nenhum cliente do OPS.'
+    : feitos.length && !r.simulado ? `${quem}, revise no OPS (Cardápio iFood › histórico do item).` : `${quem}, resolva com o cliente.`);
+  return linhas.join('\n');
+}
+export const avAgendadoText = (e: {ok?: boolean; cliente?: string; gestor?: string | null; texto?: string}) =>
+  `⏱ *Alteração com hora marcada*\n${e.cliente || 'Cliente'}\n${e.ok ? '✅' : '⚠️'} ${e.texto || ''}\n${e.gestor ? '@' + e.gestor : 'Gestor'}, revise no OPS.`;
