@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, AV_AUDIO_SEM_AUTOR, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -192,8 +192,9 @@ Deno.test('áudio: link só de outro participante, transcrição no lugar de [á
   assertEquals(avAudioTexto(''), '🎤 (áudio sem fala)');
   const audio = (mid: string, at: number): GrpMsg => ({mid, ts: at, own: false, author: '', text: '[áudio]', kind: 'audio'});
   const msgs = [g('Carla', 'Bom dia', t('09:00')), audio('x1', t('09:05')), audio('x2', t('09:15')), audio('x3', t('11:00')), g('Felipe Araújo', 'Vou ver', t('11:05')), audio('x4', t('11:06'))];
-  const com = avComAudios(msgs, new Map([['x1', 'tira o strogonoff hoje'], ['x9', 'outro']]));
+  const com = avComAudios(msgs, new Map([['x1', {texto: 'tira o strogonoff hoje'}], ['x9', {texto: 'outro'}]]));
   assertEquals(com[1].text, '🎤 tira o strogonoff hoje');
+  assertEquals(com[1].author, '');
   assertEquals(com[2].text, '[áudio]');
   const aut = avAutores(msgs);
   assertEquals([aut.get('x1'), aut.get('x2'), aut.get('x3'), aut.get('x4')], ['Carla', 'Carla', undefined, 'Felipe Araújo']);
@@ -205,4 +206,28 @@ Deno.test('áudio transcrito sem autor: não abre espera, mas risco aparece', ()
   assertEquals(s.risks.length, 1);
   assertEquals(s.risks[0].author, AV_AUDIO_SEM_AUTOR);
   assertEquals(avGroupState([{...solto, text: '[áudio]'}], []).risks.length, 0);
+});
+
+Deno.test('áudio classificado: equipe vira resposta da Brase sem conteúdo; cliente leva o nome de quem é do cliente', () => {
+  const audio = (mid: string, at: number): GrpMsg => ({mid, ts: at, own: false, author: '', text: '[áudio]', kind: 'audio'});
+  const team = ['Felipe Araújo', 'Gabriel Vieira', 'Luiz Felipe', 'Luis - Gestão Performance'];
+  const msgs = [g('Lindomar', 'Bom dia', t('09:00')), g('Felipe Araújo', 'Vou ver', t('09:02')), audio('c1', t('09:05')), audio('e1', t('09:10')), audio('c2', t('11:00'))];
+  const m = new Map([['c1', {texto: 'acabou o x-bacon', quem: 'cliente'}], ['e1', {texto: 'boa tarde lindomar, a gente fez', quem: 'equipe'}], ['c2', {texto: 'e aí?', quem: 'cliente'}]]);
+  const com = avComAudios(msgs, m, team);
+  assertEquals([com[2].author, com[2].text], ['Lindomar', '🎤 acabou o x-bacon']);
+  assertEquals([com[3].author, com[3].text], [AV_AUDIO_EQUIPE, '🎤 (áudio da equipe)']);
+  assertEquals(com[4].author, AV_AUDIO_CLIENTE);
+  // áudio da equipe fecha a espera do cliente
+  const st = avGroupState(avComAudios([g('Lindomar', 'Conseguem ver o cardápio?', t('09:00')), audio('e1', t('09:30'))], m, team), team);
+  assertEquals(st.waiting, null);
+  assertEquals(st.lastBrase, t('09:30'));
+});
+Deno.test('quem falou o áudio pela regra fixa (reserva da IA)', () => {
+  const team = ['Felipe Araújo', 'Gabriel Vieira', 'Luiz Felipe', 'Luis - Gestão Performance'], cli = ['Lindomar', 'Daniel'];
+  assertEquals(avQuemPeloTexto('Boa tarde, Lindo Mar. Tudo bem? Então, a gente tá dando uma olhada', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('Oi Daniel, boa tarde, tudo bem? A gente fez uma análise mais cedo', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('Oi Felipe, pode tirar o x-bacon que acabou', team, cli), 'cliente');
+  assertEquals(avQuemPeloTexto('Com esse funil hoje a recomendação é otimizar a campanha e melhorar a conversão', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('O frango acabou, pode pausar no meu cardápio', team, cli), 'cliente');
+  assertEquals(avQuemPeloTexto('Vamos ver como é que vai proceder, né, hoje, amanhã até sexta.', team, cli), null);
 });

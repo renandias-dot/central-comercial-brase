@@ -10,7 +10,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, AV_AUDIO_SEM_AUTOR, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -27,6 +27,7 @@ const SELLERS_TTL = 6 * 3600e3;
 const AUDIO_MAX = 6;           // áudios transcritos por rodada (o resto fica pendente para a próxima)
 const AUDIO_BYTES = 24e6;      // o plano gratuito do Groq aceita até 25 MB
 const AUDIO_JANELA = 6 * 3600e3; // só áudio das últimas 6 h (o mesmo prazo dos pedidos)
+const QUEM_MAX = 4;            // áudios classificados (cliente ou equipe) por rodada: o plano gratuito tem limite por minuto
 type Row = Record<string, any>;
 type AvRow = {id: string; canal: 'comercial' | 'operacional'; tipo: string; texto: string};
 const json = (v: unknown) => (sql as any).json(v);
@@ -168,9 +169,42 @@ async function transcrever(url: string, modelo: string){
   }
   throw new Error(ultimo);
 }
-// Áudios dos grupos dos clientes: registra os novos em fn_audios, transcreve os pendentes e manda para o passo "pedidos" os
-// que parecem pedido de alteração (com o autor herdado da mensagem anterior, ou "não identificado"). Devolve os textos
-// (mid → transcrição) dos últimos 3 dias para os avisos de risco e de espera lerem o que foi dito.
+// Quem falou o áudio (o WhatsApp não diz): IA gratuita do Groq (openai/gpt-oss-20b, a mesma chave do Whisper) lê a
+// transcrição com as mensagens anteriores do grupo e responde cliente, equipe ou incerto. Se a IA falhar, vale a regra fixa
+// (avQuemPeloTexto). Modelo em fn_config avisos.op.audioQuemModelo.
+const QUEM_SCHEMA = {type: 'object', properties: {quem: {type: 'string', enum: ['cliente', 'equipe', 'incerto']}, motivo: {type: 'string'}}, required: ['quem', 'motivo'], additionalProperties: false};
+async function quemFalou(texto: string, antes: string[], equipe: string[], clientes: string[], modelo: string){
+  const sistema = `Você descobre quem falou um áudio de WhatsApp num grupo entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante ou alguém da loja dele).
+Equipe da Brase: Renan, ${equipe.join(', ') || 'Luis, Gabriel, Felipe, Luiz Felipe'}.
+Pessoas do cliente que já escreveram neste grupo: ${clientes.join(', ') || 'não se sabe'}.
+- "equipe": quem fala é da Brase. Explica o que a agência fez ou vai fazer (cardápio, combos, anúncios, campanhas, funil, conversão), dá recomendação, chama o cliente pelo nome ("Oi Daniel", "Boa tarde, Lindomar"), fala "seu cardápio", "sua loja", "a gente fez".
+- "cliente": quem fala é do restaurante. Pede algo à agência, fala da própria loja ("meu cardápio", "acabou o frango", "fecha a loja amanhã"), pergunta pelo resultado, chama alguém da Brase pelo nome ("Oi Felipe").
+- "incerto": só se não der para saber.
+Responda em JSON: {"quem": "cliente" | "equipe" | "incerto", "motivo": "uma frase curta"}.`;
+  const usuario = ['Mensagens anteriores do grupo:', ...(antes.length ? antes : ['(nenhuma)']), '', 'ÁUDIO A CLASSIFICAR: ' + texto].join('\n');
+  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 600};
+  const tentativas = [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'quem_falou', strict: true, schema: QUEM_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}];
+  let ultimo = '';
+  for (const body of tentativas) {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      try {
+        const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
+        if (['cliente', 'equipe', 'incerto'].includes(o.quem)) return {quem: String(o.quem), motivo: String(o.motivo || '').slice(0, 200)};
+      } catch { /* fora do formato: tenta a próxima forma */ }
+      ultimo = 'resposta fora do formato';
+      continue;
+    }
+    ultimo = 'O Groq respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
+    if (r.status === 429) throw new AudioLimite(ultimo);
+    if (r.status !== 400) break;
+  }
+  throw new Error(ultimo);
+}
+// Áudios dos grupos dos clientes: registra os novos em fn_audios, transcreve os pendentes, descobre quem falou (cliente ou
+// equipe) e manda para o passo "pedidos" só os do cliente que parecem pedido de alteração. Devolve o mapa mid → {texto, quem}
+// dos últimos 3 dias para os avisos de risco e de espera (áudio da equipe só conta como "a Brase respondeu").
 type Lido = {ns: string; name: string; raw: Row[]; msgs: GrpMsg[]};
 async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], sink: Row[]){
   const op = c.op || {}, now = Date.now(), desde = Math.max(c.sinceMs, now - AUDIO_JANELA);
@@ -181,19 +215,20 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
   }
   if (novos.length) await sql`insert into fn_audios ${sql(novos, 'mid', 'group_ns', 'grupo', 'ts', 'url')} on conflict (mid) do nothing`;
   const st: Row = {novos: novos.length};
-  const feitos: Row[] = [];
+  const classificados: Row[] = [];
   if (op.audio === false) st.skipped = 'desligado';
   else if (!GROQ_KEY) st.skipped = 'sem o segredo GROQ_API_KEY';
   else {
-    const pend = await sql`select mid, group_ns, grupo, ts, url, tries from fn_audios where status = 'pendente' and tries < 3 and ts >= ${Math.floor(desde / 1000)} order by ts limit ${AUDIO_MAX}`;
+    // 1. Transcrição.
+    const pend = await sql`select mid, tries, url from fn_audios where status = 'pendente' and tries < 3 and ts >= ${Math.floor(desde / 1000)} order by ts limit ${AUDIO_MAX}`;
     const t0 = Date.now();
-    let falhas = 0;
+    let transcritos = 0, falhas = 0;
     for (const a of pend) {
       if (Date.now() - t0 > 60e3) break;
       try {
         const r = await transcrever(String(a.url), String(op.audioModelo || 'whisper-large-v3-turbo'));
         await sql`update fn_audios set status = 'ok', texto = ${r.texto}, modelo = ${r.modelo}, bytes = ${r.bytes}, usage = ${json(r.usage)}, erro = null, updated_at = now() where mid = ${a.mid}`;
-        feitos.push({...a, texto: r.texto});
+        transcritos++;
       } catch (e) {
         if (e instanceof AudioLimite) { st.limite = errText(e).slice(0, 200); break }   // limite do plano gratuito: tenta na próxima
         falhas++;
@@ -201,25 +236,48 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
         await sql`update fn_audios set tries = tries + 1, status = ${status}, erro = ${errText(e).slice(0, 300)}, updated_at = now() where mid = ${a.mid}`;
       }
     }
-    Object.assign(st, {pendentes: pend.length, transcritos: feitos.length, falhas});
+    Object.assign(st, {pendentes: pend.length, transcritos, falhas});
+    // 2. Quem falou (cliente ou equipe), com as mensagens anteriores do grupo como contexto.
+    const semQuem = st.limite ? [] : await sql`select mid, group_ns, grupo, ts, texto from fn_audios where status = 'ok' and quem is null and ts >= ${Math.floor((now - 3 * 864e5) / 1000)} order by ts limit ${QUEM_MAX}`;
+    if (semQuem.length) {
+      const ns = [...new Set(semQuem.map((a: Row) => String(a.group_ns)))];
+      const fatos = new Map<string, Row>((await sql`select user_ns, facts from fn_grupos where user_ns = any(${ns})`).map((r: Row) => [String(r.user_ns), r.facts || {}]));
+      for (const a of semQuem) {
+        const f = fatos.get(String(a.group_ns)) || {}, l = lidos.find(x => x.ns === String(a.group_ns));
+        const msgs: GrpMsg[] = l ? l.msgs : (f.msgs || []);
+        const clientes = ((f.authors || []) as string[]).filter(n => !avNameIn(n, team) && !avNameIn(n, ignore) && !/brase/i.test(n)).slice(-8);
+        const antes = msgs.filter(x => x.ts < Number(a.ts) && !(avIsAudioKind(x.kind))).slice(-6).map(x => `[${brIso(x.ts * 1000).slice(11, 16)}] ${x.own ? 'Renan (Brase)' : x.author || '?'}: ${x.text}`);
+        let quem: string, motivo: string;
+        try { ({quem, motivo} = await quemFalou(String(a.texto || ''), antes, team, clientes, String(op.audioQuemModelo || 'openai/gpt-oss-20b'))) }
+        catch (e) {
+          if (e instanceof AudioLimite) { st.limite = errText(e).slice(0, 200); break }
+          quem = avQuemPeloTexto(a.texto, team, clientes) || 'incerto'; motivo = 'regra fixa (IA: ' + errText(e).slice(0, 120) + ')';
+        }
+        await sql`update fn_audios set quem = ${quem}, quem_motivo = ${motivo}, updated_at = now() where mid = ${a.mid}`;
+        classificados.push({...a, quem});
+      }
+      st.classificados = classificados.length;
+      st.equipe = classificados.filter(x => x.quem === 'equipe').length;
+    }
   }
-  const textos = new Map<string, string>((await sql`select mid, texto from fn_audios where status = 'ok' and ts >= ${Math.floor((now - 3 * 864e5) / 1000)}`).map((r: Row) => [String(r.mid), String(r.texto || '')]));
-  // Pedido de alteração em áudio: só os transcritos agora (cada áudio vai uma vez), com as mensagens anteriores de contexto.
-  const cand = feitos.filter(a => avPedidoCandidato(a.texto));
+  const mapa = new Map<string, AvAudio>((await sql`select mid, texto, quem from fn_audios where status = 'ok' and ts >= ${Math.floor((now - 3 * 864e5) / 1000)}`).map((r: Row) => [String(r.mid), {texto: String(r.texto || ''), quem: r.quem}]));
+  // 3. Pedido de alteração em áudio: só os do cliente (ou incertos) classificados agora, cada áudio uma vez; áudio da equipe nunca.
+  const cand = classificados.filter(a => a.quem !== 'equipe' && Number(a.ts) * 1000 >= desde && avPedidoCandidato(a.texto));
   if (cand.length) {
     const ns = [...new Set(cand.map(a => String(a.group_ns)))];
     const fatos = new Map<string, GrpMsg[]>((await sql`select user_ns, facts->'msgs' as msgs from fn_grupos where user_ns = any(${ns})`).map((r: Row) => [String(r.user_ns), r.msgs || []]));
     for (const a of cand) {
-      const msgs = avComAudios((lidos.find(l => l.ns === String(a.group_ns)) || {msgs: fatos.get(String(a.group_ns)) || []}).msgs, textos);
-      const autor = avAutores(msgs).get(String(a.mid)) || '';
-      if (autor && (avNameIn(autor, team) || avNameIn(autor, ignore) || /brase/i.test(autor))) continue;   // áudio da equipe
+      const msgs = avComAudios((lidos.find(l => l.ns === String(a.group_ns)) || {msgs: fatos.get(String(a.group_ns)) || []}).msgs, mapa, team);
+      const eu = msgs.find(x => x.mid === String(a.mid));
+      const autor = (eu && eu.author) || AV_AUDIO_SEM_AUTOR;
       const contexto = msgs.filter(x => x.ts < Number(a.ts)).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author || 'não identificado', texto: x.text, quando: brIso(x.ts * 1000)}));
-      sink.push({mid: String(a.mid), grupo: String(a.grupo), autor: autor || AV_AUDIO_SEM_AUTOR, texto: avAudioTexto(a.texto), ts: Number(a.ts), contexto, audio: true});
+      sink.push({mid: String(a.mid), grupo: String(a.grupo), autor, texto: avAudioTexto(a.texto), ts: Number(a.ts), contexto, audio: true});
     }
     st.pedidos = cand.length;
   }
-  return {textos, st};
+  return {mapa, st};
 }
+const avIsAudioKind = (k: string) => ['audio', 'voice', 'ptt'].includes(k);
 // 3. Grupos dos clientes: relê os que tiveram mensagem nova, guarda as últimas 40 mensagens e avalia todos os grupos conhecidos.
 async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
@@ -263,7 +321,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
-    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.textos), team, ignore);
+    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.mapa, team), team, ignore);
     const lm = lastMeet.get(String(r.user_ns));
     if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays))
       rows.push({id: `reuniao30:${r.user_ns}:${lm.dia}`, canal: 'operacional', tipo: 'reuniao_30d', texto: avReuniao30Text(name, lm.dia, lm.status, meetDays)});
