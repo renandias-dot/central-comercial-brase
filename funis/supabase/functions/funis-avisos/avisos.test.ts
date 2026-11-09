@@ -20,7 +20,7 @@ Deno.test('horários da conversa do SDR: quem sugeriu e o trecho, só as mais re
   assertEquals(out.map(x => [x.who, x.agent, x.mid]), [['sdr', 'Luiz Felipe', 'm' + t('10:00')], ['lead', '', 'm' + t('10:05')]]);
   assertEquals(avTimeOffers(list, 1).length, 1);
   const txt = avHorarioText(out[0], {name: 'João', company: 'Pizzaria do João', stage: 'agendando'}, '');
-  assertEquals(txt, '🕐 *SDR sugeriu horário*\nJoão · Pizzaria do João (Agendando)\nLuiz Felipe: “Tenho amanhã às 10h ou 15h, qual fica melhor?”');
+  assertEquals(txt, '🕐 *SDR sugeriu horário*\nJoão · Pizzaria do João (Agendando)\n“Tenho amanhã às 10h ou 15h, qual fica melhor?”');
   assert(avHorarioText(out[1], null, 'Maria').startsWith('🙋 *Lead sugeriu horário*\nMaria (sem card na Central)'));
 });
 
@@ -49,6 +49,10 @@ Deno.test('grupos dos clientes: "G: BRASE - " e "G: DI ", sem os grupos de aviso
   assert(avClientGroup('G: BRASE - Texas Burger'));
   assert(avClientGroup('G: brase- Pizzaria'));
   assert(avClientGroup('G: DI Hamburgueria'));
+  assert(avClientGroup('G: D.I - Sanduba Lanches'));
+  assert(avClientGroup('G: D.I. - Liz Café'));
+  assert(!avClientGroup('G: Desconto em Games #1102'));
+  assert(!avClientGroup('G: EQUIPE - Delivery Intense'));
   assert(!avClientGroup('G: Organização - BRASE 🎯'));
   assert(!avClientGroup('G: AVISOS - OPERACIONAIS'));
   assert(!avClientGroup('BRASE - Texas Burger')); // conversa individual não tem "G: "
@@ -109,4 +113,16 @@ Deno.test('lead pelo telefone: em andamento e mais novo vence; excluído não co
     {col: 'sellers', id: 's1', data: {name: 'Luiz Felipe'}}]);
   assertEquals(idx.get('3193877523')?.id, 'b');
   assertEquals(idx.size, 1);
+});
+Deno.test('áudio e imagem sem autor: valem como do autor anterior (até 15 min); sozinhos não contam', () => {
+  const media = (at: number) => g('', '[áudio]', at, false, 'audio');
+  // gestor manda texto e depois áudio: o áudio é do gestor, não abre espera
+  assertEquals(avGroupState([g('Carla', 'Conseguem ver?', t('09:00')), g('Felipe Araújo', 'Vou ver', t('09:05')), media(t('09:06'))], ['Felipe Araújo']).waiting, null);
+  // cliente manda texto e áudio: a espera continua do texto
+  assertEquals(avGroupState([g('Carla', 'Conseguem ver?', t('09:00')), media(t('09:01'))], []).waiting?.ts, t('09:00'));
+  // áudio solto (sem mensagem antes, ou depois do Renan): não conta
+  assertEquals(avGroupState([media(t('09:00'))], []).waiting, null);
+  assertEquals(avGroupState([g('Renan', 'Oi', t('09:00'), true), media(t('09:01'))], []).waiting, null);
+  // áudio muito depois da mensagem anterior: não conta
+  assertEquals(avGroupState([g('Felipe Araújo', 'Vou ver', t('09:00')), media(t('10:00'))], ['Felipe Araújo']).lastBrase, t('09:00'));
 });

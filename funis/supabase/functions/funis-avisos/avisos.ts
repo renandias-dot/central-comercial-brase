@@ -76,7 +76,8 @@ export function avTimeOffers(list: (WaMsg & {username?: string})[], max = 5): Av
 export function avHorarioText(t: AvTime, lead: any, contactName: string){
   const who = lead ? `${lead.name || 'Lead sem nome'}${lead.company ? ' · ' + lead.company : ''}${AV_STAGE[stageId(lead.stage)] ? ' (' + AV_STAGE[stageId(lead.stage)] + ')' : ''}`
     : `${contactName || 'Lead'} (sem card na Central)`;
-  return `${t.who === 'sdr' ? '🕐 *SDR sugeriu horário*' : '🙋 *Lead sugeriu horário*'}\n${who}\n${t.who === 'sdr' && t.agent ? t.agent + ': ' : ''}${avQuote(t.text)}`;
+  // Sem o nome de quem mandou: no NicoChat o SDR e o Renan usam a mesma conta, então tudo chega como "Renan".
+  return `${t.who === 'sdr' ? '🕐 *SDR sugeriu horário*' : '🙋 *Lead sugeriu horário*'}\n${who}\n${avQuote(t.text)}`;
 }
 
 // Reunião marcada na Central: etapa "marcada" com bookedAt depois de os avisos ligarem. Um aviso por marcação; se o horário
@@ -107,8 +108,9 @@ export function avReuniaoText(l: any, kind: 'nova' | 'remarcada' | 'horario', se
   return `${title}\n${l.name || 'Lead sem nome'}${l.company ? ' · ' + l.company : ''}\n${when || 'horário ainda não preenchido na Central'}${owner ? ' · SDR: ' + owner : ''}`;
 }
 
-// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja" ou "G: DI Loja". Os grupos de aviso ficam de fora.
-export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|di\s)/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
+// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja" ou "G: D.I - Loja" (também "DI Loja"). Os grupos de
+// aviso ficam de fora.
+export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-))/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
@@ -142,10 +144,18 @@ export function avNameIn(author: string, names: string[]){
 }
 // Estado de um grupo pelas mensagens guardadas: última mensagem da Brase, a 1ª do cliente ainda sem resposta (que pede
 // resposta) e as mensagens com sinal de risco. Brase = número do Renan, equipe (lista ou quem fala em 4+ grupos) ou nome com "Brase".
+// Áudio e imagem chegam sem o nome de quem mandou: valem como do autor da mensagem anterior (de outro participante, até 15 min
+// antes); sem isso, não contam para nada (nem abrem nem fecham uma espera).
 export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = []){
-  let lastBrase: number | null = null, waiting: GrpMsg | null = null;
+  let lastBrase: number | null = null, waiting: GrpMsg | null = null, prev: GrpMsg | null = null;
   const risks: GrpMsg[] = [];
-  for (const m of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
+  for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
+    let m = m0;
+    if (!m.own && !m.author) {
+      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
+      m = {...m, author: prev.author};
+    }
+    prev = m;
     if (!m.own && avNameIn(m.author, ignore)) continue;
     if (m.own || avNameIn(m.author, team) || /brase/i.test(m.author)) { lastBrase = m.ts; waiting = null; continue }
     if (avIsRisk(m.text)) risks.push(m);
