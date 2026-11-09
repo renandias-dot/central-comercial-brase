@@ -667,3 +667,93 @@ export function importRow(x: any, funnel: Funnel){
   s.phone = phoneOf(s) || null; s.email = emailOf(s) || null;
   return s;
 }
+
+/* ================= WhatsApp do SDR: NicoChat → Central Comercial ================= */
+// O canal do SDR no NicoChat (API oficial) mostra quem falou por último em cada conversa. Daqui saem, para cada lead,
+// "esperando resposta desde" e a última mensagem dele (tela Hoje da Central), e o tempo de cada resposta (SLA em Análises).
+// Tipos de mensagem do NicoChat: "in" = o lead; "agent" = uma pessoa da equipe pela caixa de entrada. Robô e
+// disparo automático não contam como resposta: o lead continua esperando uma pessoa.
+export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number};
+export type WaFacts = {waitingSince: string | null; lastSnippet: string; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null; inCount: number; outCount: number};
+export type WaResponse = {id: string; inAt: string; outAt: string; minutes: number; day: string};
+// Horário em que se mede o SLA (Brasília, sem horário de verão): mensagem do lead fora dele não entra na conta.
+export const WA_HOURS = {start: 9, end: 19, days: [1, 2, 3, 4, 5]};
+export function inWaHours(ms: number, h: {start: number; end: number; days: number[]} = WA_HOURS){
+  const d = new Date(ms - 3 * 3600e3), hr = d.getUTCHours() + d.getUTCMinutes() / 60;
+  return h.days.includes(d.getUTCDay()) && hr >= h.start && hr < h.end;
+}
+// Chave do telefone para casar o contato com o lead: DDD + os 8 últimos dígitos (ignora o 55 e o 9 a mais).
+export function waPhoneKey(v: unknown){
+  const m = /^55(\d\d)\d*?(\d{8})$/.exec(normPhone(v));
+  return m ? m[1] + m[2] : '';
+}
+const WA_KIND: Record<string, string> = {image: '[imagem]', audio: '[áudio]', voice: '[áudio]', ptt: '[áudio]', video: '[vídeo]', file: '[arquivo]', document: '[arquivo]', sticker: '[figurinha]', location: '[localização]', contact: '[contato]'};
+export function waSnippet(m: WaMsg){
+  const t = typeof m.content === 'string' ? m.content.replace(/\s+/g, ' ').trim() : '';
+  const kind = WA_KIND[String(m.msg_type || '')] || '';
+  const s = t && kind && t === String(m.msg_type) ? kind : t || kind;
+  return s.length > 140 ? s.slice(0, 139) + '…' : s;
+}
+// Horário de Brasília (UTC-3, sem horário de verão) no formato ISO, para ler fácil no banco e na Central: "2026-11-09T11:00:00-03:00".
+export const brIso = (ms: number) => new Date(ms - 3 * 3600e3).toISOString().slice(0, 19) + '-03:00';
+const waIso = (ts: number) => brIso(ts * 1000);
+// Mensagens de uma conversa (em qualquer ordem) → o estado da conversa e as respostas da equipe.
+// Uma resposta é a 1ª mensagem da equipe depois de uma ou mais do lead; o tempo conta da 1ª mensagem do lead.
+export function waFacts(list: WaMsg[], hours = WA_HOURS){
+  const msgs = (Array.isArray(list) ? list : []).filter(m => m && typeof m.ts === 'number' && (m.type === 'in' || m.type === 'agent'))
+    .sort((a, b) => (a.ts as number) - (b.ts as number) || Number(a.id ?? 0) - Number(b.id ?? 0));
+  let wait: WaMsg | null = null, lastIn: WaMsg | null = null, lastOut: WaMsg | null = null, firstOut: WaMsg | null = null, inCount = 0, outCount = 0;
+  const responses: WaResponse[] = [];
+  for (const m of msgs) {
+    if (m.type === 'in') { inCount++; lastIn = m; if (!wait) wait = m; continue }
+    outCount++; lastOut = m; if (!firstOut) firstOut = m;
+    if (wait) {
+      const t0 = wait.ts as number, t1 = m.ts as number;
+      if (inWaHours(t0 * 1000, hours)) responses.push({id: String(wait.mid || wait.id || t0), inAt: waIso(t0), outAt: waIso(t1), minutes: Math.round((t1 - t0) / 6) / 10, day: brDay(t0 * 1000)});
+      wait = null;
+    }
+  }
+  const facts: WaFacts = {waitingSince: wait ? waIso(wait.ts as number) : null, lastSnippet: lastIn ? waSnippet(lastIn) : '', lastInAt: lastIn ? waIso(lastIn.ts as number) : null,
+    lastOutAt: lastOut ? waIso(lastOut.ts as number) : null, firstOutAt: firstOut ? waIso(firstOut.ts as number) : null, inCount, outCount};
+  return {facts, responses};
+}
+// O que a Central guarda no lead (campo wa). null = já está igual, não precisa gravar.
+const WA_FIELDS = ['waitingSince', 'lastSnippet', 'lastInAt', 'lastOutAt', 'firstOutAt'] as const;
+export type WaLeadField = {waitingSince: string | null; lastSnippet: string | null; lastInAt: string | null; lastOutAt: string | null; firstOutAt: string | null; source: 'nicochat'};
+// deno-lint-ignore no-explicit-any
+export function waLeadPatch(lead: any, f: WaFacts): WaLeadField | null {
+  const cur = (lead && typeof lead.wa === 'object' && lead.wa) || {};
+  const next: Record<string, string | null> = {};
+  for (const k of WA_FIELDS) next[k] = f[k] ?? null;
+  return WA_FIELDS.every(k => (cur[k] ?? null) === next[k]) && cur.source === 'nicochat' ? null : {...next, source: 'nicochat'} as WaLeadField;
+}
+// Leads da Central por chave de telefone. Com o mesmo telefone em mais de um lead, vale o que ainda está em andamento
+// e, entre eles, o mais novo.
+const WA_CLOSED = new Set(['fechado', 'perdido', 'desqualificado']);
+// deno-lint-ignore no-explicit-any
+export function waLeadIndex(docs: any){
+  // deno-lint-ignore no-explicit-any
+  const idx = new Map<string, {id: string; data: any}>();
+  // deno-lint-ignore no-explicit-any
+  const rank = (d: any) => [WA_CLOSED.has(stageId(d.stage)) ? 0 : 1, String(d.createdAt || '')];
+  for (const d of Array.isArray(docs) ? docs : []) {
+    if (!d || d.col !== 'leads' || !d.data || typeof d.data !== 'object') continue;
+    const k = waPhoneKey(d.data.phone); if (!k) continue;
+    const cur = idx.get(k), a = rank(d.data), b = cur && rank(cur.data);
+    if (!b || a[0] > b[0] || (a[0] === b[0] && a[1] > b[1])) idx.set(k, {id: String(d.id), data: d.data});
+  }
+  return idx;
+}
+// Documentos wa_stats da Central (um por dia e número): a tela soma count, totalMin e under5 no período.
+export function waStatsDocs(rows: {day: string; business: string; minutes: number}[]){
+  const by = new Map<string, {date: string; business: string; count: number; totalMin: number; under5: number}>();
+  for (const r of rows) {
+    if (!r || !/^\d{4}-\d{2}-\d{2}$/.test(String(r.day)) || !isFinite(Number(r.minutes))) continue;
+    const id = r.day + '_' + r.business, x = by.get(id) || {date: r.day, business: r.business, count: 0, totalMin: 0, under5: 0};
+    x.count++; x.totalMin += Number(r.minutes); if (Number(r.minutes) <= 5) x.under5++;
+    by.set(id, x);
+  }
+  return [...by.entries()].map(([id, d]) => ({id, data: {...d, totalMin: Math.round(d.totalMin * 10) / 10}}));
+}
+// "2026-11-09 03:11:10" do NicoChat (UTC) → milissegundos.
+export const nicoTime = (v: unknown) => { const t = Date.parse(String(v ?? '').trim().replace(' ', 'T') + 'Z'); return isNaN(t) ? 0 : t };

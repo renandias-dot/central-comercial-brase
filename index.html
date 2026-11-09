@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "0ecb510bbc";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "1c859df8bb";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2670,17 +2670,24 @@ function viewProcessos(){
 function viewWhats(){
   if (!loaded()) return loading();
   const team = sellersList().filter(s => s.active !== false);
-  return head('WhatsApp', 'API oficial (WhatsApp Cloud API da Meta). A conexão será configurada na próxima etapa.')
+  // Canal do SDR (BraseBot) ligado pelo NicoChat: o servidor dos Funis grava o campo wa dos leads e o wa_stats a cada 2 min.
+  const waOn = leadsArr().filter(l => l.wa && l.wa.source === 'nicochat'), waWait = waOn.filter(l => l.wa.waitingSince && ACTIVE(l.stage)).length;
+  const on = waOn.length > 0 || Object.keys(S.wa_stats || {}).length > 0;
+  const hero = on
+    ? `<div style="display:grid;gap:8px"><h2>BraseBot conectado</h2><p class="muted" style="max-width:62ch">As conversas do SDR no NicoChat chegam aqui a cada 2 minutos: quem está esperando resposta aparece na tela Hoje e o tempo de resposta (SLA) em Análises. ${waOn.length} ${waOn.length === 1 ? 'lead com conversa' : 'leads com conversa'} · ${waWait} esperando resposta agora.</p></div>
+      <span class="status-pill" style="background:var(--good-soft);color:var(--good)">Conectado</span>`
+    : `<div style="display:grid;gap:8px"><h2>Nenhum número conectado</h2><p class="muted" style="max-width:62ch">Quando a conexão estiver ativa, cada conversa dos SDRs passa a alimentar o CRM: toques marcados automaticamente, cards mudando de etapa e análise da qualidade de cada conversa.</p></div>
+      <span class="status-pill">Aguardando configuração</span>`;
+  return head('WhatsApp', on ? 'Canal do SDR (BraseBot), API oficial, ligado pelo NicoChat. Atualiza a cada 2 minutos.' : 'API oficial (WhatsApp Cloud API da Meta). A conexão será configurada na próxima etapa.')
   + `<section class="panel wa-hero" style="margin-bottom:14px">
-      <div style="display:grid;gap:8px"><h2>Nenhum número conectado</h2><p class="muted" style="max-width:62ch">Quando a conexão estiver ativa, cada conversa dos SDRs passa a alimentar o CRM: toques marcados automaticamente, cards mudando de etapa e análise da qualidade de cada conversa.</p></div>
-      <span class="status-pill">Aguardando configuração</span>
+      ${hero}
     </section>
     <div class="g3" style="margin-bottom:14px">
       <section class="panel feat"><h3>Análise de conversas por SDR</h3><p>A IA lê cada conversa e dá nota para abertura, qualificação, condução até a reunião e próximo passo combinado.</p><ul><li>Melhores e piores conversas da semana</li><li>Objeções mais comuns</li><li>Sugestão de resposta para o SDR</li></ul></section>
       <section class="panel feat"><h3>SLA de atendimento</h3><p>Aparece em Análises assim que conectar.</p><ul><li>Tempo até a primeira resposta</li><li>Tempo médio de resposta por SDR</li><li>Leads esperando resposta há mais de 1 hora</li></ul></section>
       <section class="panel feat"><h3>Quadro automático</h3><p>Regras sugeridas para mover os cards sozinhos:</p><ul><li>Primeira mensagem enviada → marca o Toque 1</li><li>Imagem enviada ao lead → Print Enviado</li><li>Lead respondeu → Qualificando</li><li>Data e hora combinadas → Reunião Marcada</li><li>Cadência encerrada sem resposta → Frio</li></ul></section>
     </div>
-    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Automações</h2><span class="sub">Valem assim que o WhatsApp estiver conectado</span></div><div class="panel-b" style="display:grid;gap:10px">
+    <section class="panel" style="margin-bottom:14px"><div class="panel-h"><h2>Automações</h2><span class="sub">${on ? 'Ainda não aplicadas pela conexão: por enquanto ela mostra quem espera resposta e mede o SLA' : 'Valem assim que o WhatsApp estiver conectado'}</span></div><div class="panel-b" style="display:grid;gap:10px">
       <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="markTouch" ${cfg().waRules.markTouch ? 'checked' : ''}> Mensagem enviada ao lead marca o toque do dia como feito</label>
       <label class="switch"><input type="checkbox" class="ck" data-c="wa-rule" data-k="moveOnReply" ${cfg().waRules.moveOnReply ? 'checked' : ''}> Lead respondeu: mover de Lead Novo, Link recebido ou Print Enviado para Qualificando (e cancelar o prazo do print)</label>
     </div></section>
