@@ -188,7 +188,12 @@ async function run(){
   const c = await getConf('avisos'), mode = c.mode === 'on' || c.mode === 'preview' ? String(c.mode) : 'off';
   if (mode === 'off') return {skipped: 'desligado'};
   const t0 = Date.now(), prev = await getConf('avisos_state');
-  if (!OPS_KEY) { const st = {ok: false, at: brIso(t0), mode, error: 'Falta o segredo NICOCHAT_OPS_KEY (chave da API do canal Operacional).'}; await setConf('avisos_state', st); return st }
+  if (!OPS_KEY) {
+    // Só os nomes dos segredos parecidos (nunca o valor), para achar nome digitado diferente.
+    const parecidos = Object.keys(Deno.env.toObject()).filter(k => /nico|ops/i.test(k)).sort();
+    const st = {ok: false, at: brIso(t0), mode, error: 'Falta o segredo NICOCHAT_OPS_KEY (chave da API do canal Operacional).', parecidos};
+    await setConf('avisos_state', st); return st;
+  }
   // 1ª rodada com a chave: grava o início. Nada antes dele vira aviso.
   if (!Date.parse(c.since || '')) { c.since = brIso(t0); await sql`update fn_config set v = jsonb_set(v, '{since}', ${json(c.since)}), updated_at = now() where k = 'avisos'` }
   c.sinceMs = Date.parse(c.since);
