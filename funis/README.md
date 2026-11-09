@@ -201,11 +201,12 @@ A função `funis-avisos` (separada da `funis-api`, para mexer nela sem tocar no
 - **AVISOS - COMERCIAIS:**
   - 🕐/🙋 horário sugerido na conversa do SDR, pelo SDR ou pelo lead (mensagem com horário concreto e um dia ou uma palavra de agenda). A função relê só as conversas que a ponte `cron.wa` acabou de atualizar.
   - 📅 reunião marcada na Central: etapa Reunião Marcada com `bookedAt` depois de os avisos ligarem. Lê só o que mudou (`changes` da crm-api). Sem horário preenchido, espera 10 minutos. Se o horário muda depois, sai 🔁 remarcada.
-- **AVISOS - OPERACIONAIS:** grupos dos clientes, cujo nome no NicoChat chega como `G: BRASE - Loja` ou `G: DI Loja`:
+- **AVISOS - OPERACIONAIS:** grupos dos clientes, cujo nome no NicoChat chega como `G: D.I - Loja` (também `DI Loja`) ou `G: BRASE - Loja`:
   - ⏰ cliente sem resposta da Brase há 2 h ou mais (um aviso por espera; "ok", "obrigado", só emoji ou figurinha não contam como pedido de resposta);
   - 🚨 sinal de risco (cancelar, contrato, "não está dando resultado", vendas caindo, caro), no máximo um por grupo a cada 6 h ("cancelar o pedido" não conta);
   - 😶 5 dias sem mensagem da Brase.
-  - **Quem é da Brase:** o número do Renan; os nomes em `team`; quem escreve em 4 ou mais grupos de clientes; ou quem tem "Brase" no nome. O autor de cada mensagem vem na 1ª linha (`👤 Nome:`). Quem está em `ignore` (o Kauã, que não é da Brase) é ignorado.
+  - **Quem é da Brase:** o número do Renan; os nomes em `team` (hoje Luiz Felipe e os gestores Gabriel Vieira, Felipe Araújo e Luis - Gestão Performance); quem escreve em 4 ou mais grupos de clientes; ou quem tem "Brase" no nome. O autor de cada mensagem vem na 1ª linha (`👤 Nome:`); áudio e imagem chegam sem nome e valem como do autor da mensagem anterior (até 15 min), senão não contam. Quem está em `ignore` (o Kauã, que não é da Brase) é ignorado.
+  - O aviso de horário não diz quem do SDR mandou: no NicoChat o SDR e o Renan usam a mesma conta.
 - **Configuração:** `fn_config` (k = `avisos`): `{mode, since, flow, groups, com: {horarios, reunioes}, op: {semRespostaMin, risco, silencioDias, equipeGrupos}, team, ignore}`. `mode` = `off`, `preview` (põe na fila sem enviar) ou `on`. Nada antes de `since` vira aviso; a 1ª rodada com a chave grava o horário. Os grupos de aviso são achados pelo nome e guardados em `groups`.
 - **Chaves:** segredo `NICOCHAT_OPS_KEY` (canal Operacional: lê os grupos e envia) e `NICOCHAT_API_KEY` (canal do SDR, o mesmo da ponte).
 - **Banco:** `fn_avisos` (a fila; o id é a chave do evento, então nada sai duas vezes; até 8 envios por rodada, 3 tentativas) e `fn_grupos` (últimas 40 mensagens de cada grupo de cliente). Migrações `20261109120000_avisos_grupos.sql` e `20261109121000_avisos_grupos_cron.sql`.
