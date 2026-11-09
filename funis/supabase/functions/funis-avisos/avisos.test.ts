@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -125,4 +125,39 @@ Deno.test('áudio e imagem sem autor: valem como do autor anterior (até 15 min)
   assertEquals(avGroupState([g('Renan', 'Oi', t('09:00'), true), media(t('09:01'))], []).waiting, null);
   // áudio muito depois da mensagem anterior: não conta
   assertEquals(avGroupState([g('Felipe Araújo', 'Vou ver', t('09:00')), media(t('10:00'))], ['Felipe Araújo']).lastBrase, t('09:00'));
+});
+Deno.test('reunião com cliente: link do Meet no grupo vira reunião do dia; aviso 30 dias depois', () => {
+  const longo = 'Bom dia pessoal! ' + 'x'.repeat(200) + ' segue o link: https://meet.google.com/abc-defg-hij?authuser=0';
+  const a = grpMsg({id: 1, mid: 'm1', type: 'in', msg_type: 'text', content: '👤 Felipe Araújo:\n' + longo, ts: t('10:00')});
+  assertEquals(a?.meet, 'abc-defg-hij');
+  assertEquals(grpMsg({id: 2, type: 'agent', content: 'Reunião amanhã, combinado?', ts: t('10:01')})?.meet, undefined);
+  const r = avMeetings('G1', 'D.I - Liz Café', [a!, {...a!, mid: 'm2', ts: t('10:05')}, g('Renan', 'x', t('11:00'), true)]);
+  assertEquals(r.length, 1); // o mesmo link no mesmo dia conta uma vez
+  assertEquals([r[0].id, r[0].dia, r[0].autor], ['G1:abc-defg-hij:2026-11-09', '2026-11-09', 'Felipe Araújo']);
+  const now = Date.parse('2026-12-09T09:00:00-03:00');
+  assert(avReuniao30Due('2026-11-09', now));
+  assert(!avReuniao30Due('2026-11-12', now));
+  assertEquals(avReuniao30Text('D.I - Liz Café', '2026-11-09', 'provavel', 30), '📆 *30 dias desde a última reunião*\nD.I - Liz Café\nÚltima: 09/11 (link do Meet no grupo). Hora de marcar a próxima.');
+});
+Deno.test('horário que o Renan sugere: vira data e hora certas', () => {
+  const seg = Date.parse('2026-11-09T12:28:00-03:00'); // segunda, 12:28
+  const br = (ms: number) => new Date(ms - 3 * 3600e3).toISOString().slice(0, 16);
+  const p = (s: string, at = seg) => avParseSlots(s, at).map(br);
+  assertEquals(p('Vamos já marcar nossa reunião meu amigo! como estão a disponibilidade de vocês amanhã 15h? @all'), ['2026-11-10T15:00']);
+  assertEquals(p('Tenho quinta às 10h ou 14h30, qual fica melhor?'), ['2026-11-12T10:00', '2026-11-12T14:30']);
+  assertEquals(p('Pode ser hoje 16:00?'), ['2026-11-09T16:00']);
+  assertEquals(p('Consigo dia 12/11 às 9h'), ['2026-11-12T09:00']);
+  assertEquals(p('Fechado, segunda às 11h então'), ['2026-11-16T11:00']); // mesma segunda = semana que vem
+  assertEquals(p('Consigo às 10h'), ['2026-11-10T10:00']);              // sem dia e já passou: amanhã
+  assertEquals(p('Consigo às 15h'), ['2026-11-09T15:00']);              // sem dia e ainda não passou: hoje
+  assertEquals(p('Depois de amanhã 9h tá ótimo'), ['2026-11-11T09:00']);
+  assertEquals(p('A promoção vai até o fim do mês'), []);
+  assertEquals(p('Te mando o diagnóstico em 24h'), []);
+  assertEquals(p('hoje as 10h'), []);                                   // já passou
+  assertEquals([avHoldId(Date.parse('2026-11-10T15:00:00-03:00')), avHoldStart(Date.parse('2026-11-10T15:00:00-03:00'))], ['r202611101500', '2026-11-10T15:00']);
+});
+Deno.test('aviso do horário do Renan: no privado não mostra nome nem texto', () => {
+  const s = [Date.parse('2026-11-10T15:00:00-03:00')];
+  assertEquals(avAgendaText('D.I - Point da Lolo', false, s, 'amanhã 15h?', true), '🗓 *Renan sugeriu horário*\nD.I - Point da Lolo\nter 10/11 às 15:00\n“amanhã 15h?”\nBloqueado na agenda da Central: não ofereça esse horário.');
+  assertEquals(avAgendaText('', true, s, 'segredo', true), '🗓 *Renan sugeriu horário*\nConversa no privado\nter 10/11 às 15:00\nBloqueado na agenda da Central: não ofereça esse horário.');
 });

@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "d4a7ab2226";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "b4920e3a6b";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2029,6 +2029,8 @@ function agBusy(){
     const s = +new Date(ev.s), e = +new Date(ev.e); if (!isNaN(s) && !isNaN(e)) out.push({s, e, kind: 'google', label: ev.t || 'Ocupado'});
   });
   leadsArr().forEach(l => { if (l.stage === 'marcada' && l.meetingAt){ const s = +new Date(l.meetingAt); if (!isNaN(s)) out.push({s, e: s + dur, kind: 'crm', label: l.name, leadId: l.id}) } });
+  // Horários que o Renan sugeriu no WhatsApp (grupos e privado): o servidor dos avisos grava em holds com block, sem lead.
+  Object.values(S.holds || {}).forEach(h => { if (h && h.block && !h.leadId){ const s = +new Date(h.start); if (!isNaN(s)) out.push({s, e: s + (+h.dur || agCfg().duration) * 60e3, kind: 'renan', label: h.label || 'Renan'}) } });
   return out;
 }
 function agHolds(){
@@ -2116,7 +2118,7 @@ function viewAgenda(){
     const l = S.leads[lid], oldest = Math.min(...hs.map(h => +new Date(h.at || Date.now()))), late = Date.now() - oldest > warnMs;
     return `<div class="ag-hold"><div class="ag-hold-h"><button class="cr-lnk" data-a="open-lead" data-id="${attr(lid)}">${esc(l.name)}</button>${stagePill(l.stage)}</div>
       <div class="ag-hold-m"><span class="chip ${late ? 'late' : ''}" title="Quando o primeiro horário foi oferecido">${late ? 'sem resposta há ' : 'oferecido há '}${minsAgo(oldest)}</span>${hs[0].by && S.sellers[hs[0].by] ? `<span class="hint">por ${esc(S.sellers[hs[0].by].name.split(' ')[0])}</span>` : ''}</div>
-      ${hs.sort((a, b) => a.s - b.s).map(h => { const dd = ymd(new Date(h.s)), clash = ctx.busy.some(b => b.kind === 'google' && b.s < h.e && b.e > h.s);
+      ${hs.sort((a, b) => a.s - b.s).map(h => { const dd = ymd(new Date(h.s)), clash = ctx.busy.some(b => (b.kind === 'google' || b.kind === 'renan') && b.s < h.e && b.e > h.s);
         return `<div class="ag-hrow"><span class="num"><b>${agDayLabel(dd)}</b> · ${hm(minOfMs(h.s))}</span>${clash ? '<span class="chip late" title="Surgiu um compromisso na agenda do Google neste horário">agora ocupado</span>' : ''}<span class="ag-hrow-a"><button class="btn sm" data-a="ag-confirm" data-id="${attr(h.id)}" title="Marca a reunião no card do lead (Reunião Marcada) e libera os outros horários dele">Confirmar</button><button class="btn sm ghost" data-a="ag-release" data-id="${attr(h.id)}">Liberar</button></span></div>` }).join('')}
       ${hs.length > 1 ? `<button class="btn sm ghost" data-a="ag-release-lead" data-id="${attr(lid)}">Liberar todos</button>` : ''}</div>`;
   }).join('');
