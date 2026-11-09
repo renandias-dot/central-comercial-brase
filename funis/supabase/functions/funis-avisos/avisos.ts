@@ -224,10 +224,26 @@ export function avParseSlots(text: unknown, msgMs: number): number[] {
   }
   return [...out].sort((a, c) => a - c).slice(0, 4);
 }
-// Aviso no AVISOS - COMERCIAIS. No privado, sem nome e sem texto (só o horário), para não expor conversa pessoal.
-export function avAgendaText(where: string, priv: boolean, slots: number[], snippet: string, blocked: boolean){
-  const when = slots.map(s => avWhen(brIso(s))).join(' ou ');
-  return `🗓 *Renan sugeriu horário*\n${priv ? 'Conversa no privado' : where}\n${when}${priv ? '' : '\n' + avQuote(snippet)}\n${blocked ? 'Bloqueado na agenda da Central: não ofereça esse horário.' : 'Não ofereça esse horário (não deu para bloquear na agenda da Central).'}`;
+// Prioridade na agenda: só conta horário combinado com cliente ou com lead. Compromisso pessoal (amigo, família) e o grupo de
+// anotações do Renan não contam: reunião tem prioridade. Grupo "D.I - " é a 1ª reunião do cliente, e o Renan fica só 5 a 10 min:
+// não fecha o horário, só avisa e bloqueia 10 min (dá para marcar logo antes ou depois).
+export type AvAgendaKind = 'di' | 'cliente' | 'lead';
+export const avIsDi = (name: unknown) => /^(g:\s*)?d\.?\s?i\.?(\s|-)/i.test(String(name || '').trim());
+// Conversa no privado com quem escreve num grupo de cliente: é cliente daquele grupo (o nome do contato é o mesmo do "👤 Nome:").
+export function avClientOf(contactName: unknown, groups: {nome: string; authors: string[]}[]){
+  const n = fold(contactName).trim();
+  if (n.length < 3) return null;
+  for (const g of groups || []) if ((g.authors || []).some(a => { const x = fold(a).trim(); return x === n || (x.length >= 3 && (x.startsWith(n + ' ') || n.startsWith(x + ' '))) })) return g.nome;
+  return null;
+}
+export const AV_DI_MIN = 10;
+export function avAgendaText(where: string, kind: AvAgendaKind, slots: number[], snippet: string, blocked: boolean){
+  const when = slots.map(s => avWhen(brIso(s))).join(' ou '), quote = snippet ? '\n' + avQuote(snippet) : '';
+  if (kind === 'di') {
+    const near = slots.length === 1 ? ` (${avWhen(brIso(slots[0] - 30 * 60e3)).slice(-5)} ou ${avWhen(brIso(slots[0] + 30 * 60e3)).slice(-5)}, por exemplo)` : '';
+    return `🗓 *Renan: reunião rápida (5 a 10 min)*\n${where}\n${when}${quote}\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois${near}.`;
+  }
+  return `🗓 *Renan sugeriu horário*\n${where}\n${when}${quote}\n${blocked ? 'Bloqueado na agenda da Central: não ofereça esse horário.' : 'Não ofereça esse horário (não deu para bloquear na agenda da Central).'}`;
 }
 // Bloqueio na agenda da Central (coleção holds, sem lead): id e início no formato da tela ("r202611101500", "2026-11-10T15:00").
 export const avHoldId = (ms: number) => 'r' + brIso(ms).slice(0, 16).replace(/\D/g, '');

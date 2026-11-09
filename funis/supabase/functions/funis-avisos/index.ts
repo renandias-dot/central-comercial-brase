@@ -8,7 +8,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -171,36 +171,67 @@ async function grupos(c: Row, contacts: Row[]){
   }
   return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, queued: await queue(rows)};
 }
-// 4. Horário que o Renan sugere (grupos e privado): relê as conversas com mensagem nova, procura mensagem do Renan com horário,
-// bloqueia a agenda da Central (holds sem lead) e avisa no AVISOS - COMERCIAIS. Os grupos de aviso ficam de fora.
+// 4. Horário que o Renan sugere: bloqueia a agenda da Central (holds sem lead) e avisa no AVISOS - COMERCIAIS. Prioridade: só
+// conta horário com cliente ou com lead; compromisso pessoal e o grupo de anotações do Renan não contam (reunião tem prioridade).
+// - grupo de cliente "BRASE - ": bloqueia 60 min; grupo "D.I - " (1ª reunião, o Renan fica 5 a 10 min): só avisa e bloqueia 10 min;
+// - privado com cliente (o mesmo nome de quem escreve num grupo de cliente, fora a equipe): segue a regra do grupo dele;
+// - privado com lead da Central (pelo telefone): bloqueia 60 min;
+// - qualquer outra conversa ou grupo: ignora.
 async function agenda(c: Row, contacts: Row[], prev: Row){
   if (c.com && c.com.renan === false) return {skipped: 'desligado'};
-  const cursor = Math.max(Date.parse(prev.renanCursor || '') || 0, c.sinceMs);
-  const list = contacts.filter(x => !/avisos/i.test(String(x.name || '')) && nicoTime(x.last_message_at) > cursor)
+  const now = Date.now(), cursor = Math.max(Date.parse(prev.renanCursor || '') || 0, c.sinceMs);
+  const list = contacts.filter(x => (avClientGroup(x.name) || !/^\s*g:/i.test(String(x.name || ''))) && nicoTime(x.last_message_at) > cursor)
     .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, AG_READ_MAX);
-  let found = 0, queued = 0, blocked = 0, maxAt = cursor;
+  let found = 0, queued = 0, blocked = 0, ignored = 0, maxAt = cursor;
+  let clientGroups: {nome: string; authors: string[]}[] | null = null, leads: Map<string, {id: string; data: Row}> | null = null;
+  const team = [...(c.team || [])];
   for (const x of list) {
+    maxAt = Math.max(maxAt, nicoTime(x.last_message_at));
     const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: String(x.user_ns), limit: 20});
-    // Só grupo de cliente mostra nome e trecho; privado e grupo pessoal (família, amigos) saem sem nome e sem texto.
-    const isClient = avClientGroup(x.name), where = isClient ? avGroupLabel(x.name) : '';
-    for (const m of (Array.isArray(j.data) ? j.data : []).sort((a: Row, b: Row) => a.ts - b.ts)) {
-      if (!m || m.type !== 'agent' || typeof m.ts !== 'number' || m.ts * 1000 <= cursor || typeof m.content !== 'string') continue;
-      const body = m.content.replace(/^\s*👤[^\n]*\n?/u, ''), slots = avParseSlots(body, m.ts * 1000);
-      if (!slots.length) continue;
+    const mine = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && m.type === 'agent' && typeof m.ts === 'number' && m.ts * 1000 > cursor && typeof m.content === 'string')
+      .map((m: Row) => ({m, slots: avParseSlots(m.content.replace(/^\s*👤[^\n]*\n?/u, ''), m.ts * 1000).filter(st => st > now)})).filter((y: Row) => y.slots.length);
+    if (!mine.length) continue;
+    // Com quem é a conversa.
+    let where = '', kind: AvAgendaKind | null = null;
+    if (avClientGroup(x.name)) { where = avGroupLabel(x.name); kind = avIsDi(x.name) ? 'di' : 'cliente' }
+    else {
+      clientGroups ??= (await sql`select nome, facts->'authors' as authors from fn_grupos`).map((r: Row) => ({nome: String(r.nome), authors: (r.authors || []).filter((a: string) => !avNameIn(a, team))}));
+      const g = avClientOf(x.name, clientGroups);
+      if (g) { where = `${x.name} (${g}), no privado`; kind = avIsDi(g) ? 'di' : 'cliente' }
+      else {
+        leads ??= leadIndex((await crmCall({op: 'load'})).docs || []);
+        const lead = leads.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
+        if (lead) { where = `Lead ${lead.data.name || ''}${lead.data.company ? ' · ' + lead.data.company : ''}, no privado`; kind = 'lead' }
+      }
+    }
+    if (!kind) { ignored += mine.length; continue }
+    for (const {m, slots} of mine) {
       found++;
       const id = 'agenda:' + (m.mid || m.id);
       if ((await sql`select 1 from fn_avisos where id = ${id}`).length) continue;
       let ok = true;
       for (const st of slots) {
-        try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: 60, label: isClient ? 'Renan: ' + where : 'Renan (compromisso)', by: 'avisos', at: new Date().toISOString()}}); blocked++ }
+        try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: kind === 'di' ? AV_DI_MIN : 60, label: 'Renan: ' + where + (kind === 'di' ? ' (rápida)' : ''), by: 'avisos', at: new Date().toISOString()}}); blocked++ }
         catch { ok = false }
       }
       const g = grpMsg(m);
-      queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, !isClient, slots, g ? g.text : '', ok)}]);
+      queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, g ? g.text : '', ok)}]);
     }
-    maxAt = Math.max(maxAt, nicoTime(x.last_message_at));
   }
-  return {read: list.length, found, queued, blocked, cursor: new Date(maxAt).toISOString()};
+  return {read: list.length, found, queued, blocked, ignored, cursor: new Date(maxAt).toISOString()};
+}
+// Ajustes pedidos na agenda da Central (fn_config avisos.agendaFila: [{op: 'delete', id} | {op: 'set', id, data}]): roda uma vez e limpa.
+async function agendaFila(c: Row){
+  const fila = Array.isArray(c.agendaFila) ? c.agendaFila : [];
+  if (!fila.length) return {n: 0};
+  let ok = 0;
+  for (const f of fila) {
+    if (!f || !/^r\d{12}$/.test(String(f.id))) continue;
+    if (f.op === 'delete') { await crmCall({op: 'delete', col: 'holds', id: String(f.id)}); ok++ }
+    else if (f.op === 'set' && f.data && typeof f.data === 'object') { await crmCall({op: 'set', col: 'holds', id: String(f.id), data: f.data}); ok++ }
+  }
+  await sql`update fn_config set v = v - 'agendaFila', updated_at = now() where k = 'avisos'`;
+  return {n: ok};
 }
 // Acha os grupos de aviso pelo nome ("AVISOS - COMERCIAIS" e "AVISOS - OPERACIONAIS") e guarda o id deles na configuração.
 async function targets(c: Row){
@@ -253,6 +284,7 @@ async function run(){
     const list: Row[] = contacts;
     await step('grupos', () => grupos(c, list));
     await step('agenda', () => agenda(c, list, prev));
+    await step('agendaFila', () => agendaFila(c));
   }
   await step('envio', () => send(groups, mode));
   st.waCursor = (st.horarios && st.horarios.cursor) || prev.waCursor || null;

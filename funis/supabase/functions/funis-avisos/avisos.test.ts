@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -156,8 +156,17 @@ Deno.test('horário que o Renan sugere: vira data e hora certas', () => {
   assertEquals(p('hoje as 10h'), []);                                   // já passou
   assertEquals([avHoldId(Date.parse('2026-11-10T15:00:00-03:00')), avHoldStart(Date.parse('2026-11-10T15:00:00-03:00'))], ['r202611101500', '2026-11-10T15:00']);
 });
-Deno.test('aviso do horário do Renan: no privado não mostra nome nem texto', () => {
+Deno.test('aviso do horário do Renan: D.I é reunião rápida; cliente e lead bloqueiam', () => {
   const s = [Date.parse('2026-11-10T15:00:00-03:00')];
-  assertEquals(avAgendaText('D.I - Point da Lolo', false, s, 'amanhã 15h?', true), '🗓 *Renan sugeriu horário*\nD.I - Point da Lolo\nter 10/11 às 15:00\n“amanhã 15h?”\nBloqueado na agenda da Central: não ofereça esse horário.');
-  assertEquals(avAgendaText('', true, s, 'segredo', true), '🗓 *Renan sugeriu horário*\nConversa no privado\nter 10/11 às 15:00\nBloqueado na agenda da Central: não ofereça esse horário.');
+  assertEquals(avAgendaText('D.I - Point da Lolo', 'di', s, 'amanhã 15h?', true), '🗓 *Renan: reunião rápida (5 a 10 min)*\nD.I - Point da Lolo\nter 10/11 às 15:00\n“amanhã 15h?”\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois (14:30 ou 15:30, por exemplo).');
+  assertEquals(avAgendaText('BRASE - Texas Burger', 'cliente', s, 'quinta 15h', true), '🗓 *Renan sugeriu horário*\nBRASE - Texas Burger\nter 10/11 às 15:00\n“quinta 15h”\nBloqueado na agenda da Central: não ofereça esse horário.');
+  assert(avIsDi('G: D.I - Liz Café') && avIsDi('D.I - Liz Café') && avIsDi('G: DI Sushi') && !avIsDi('G: BRASE - X') && !avIsDi('G: Desconto em Games'));
+});
+Deno.test('privado com cliente: o nome do contato é o mesmo de quem escreve no grupo', () => {
+  const groups = [{nome: 'D.I - Liz Café', authors: ['Fabiola']}, {nome: 'D.I - Point da Lolo', authors: ['Patrick William', 'Felipe Araújo']}];
+  assertEquals(avClientOf('Fabiola', groups), 'D.I - Liz Café');
+  assertEquals(avClientOf('Patrick William', groups), 'D.I - Point da Lolo');
+  assertEquals(avClientOf('Patrick', groups), 'D.I - Point da Lolo');
+  assertEquals(avClientOf('Rodrigo', groups), null);
+  assertEquals(avClientOf('Jo', groups), null);
 });
