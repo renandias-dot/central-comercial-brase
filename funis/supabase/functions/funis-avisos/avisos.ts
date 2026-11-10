@@ -346,3 +346,45 @@ export function avPedidoText(grupo: string, autor: string, texto: string, r: AvP
 }
 export const avAgendadoText = (e: {ok?: boolean; cliente?: string; gestor?: string | null; texto?: string}) =>
   `⏱ *Alteração com hora marcada*\n${e.cliente || 'Cliente'}\n${e.ok ? '✅' : '⚠️'} ${e.texto || ''}\n${e.gestor ? '@' + e.gestor : 'Gestor'}, revise no OPS.`;
+
+// Reuniões que vão para o OPS (link do Meet confirmado pela rotina e Anotações do Gemini) e para a Central (reunião de
+// venda com lead). O envio fica em index.ts; aqui, os textos dos avisos e como achar o card do lead.
+const avDia = (dia: string) => `${String(dia).slice(8, 10)}/${String(dia).slice(5, 7)}`;
+export type AvReuniaoOps = {status?: string; cliente?: string; gestor?: string | null; reuniao?: string; ja_estava_feita?: boolean; resumo_salvo?: boolean; tarefas?: string[]; proxima?: string | null; error?: string};
+export function avReuniaoOpsText(grupo: string, dia: string, r: AvReuniaoOps, fonte: 'meet' | 'gemini'){
+  if (r.status === 'sem_cliente') return `📆 *Reunião com cliente não registrada no OPS*\n${grupo} · ${avDia(dia)}\nO grupo não bate com uma loja só no OPS: marque a reunião à mão.`;
+  const quem = r.gestor ? '@' + r.gestor : 'Gestor', tarefas = r.tarefas || [];
+  const linhas = [`✅ *Reunião registrada no OPS*`, `${r.cliente || grupo} · ${avDia(dia)}${r.reuniao ? ' (' + r.reuniao + ')' : ''}`];
+  if (fonte === 'gemini') linhas.push(r.resumo_salvo ? '📝 Resumo das Anotações do Gemini salvo na reunião.' : '📝 Anotações do Gemini sem resumo.');
+  if (tarefas.length) linhas.push(`${tarefas.length} ${tarefas.length === 1 ? 'tarefa' : 'tarefas'} no Comando para ${quem}:`, ...tarefas.slice(0, 8).map(t => '• ' + t));
+  if (r.proxima) linhas.push(`Próxima reunião prevista: ${avDia(r.proxima)}.`);
+  return linhas.join('\n');
+}
+// Card do lead da reunião de venda: primeiro os leads com reunião marcada naquele dia, depois os em andamento; vale o que
+// tem mais palavras do título/participantes no nome, empresa ou contato (empate não escolhe nenhum).
+const AV_LEAD_STOP = new Set(['reuniao', 'brase', 'gestao', 'ifood', 'call', 'com', 'para', 'diagnostico', 'apresentacao', 'meet', 'google', 'marketing', 'restaurante', 'delivery', 'anotacoes', 'gemini', 'reunião', 'and', 'the', 'das', 'dos', 'sobre', 'proposta', 'primeira', 'conversa']);
+export const avTokens = (s: unknown) => [...new Set(fold(s).replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(w => w.length >= 3 && !AV_LEAD_STOP.has(w)))];
+export function avLeadDaReuniao(docs: any, nota: {dia: string; titulo: string; lead_hint?: string | null}): {id: string; data: any} | null {
+  const leads = (Array.isArray(docs) ? docs : []).filter((d: any) => d && d.col === 'leads' && !d.deleted && d.data && typeof d.data === 'object');
+  const toks = avTokens(`${nota.titulo} ${nota.lead_hint || ''}`);
+  const score = (d: any) => { const hay = new Set(avTokens(`${d.data.name || ''} ${d.data.company || ''} ${d.data.contact || ''}`)); return toks.filter(t => hay.has(t)).length };
+  const melhor = (arr: any[], min: number) => {
+    const s = arr.map(d => [d, score(d)] as [any, number]).filter(x => x[1] >= min).sort((a, b) => b[1] - a[1]);
+    return s.length && (s.length === 1 || s[0][1] > s[1][1]) ? s[0][0] : null;
+  };
+  const doDia = leads.filter((d: any) => String(d.data.meetingAt || '').slice(0, 10) === nota.dia);
+  const achado = melhor(doDia, 1) || (doDia.length === 1 && !toks.length ? doDia[0] : null)
+    || melhor(leads.filter((d: any) => ['marcada', 'feita', 'agendando', 'qualificando'].includes(stageId(d.data.stage))), 2);
+  return achado ? {id: String(achado.id), data: achado.data} : null;
+}
+// Observações do card com o resumo da reunião (uma vez por documento: a marca [gemini:<id>] evita repetir).
+export function avNotasComReuniao(notas: unknown, n: {id: string; dia: string; resumo?: string | null; proximos?: string | null}){
+  const old = typeof notas === 'string' ? notas : '', marca = `[gemini:${String(n.id).slice(0, 12)}]`;
+  if (old.includes(marca)) return old;
+  const bloco = [`📝 Reunião ${avDia(n.dia)} (Anotações do Gemini) ${marca}`, String(n.resumo || '').trim(), n.proximos ? 'Próximos passos: ' + String(n.proximos).trim() : ''].filter(Boolean).join('\n');
+  return (old.trim() ? old.trimEnd() + '\n\n' : '') + bloco;
+}
+export function avNotaLeadText(nota: {titulo: string; dia: string; resumo?: string | null}, lead: any | null){
+  if (!lead) return `📝 *Resumo de reunião de venda sem card na Central*\n${nota.titulo} · ${avDia(nota.dia)}\nNão achei o lead: cole o resumo no card à mão.\n${avQuote(String(nota.resumo || ''), 300)}`;
+  return `📝 *Resumo da reunião salvo na Central*\n${lead.name || 'Lead sem nome'}${lead.company ? ' · ' + lead.company : ''} · ${avDia(nota.dia)}\n${avQuote(String(nota.resumo || ''), 220)}`;
+}
