@@ -2,7 +2,7 @@
 // As funções de telefone, trecho, horário e etapa são cópias das de funis-api/logic.ts, para esta função ser publicada sozinha.
 // deno-lint-ignore-file no-explicit-any
 
-export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string};
+export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string; payload?: {url?: unknown} | null};
 export function normPhone(v: unknown){
   const d = String(v ?? '').replace(/\D/g, '');
   if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return d;
@@ -108,9 +108,9 @@ export function avReuniaoText(l: any, kind: 'nova' | 'remarcada' | 'horario', se
   return `${title}\n${l.name || 'Lead sem nome'}${l.company ? ' · ' + l.company : ''}\n${when || 'horário ainda não preenchido na Central'}${owner ? ' · SDR: ' + owner : ''}`;
 }
 
-// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja" ou "G: D.I - Loja" (também "DI Loja"). Os grupos de
-// aviso ficam de fora.
-export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-))/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
+// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja", "G: D.I - Loja" (também "DI Loja") ou
+// "G: Gestão IFood - Loja". Os grupos de aviso ficam de fora.
+export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-)|gest[aã]o\s+ifood\b)/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
@@ -156,7 +156,11 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
   for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
     let m = m0;
     if (!m.own && !m.author) {
-      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
+      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) {
+        // Áudio transcrito sem autor: não abre espera (pode ser da equipe), mas sinal de risco no que foi dito aparece.
+        if (avIsAudio(m) && avIsRisk(m.text)) risks.push({...m, author: AV_AUDIO_SEM_AUTOR});
+        continue;
+      }
       m = {...m, author: prev.author};
     }
     prev = m;
@@ -166,6 +170,79 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
     if (!waiting && !avIsAck(m)) waiting = m;
   }
   return {lastBrase, waiting, risks};
+}
+// Áudio do grupo: a funis-avisos baixa o arquivo (payload.url), transcreve (Whisper) e guarda em fn_audios; o texto entra no
+// lugar de "[áudio]" com 🎤 na frente, e vale para os avisos (risco, espera) e para os pedidos de alteração (OPS). O WhatsApp
+// não diz quem mandou o áudio: depois de transcrito, cada um é classificado como do cliente ou da equipe (quem); áudio da
+// equipe (Luis, Gabriel, Felipe, Luiz Felipe) é ignorado e só conta como "a Brase respondeu".
+const AV_AUDIO_KINDS = ['audio', 'voice', 'ptt'];
+export const AV_AUDIO_SEM_AUTOR = 'Autor não identificado (áudio)';
+export const AV_AUDIO_EQUIPE = 'Equipe Brase (áudio)';
+export const AV_AUDIO_CLIENTE = 'Cliente (áudio)';
+export const avIsAudio = (m: GrpMsg) => AV_AUDIO_KINDS.includes(m.kind);
+// Áudio de outro participante (o do Renan não precisa) com link https para baixar.
+export function avAudioUrl(m: WaMsg){
+  if (!m || m.type !== 'in' || !AV_AUDIO_KINDS.includes(String(m.msg_type || ''))) return '';
+  const u = m.payload && m.payload.url;
+  return typeof u === 'string' && /^https:\/\/\S+$/i.test(u) ? u : '';
+}
+export const avAudioTexto = (t: unknown) => { const s = String(t ?? '').replace(/\s+/g, ' ').trim(); return '🎤 ' + (s ? (s.length > 600 ? s.slice(0, 599) + '…' : s) : '(áudio sem fala)') };
+export type AvAudio = {texto: string; quem?: string | null};
+// Põe a transcrição no lugar de "[áudio]" (mapa mid → {texto, quem}). Equipe: vira mensagem da Brase, sem o conteúdo.
+// Cliente: o nome é o da mensagem anterior de alguém do cliente (até 15 min antes), senão "Cliente (áudio)". Sem
+// classificação ainda: fica sem autor (só conta para o sinal de risco).
+export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: string[] = []){
+  const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
+  return sorted.map((m, i) => {
+    const a = avIsAudio(m) ? audios.get(m.mid) : undefined;
+    if (!a) return m;
+    if (a.quem === 'equipe') return {...m, author: AV_AUDIO_EQUIPE, text: '🎤 (áudio da equipe)'};
+    const text = avAudioTexto(a.texto);
+    if (a.quem !== 'cliente') return {...m, text};
+    let nome = '';
+    for (let j = i - 1; j >= 0; j--) {
+      const p = sorted[j];
+      if (m.ts - p.ts > 900) break;
+      if (p.own || !p.author || avNameIn(p.author, team) || /brase/i.test(p.author)) continue;
+      nome = p.author; break;
+    }
+    return {...m, author: nome || AV_AUDIO_CLIENTE, text};
+  });
+}
+// Quem falou o áudio, pela regra fixa (reserva para quando a IA do Groq não responde): cumprimentar alguém pelo nome no
+// começo ("Boa tarde, Lindomar" = a equipe falando com o cliente; "Oi Felipe" = o cliente falando com a equipe) e o jeito de
+// falar ("seu cardápio", "a gente fez", "a recomendação" = equipe; "meu cardápio", "vocês", "pode tirar" = cliente).
+const AV_EQUIPE_FALA = /(seu cardapio|sua loja|seu funil|seus produtos|seu ifood|a gente fez|fizemos|te mandei|ajustes que a gente|a recomendacao|eu recomendo|recomendaria|conversao|campanha)/g;
+const AV_CLIENTE_FALA = /(meu cardapio|minha loja|meus produtos|meu ifood|voces|pode (tirar|pausar|ativar|colocar|mudar|subir|baixar)|acabou|nao tem mais|nao temos mais)/g;
+export function avQuemPeloTexto(texto: unknown, team: string[], clientes: string[]): 'equipe' | 'cliente' | null {
+  const t = fold(texto).replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const ini = t.slice(0, 50).replace(/ /g, '');
+  const saudou = (nomes: string[]) => nomes.some(n => {
+    const p = fold(n).replace(/[^a-z ]+/g, ' ').trim().split(' ')[0] || '';
+    return p.length >= 3 && new RegExp('^((oi|ola|opa|fala|eai|bomdia|boatarde|boanoite|tudobem)+)?' + p).test(ini);
+  });
+  if (saudou(clientes)) return 'equipe';
+  if (saudou(team)) return 'cliente';
+  const eq = (t.match(AV_EQUIPE_FALA) || []).length, cl = (t.match(AV_CLIENTE_FALA) || []).length;
+  if (eq >= 2 && eq > cl) return 'equipe';
+  if (cl >= 1 && cl > eq) return 'cliente';
+  return null;
+}
+// Autor de cada mensagem pela mesma regra do avGroupState: sem nome (áudio, imagem) = o da mensagem anterior de outro
+// participante, se de até 15 min antes; senão fica de fora do mapa (não identificado).
+export function avAutores(msgs: GrpMsg[]){
+  const out = new Map<string, string>();
+  let prev: GrpMsg | null = null;
+  for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
+    let m = m0;
+    if (!m.own && !m.author) {
+      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
+      m = {...m, author: prev.author};
+    }
+    prev = m;
+    out.set(m.mid, m.author);
+  }
+  return out;
 }
 export const avDur = (ms: number) => { const m = Math.max(0, Math.floor(ms / 60e3)), h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? String(r).padStart(2, '0') : ''}` : `${r} min` };
 export const avSemRespostaText = (group: string, w: GrpMsg, ms: number) => `⏰ *Sem resposta há ${avDur(ms)}*\n${group}\n${w.author || 'Cliente'}: ${avQuote(w.text)}`;
@@ -258,12 +335,12 @@ export type AvPedidoResp = {status?: string; cliente?: string; gestor?: string |
 // Aviso no AVISOS - OPERACIONAIS com o que o OPS fez (ou não), marcando o gestor do cliente para revisar.
 export function avPedidoText(grupo: string, autor: string, texto: string, r: AvPedidoResp){
   const quem = r.gestor ? '@' + r.gestor : 'Gestor', feitos = r.feitos || [], nao = r.nao_feitos || [];
-  const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (cliente não está no OPS)*'
+  const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (loja não identificada no OPS)*'
     : feitos.length ? (r.simulado ? '🧪 *Alteração no iFood (simulação, nada foi gravado)*' : '🛠 *Alteração feita no iFood*') : '🛠 *Pedido de alteração NÃO aplicado*';
   const linhas = [head, grupo, `${autor || 'Cliente'}: ${avQuote(texto, 220)}`, ...feitos.map(f => '✅ ' + f), ...nao.map(n => `⚠️ ${n.pedido}: ${n.motivo}`)];
   if (r.duvida) linhas.push('❓ ' + r.duvida);
   if (r.erro) linhas.push('⚠️ ' + r.erro);
-  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com nenhum cliente do OPS.'
+  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'
     : feitos.length && !r.simulado ? `${quem}, revise no OPS (Cardápio iFood › histórico do item).` : `${quem}, resolva com o cliente.`);
   return linhas.join('\n');
 }

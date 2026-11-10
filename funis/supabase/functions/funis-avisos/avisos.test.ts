@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -51,6 +51,9 @@ Deno.test('grupos dos clientes: "G: BRASE - " e "G: DI ", sem os grupos de aviso
   assert(avClientGroup('G: DI Hamburgueria'));
   assert(avClientGroup('G: D.I - Sanduba Lanches'));
   assert(avClientGroup('G: D.I. - Liz Café'));
+  assert(avClientGroup('G: Gestão IFood - Texas Burguer'));
+  assert(avClientGroup('G: gestao ifood - Pizzaria'));
+  assert(!avClientGroup('G: Gestão de Pessoas'));
   assert(!avClientGroup('G: Desconto em Games #1102'));
   assert(!avClientGroup('G: EQUIPE - Delivery Intense'));
   assert(!avClientGroup('G: Organização - BRASE 🎯'));
@@ -177,6 +180,57 @@ Deno.test('pedido de alteração no grupo: filtro e aviso com o gestor marcado',
   assertEquals(feito, '🛠 *Alteração feita no iFood*\nD.I - Liz Café\nFabiola: “acabou o pão de queijo”\n✅ Pão de queijo pausado\n@Gabriel, revise no OPS (Cardápio iFood › histórico do item).');
   const nao = avPedidoText('BRASE - Texas Burger', 'João', 'pausa a coca', {status: 'nao_aplicado', gestor: 'Felipe Araújo', nao_feitos: [{pedido: 'pausar Coca', motivo: 'não ficou claro (duas cocas)'}]});
   assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('@Felipe Araújo, resolva com o cliente.'));
-  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com nenhum cliente do OPS.'));
+  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'));
   assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).includes('✅ Pão de queijo ativado\n@Gabriel'));
+});
+
+Deno.test('áudio: link só de outro participante, transcrição no lugar de [áudio], autor herdado', () => {
+  const raw = (over: Partial<WaMsg>): WaMsg => ({mid: 'a1', type: 'in', msg_type: 'audio', content: '', ts: t('10:00'), payload: {url: 'https://nicozap.uazapi.com/files/abc.mp3'}, ...over});
+  assertEquals(avAudioUrl(raw({})), 'https://nicozap.uazapi.com/files/abc.mp3');
+  assertEquals(avAudioUrl(raw({type: 'agent'})), '');
+  assertEquals(avAudioUrl(raw({msg_type: 'image'})), '');
+  assertEquals(avAudioUrl(raw({payload: {url: 'http://x/a.mp3'}})), '');
+  assertEquals(avAudioUrl(raw({payload: null})), '');
+  assertEquals(avAudioTexto('  acabou o  frango '), '🎤 acabou o frango');
+  assertEquals(avAudioTexto(''), '🎤 (áudio sem fala)');
+  const audio = (mid: string, at: number): GrpMsg => ({mid, ts: at, own: false, author: '', text: '[áudio]', kind: 'audio'});
+  const msgs = [g('Carla', 'Bom dia', t('09:00')), audio('x1', t('09:05')), audio('x2', t('09:15')), audio('x3', t('11:00')), g('Felipe Araújo', 'Vou ver', t('11:05')), audio('x4', t('11:06'))];
+  const com = avComAudios(msgs, new Map([['x1', {texto: 'tira o strogonoff hoje'}], ['x9', {texto: 'outro'}]]));
+  assertEquals(com[1].text, '🎤 tira o strogonoff hoje');
+  assertEquals(com[1].author, '');
+  assertEquals(com[2].text, '[áudio]');
+  const aut = avAutores(msgs);
+  assertEquals([aut.get('x1'), aut.get('x2'), aut.get('x3'), aut.get('x4')], ['Carla', 'Carla', undefined, 'Felipe Araújo']);
+});
+Deno.test('áudio transcrito sem autor: não abre espera, mas risco aparece', () => {
+  const solto: GrpMsg = {mid: 'y1', ts: t('10:00'), own: false, author: '', text: '🎤 tô pensando em cancelar o serviço de vocês', kind: 'audio'};
+  const s = avGroupState([solto], []);
+  assertEquals(s.waiting, null);
+  assertEquals(s.risks.length, 1);
+  assertEquals(s.risks[0].author, AV_AUDIO_SEM_AUTOR);
+  assertEquals(avGroupState([{...solto, text: '[áudio]'}], []).risks.length, 0);
+});
+
+Deno.test('áudio classificado: equipe vira resposta da Brase sem conteúdo; cliente leva o nome de quem é do cliente', () => {
+  const audio = (mid: string, at: number): GrpMsg => ({mid, ts: at, own: false, author: '', text: '[áudio]', kind: 'audio'});
+  const team = ['Felipe Araújo', 'Gabriel Vieira', 'Luiz Felipe', 'Luis - Gestão Performance'];
+  const msgs = [g('Lindomar', 'Bom dia', t('09:00')), g('Felipe Araújo', 'Vou ver', t('09:02')), audio('c1', t('09:05')), audio('e1', t('09:10')), audio('c2', t('11:00'))];
+  const m = new Map([['c1', {texto: 'acabou o x-bacon', quem: 'cliente'}], ['e1', {texto: 'boa tarde lindomar, a gente fez', quem: 'equipe'}], ['c2', {texto: 'e aí?', quem: 'cliente'}]]);
+  const com = avComAudios(msgs, m, team);
+  assertEquals([com[2].author, com[2].text], ['Lindomar', '🎤 acabou o x-bacon']);
+  assertEquals([com[3].author, com[3].text], [AV_AUDIO_EQUIPE, '🎤 (áudio da equipe)']);
+  assertEquals(com[4].author, AV_AUDIO_CLIENTE);
+  // áudio da equipe fecha a espera do cliente
+  const st = avGroupState(avComAudios([g('Lindomar', 'Conseguem ver o cardápio?', t('09:00')), audio('e1', t('09:30'))], m, team), team);
+  assertEquals(st.waiting, null);
+  assertEquals(st.lastBrase, t('09:30'));
+});
+Deno.test('quem falou o áudio pela regra fixa (reserva da IA)', () => {
+  const team = ['Felipe Araújo', 'Gabriel Vieira', 'Luiz Felipe', 'Luis - Gestão Performance'], cli = ['Lindomar', 'Daniel'];
+  assertEquals(avQuemPeloTexto('Boa tarde, Lindo Mar. Tudo bem? Então, a gente tá dando uma olhada', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('Oi Daniel, boa tarde, tudo bem? A gente fez uma análise mais cedo', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('Oi Felipe, pode tirar o x-bacon que acabou', team, cli), 'cliente');
+  assertEquals(avQuemPeloTexto('Com esse funil hoje a recomendação é otimizar a campanha e melhorar a conversão', team, cli), 'equipe');
+  assertEquals(avQuemPeloTexto('O frango acabou, pode pausar no meu cardápio', team, cli), 'cliente');
+  assertEquals(avQuemPeloTexto('Vamos ver como é que vai proceder, né, hoje, amanhã até sexta.', team, cli), null);
 });
