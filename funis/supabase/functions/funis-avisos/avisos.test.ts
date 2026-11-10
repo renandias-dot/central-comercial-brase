@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avNotasComReuniao, avNotaLeadText, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -233,4 +233,26 @@ Deno.test('quem falou o áudio pela regra fixa (reserva da IA)', () => {
   assertEquals(avQuemPeloTexto('Com esse funil hoje a recomendação é otimizar a campanha e melhorar a conversão', team, cli), 'equipe');
   assertEquals(avQuemPeloTexto('O frango acabou, pode pausar no meu cardápio', team, cli), 'cliente');
   assertEquals(avQuemPeloTexto('Vamos ver como é que vai proceder, né, hoje, amanhã até sexta.', team, cli), null);
+});
+
+Deno.test('reunião no OPS: aviso com a reunião do calendário, tarefas e próxima', () => {
+  const t = avReuniaoOpsText('D.I - Liz Café', '2026-11-10', {status: 'ok', cliente: 'Liz Café', gestor: 'Gabriel', reuniao: 'Mês 2', resumo_salvo: true, tarefas: ['Subir fotos', 'Revisar combos'], proxima: '2026-12-10'}, 'gemini');
+  assertEquals(t, '✅ *Reunião registrada no OPS*\nLiz Café · 10/11 (Mês 2)\n📝 Resumo das Anotações do Gemini salvo na reunião.\n2 tarefas no Comando para @Gabriel:\n• Subir fotos\n• Revisar combos\nPróxima reunião prevista: 10/12.');
+  assert(avReuniaoOpsText('Gestão IFood - Texas Burguer', '2026-11-10', {status: 'sem_cliente'}, 'meet').includes('marque a reunião à mão'));
+});
+Deno.test('lead da reunião de venda: pelo dia da reunião e pelas palavras do título', () => {
+  const docs = [
+    {col: 'leads', id: 'a', data: {name: 'João', company: 'Pizzaria Bella', stage: 'marcada', meetingAt: '2026-11-10T15:00'}},
+    {col: 'leads', id: 'b', data: {name: 'Maria', company: 'Açaí do Porto', stage: 'marcada', meetingAt: '2026-11-10T16:00'}},
+    {col: 'leads', id: 'c', data: {name: 'Carlos', company: 'Burger House', stage: 'agendando'}},
+    {col: 'sellers', id: 's', data: {name: 'Luiz Felipe'}}];
+  assertEquals(avLeadDaReuniao(docs, {dia: '2026-11-10', titulo: 'Brase x Pizzaria Bella - Diagnóstico'})?.id, 'a');
+  assertEquals(avLeadDaReuniao(docs, {dia: '2026-11-10', titulo: 'Reunião', lead_hint: 'Maria, maria@acai.com'})?.id, 'b');
+  assertEquals(avLeadDaReuniao(docs, {dia: '2026-11-12', titulo: 'Diagnóstico Burger House'})?.id, 'c');
+  assertEquals(avLeadDaReuniao(docs, {dia: '2026-11-10', titulo: 'Reunião Brase'}), null);
+  assertEquals(avLeadDaReuniao(docs, {dia: '2026-11-12', titulo: 'Burger'}), null);
+  const n = avNotasComReuniao('Dono quer crescer', {id: 'doc123', dia: '2026-11-10', resumo: 'Fatura 40 mil', proximos: 'Mandar proposta'});
+  assertEquals(n, 'Dono quer crescer\n\n📝 Reunião 10/11 (Anotações do Gemini) [gemini:doc123]\nFatura 40 mil\nPróximos passos: Mandar proposta');
+  assertEquals(avNotasComReuniao(n, {id: 'doc123', dia: '2026-11-10', resumo: 'outro'}), n);
+  assert(avNotaLeadText({titulo: 'Brase x Bella', dia: '2026-11-10', resumo: 'r'}, null).startsWith('📝 *Resumo de reunião de venda sem card na Central*'));
 });

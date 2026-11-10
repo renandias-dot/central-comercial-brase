@@ -10,7 +10,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avNotasComReuniao, avNotaLeadText, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -432,6 +432,71 @@ async function pedidos(sink: Row[]){
   }
   return {candidatos: sink.length, enviados, horaMarcada, avisos};
 }
+// 6. Reuniões para o OPS e a Central. (a) Reunião "realizada" em fn_reunioes_clientes (link do Meet no grupo, confirmada
+// pela rotina) → função reunioes-clientes do OPS: marca a reunião do calendário do cliente como feita e prevê a próxima.
+// (b) Anotações do Gemini que a rotina gravou em fn_reunioes_notas: cliente → OPS (resumo + tarefas no Comando para o
+// gestor); lead → observações do card na Central; interna → ignorada. Avisa no AVISOS - OPERACIONAIS (cliente) ou no
+// AVISOS - COMERCIAIS (lead). Até 3 de cada por rodada. Usa a mesma chave da whatsapp-pedidos (fn_config ops_pedidos).
+const REUNIOES_MAX = 3;
+class OpsAusente extends Error {}
+async function reunioesOps(){
+  const conf = await getConf('ops_pedidos');
+  if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
+  const url = String(conf.urlReunioes || String(conf.url).replace(/whatsapp-pedidos\/?$/, 'reunioes-clientes'));
+  const ops = async (body: Row) => {
+    const r = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json', 'x-pedidos-key': String(conf.key)}, body: JSON.stringify(body), signal: AbortSignal.timeout(60000)});
+    const j = await r.json().catch(() => ({}));
+    if (r.status === 404 && !j.status) throw new OpsAusente('função reunioes-clientes ainda não publicada no OPS');
+    if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
+    return j as Row;
+  };
+  const st: Row = {meet: 0, notas: 0, avisos: 0};
+  try {
+    // (a) Reuniões confirmadas pela rotina (dos últimos 45 dias).
+    const reais = await sql`select id, grupo, dia::text as dia from fn_reunioes_clientes where status = 'realizada' and ops_at is null and dia >= current_date - 45 order by dia limit ${REUNIOES_MAX}`;
+    for (const m of reais) {
+      let r: Row;
+      try { r = await ops({op: 'reuniao', id: 'meet:' + m.id, grupo: m.grupo, dia: m.dia, fonte: 'rotina dos grupos'}) }
+      catch (e) { if (e instanceof OpsAusente) throw e; await sql`update fn_reunioes_clientes set ops_status = 'erro', ops_info = ${errText(e).slice(0, 300)} where id = ${m.id}`; continue }
+      st.meet++;
+      await sql`update fn_reunioes_clientes set ops_status = ${r.status === 'ok' ? 'ok' : String(r.status || 'erro')}, ops_info = ${String(r.reuniao || r.cliente || '').slice(0, 200)}, ops_at = now() where id = ${m.id}`;
+      if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'operacional', tipo: 'reuniao_ops', texto: avReuniaoOpsText(String(m.grupo), String(m.dia), r, 'meet')}]);
+    }
+    // (b) Anotações do Gemini.
+    const notas = await sql`select * from fn_reunioes_notas where status = 'novo' and tries < 3 order by created_at limit ${REUNIOES_MAX}`;
+    let docs: Row[] | null = null;
+    for (const n of notas) {
+      const dia = n.dia instanceof Date ? n.dia.toISOString().slice(0, 10) : String(n.dia).slice(0, 10);
+      try {
+        if (n.tipo === 'interna') { await sql`update fn_reunioes_notas set status = 'ignorado', updated_at = now() where id = ${n.id}`; continue }
+        if (n.tipo === 'cliente') {
+          if (!n.grupo) { await sql`update fn_reunioes_notas set status = 'sem_destino', erro = 'sem o grupo do cliente', updated_at = now() where id = ${n.id}`; continue }
+          const r = await ops({op: 'reuniao', id: 'gemini:' + n.id, grupo: n.grupo, dia, fonte: 'Anotações do Gemini', participantes: n.participantes || undefined,
+            resumo: [n.resumo, n.proximos ? 'Próximos passos: ' + n.proximos : ''].filter(Boolean).join('\n'), acoes: Array.isArray(n.acoes) ? n.acoes : []});
+          await sql`update fn_reunioes_notas set status = ${r.status === 'ok' ? 'feito' : 'sem_destino'}, destino = ${String(r.cliente || '').slice(0, 200) || null}, erro = null, updated_at = now() where id = ${n.id}`;
+          if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'operacional', tipo: 'reuniao_gemini', texto: avReuniaoOpsText(String(n.grupo), dia, r, 'gemini')}]);
+        } else {
+          docs ??= (await crmCall({op: 'load'})).docs || [];
+          const lead = avLeadDaReuniao(docs, {dia, titulo: String(n.titulo || ''), lead_hint: n.lead_hint});
+          if (lead) {
+            const notes = avNotasComReuniao(lead.data.notes, {id: String(n.id), dia, resumo: n.resumo, proximos: n.proximos});
+            if (notes !== lead.data.notes) await crmCall({op: 'set', col: 'leads', id: lead.id, data: {...lead.data, notes, updatedAt: new Date().toISOString()}});
+          }
+          await sql`update fn_reunioes_notas set status = ${lead ? 'feito' : 'sem_destino'}, destino = ${lead ? lead.id : null}, erro = null, updated_at = now() where id = ${n.id}`;
+          st.avisos += await queue([{id: 'notalead:' + n.id, canal: 'comercial', tipo: 'reuniao_lead', texto: avNotaLeadText({titulo: String(n.titulo || ''), dia, resumo: n.resumo}, lead ? lead.data : null)}]);
+        }
+        st.notas++;
+      } catch (e) {
+        if (e instanceof OpsAusente) throw e;
+        await sql`update fn_reunioes_notas set tries = tries + 1, status = case when tries + 1 >= 3 then 'erro' else status end, erro = ${errText(e).slice(0, 300)}, updated_at = now() where id = ${n.id}`;
+      }
+    }
+  } catch (e) {
+    if (e instanceof OpsAusente) return {...st, aguardando: e.message};
+    throw e;
+  }
+  return st;
+}
 // Acha os grupos de aviso pelo nome ("AVISOS - COMERCIAIS" e "AVISOS - OPERACIONAIS") e guarda o id deles na configuração.
 async function targets(c: Row){
   const g = {...(c.groups || {})};
@@ -487,6 +552,7 @@ async function run(){
     const sink: Row[] = [];
     await step('grupos', () => grupos(c, list, sink));
     await step('pedidos', () => pedidos(sink));
+    await step('reunioesOps', () => reunioesOps());
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }
