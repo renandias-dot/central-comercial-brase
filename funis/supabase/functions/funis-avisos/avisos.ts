@@ -245,9 +245,45 @@ export function avAutores(msgs: GrpMsg[]){
   return out;
 }
 export const avDur = (ms: number) => { const m = Math.max(0, Math.floor(ms / 60e3)), h = Math.floor(m / 60), r = m % 60; return h ? `${h}h${r ? String(r).padStart(2, '0') : ''}` : `${r} min` };
-export const avSemRespostaText = (group: string, w: GrpMsg, ms: number) => `⏰ *Sem resposta há ${avDur(ms)}*\n${group}\n${w.author || 'Cliente'}: ${avQuote(w.text)}`;
-export const avRiscoText = (group: string, m: GrpMsg) => `🚨 *Atenção: possível risco*\n${group}\n${m.author || 'Cliente'}: ${avQuote(m.text, 220)}`;
-export const avSilencioText = (group: string, days: number) => `😶 *${days} dias sem mensagem da Brase*\n${group}`;
+
+// Horário comercial da Brase (Brasília), para a espera do cliente: só conta o tempo dentro dele. Padrão seg a sex, 9h às
+// 19h (o mesmo expediente da Central); muda em fn_config avisos.op.expediente = {inicio: '09:00', fim: '19:00', dias: [1..5]}
+// (0 = domingo). Feriado não entra na conta.
+export type AvExpediente = {inicio: number; fim: number; dias: number[]};
+export function avExpediente(v: any): AvExpediente {
+  const tm = (s: unknown, d: number) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? '').trim()); return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : d };
+  const dias = Array.isArray(v?.dias) ? [...new Set(v.dias.map(Number).filter((n: number) => Number.isInteger(n) && n >= 0 && n <= 6))] as number[] : [];
+  const inicio = tm(v?.inicio, 540), fim = tm(v?.fim, 1140);
+  return fim > inicio ? {inicio, fim, dias: dias.length ? dias : [1, 2, 3, 4, 5]} : {inicio: 540, fim: 1140, dias: dias.length ? dias : [1, 2, 3, 4, 5]};
+}
+// Quanto do intervalo [deMs, ateMs] caiu dentro do horário comercial (ms). Olha no máximo 60 dias.
+export function avMsUteis(deMs: number, ateMs: number, e: AvExpediente){
+  if (!(ateMs > deMs)) return 0;
+  const BR = 3 * 3600e3, DIA = 864e5;
+  let total = 0, dia = Math.floor((Math.max(deMs, ateMs - 60 * DIA) - BR) / DIA) * DIA + BR;
+  for (; dia < ateMs; dia += DIA) {
+    if (!e.dias.includes(new Date(dia - BR).getUTCDay())) continue;
+    total += Math.max(0, Math.min(dia + e.fim * 60e3, ateMs) - Math.max(dia + e.inicio * 60e3, deMs));
+  }
+  return total;
+}
+
+// Gestor da loja em cada aviso do AVISOS - OPERACIONAIS, com o que ele tem que fazer. O nome vem do OPS (op "gestores" da
+// whatsapp-pedidos, pelo nome do grupo); grupo com duas lojas de gestores diferentes leva os dois.
+export function avGestorLinha(gestores: (string | null | undefined)[] | string | null | undefined, acao: string){
+  const g = [...new Set((Array.isArray(gestores) ? gestores : [gestores]).map(x => String(x || '').trim()).filter(Boolean))];
+  return g.length ? `👤 ${g.map(n => '@' + n).join(' e ')}, ${acao}` : `👤 Gestor não identificado no OPS: ${acao}`;
+}
+type AvGestores = (string | null | undefined)[] | string | null | undefined;
+export function avSemRespostaText(group: string, w: GrpMsg, msUteis: number, nowMs: number, gestores?: AvGestores){
+  const linhas = [`⏰ *Sem resposta há ${avDur(msUteis)} no horário comercial*`, group, `${w.author || 'Cliente'}: ${avQuote(w.text)}`];
+  // Mensagem que chegou fora do horário: diz quando foi, para não parecer que a espera é menor do que a do cliente.
+  if (nowMs - w.ts * 1000 - msUteis > 15 * 60e3) linhas.push(`Mandou ${avWhen(brIso(w.ts * 1000))}.`);
+  linhas.push(avGestorLinha(gestores, 'responda o cliente.'));
+  return linhas.join('\n');
+}
+export const avRiscoText = (group: string, m: GrpMsg, gestores?: AvGestores) => `🚨 *Atenção: possível risco*\n${group}\n${m.author || 'Cliente'}: ${avQuote(m.text, 220)}\n${avGestorLinha(gestores, 'fale com o cliente hoje.')}`;
+export const avSilencioText = (group: string, days: number, gestores?: AvGestores) => `😶 *${days} dias sem mensagem da Brase*\n${group}\n${avGestorLinha(gestores, 'mande uma mensagem no grupo.')}`;
 
 // Reunião com o cliente: cada link do Meet num grupo de cliente vira uma reunião "provável" no dia do link (Brasília); a rotina
 // de IA confirma (realizada / não realizada) pelo contexto e pelas Anotações do Gemini, e corrige o dia. Id = grupo:código:dia.
@@ -268,8 +304,8 @@ export function avReuniao30Due(lastDia: string, nowMs: number, days = 30){
   const t = Date.parse(lastDia + 'T09:00:00-03:00');
   return !isNaN(t) && nowMs - t >= days * 864e5;
 }
-export const avReuniao30Text = (group: string, dia: string, status: string, days: number) =>
-  `📆 *${days} dias desde a última reunião*\n${group}\nÚltima: ${dia.slice(8, 10)}/${dia.slice(5, 7)} (${status === 'realizada' ? 'confirmada' : 'link do Meet no grupo'}). Hora de marcar a próxima.`;
+export const avReuniao30Text = (group: string, dia: string, status: string, days: number, gestores?: AvGestores) =>
+  `📆 *${days} dias desde a última reunião*\n${group}\nÚltima: ${dia.slice(8, 10)}/${dia.slice(5, 7)} (${status === 'realizada' ? 'confirmada' : 'link do Meet no grupo'}).\n${avGestorLinha(gestores, 'marque a próxima reunião.')}`;
 
 // Horário que o Renan sugere (em grupo ou no privado): os horários da mensagem como data e hora (Brasília), para avisar o
 // comercial e bloquear a agenda da Central. Dia: "hoje", "amanhã", "depois de amanhã", dia da semana (o próximo; o mesmo dia
@@ -332,32 +368,34 @@ export const avHoldStart = (ms: number) => brIso(ms).slice(0, 16);
 const AV_PEDIDO = /(paus[ae]|pausar|tira(r)? (o|a|os|as|do|da|esse|essa)\b|desativ|deslig|acabou|acabaram|esgot|sem estoque|nao tem mais|nao temos mais|faltou|volt(a|ou|ar) (o|a|os|as|com)\b|reativ|ativa(r)? (o|a|os|as)\b|liber(a|ar) (o|a|os|as)\b|preco|valor d|fecha(r)? a loja|fechar hoje|nao (vamos|vai|vou) abrir|abrir mais tarde|feriado)/;
 export const avPedidoCandidato = (text: unknown) => AV_PEDIDO.test(fold(text));
 export type AvPedidoResp = {status?: string; cliente?: string; gestor?: string | null; resumo?: string; feitos?: string[]; nao_feitos?: {pedido: string; motivo: string}[]; duvida?: string | null; erro?: string; simulado?: boolean};
-// Aviso no AVISOS - OPERACIONAIS com o que o OPS fez (ou não), marcando o gestor do cliente para revisar.
-export function avPedidoText(grupo: string, autor: string, texto: string, r: AvPedidoResp){
-  const quem = r.gestor ? '@' + r.gestor : 'Gestor', feitos = r.feitos || [], nao = r.nao_feitos || [];
+// Aviso no AVISOS - OPERACIONAIS com o que o OPS fez (ou não), marcando o gestor do cliente para revisar. O gestor vem na
+// resposta do OPS; quando o OPS não achou a loja (grupo com duas lojas), vale o gestor do grupo (`doGrupo`).
+export function avPedidoText(grupo: string, autor: string, texto: string, r: AvPedidoResp, doGrupo?: AvGestores){
+  const quem = r.gestor ? [r.gestor] : doGrupo, feitos = r.feitos || [], nao = r.nao_feitos || [];
   const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (loja não identificada no OPS)*'
     : feitos.length ? (r.simulado ? '🧪 *Alteração no iFood (simulação, nada foi gravado)*' : '🛠 *Alteração feita no iFood*') : '🛠 *Pedido de alteração NÃO aplicado*';
   const linhas = [head, grupo, `${autor || 'Cliente'}: ${avQuote(texto, 220)}`, ...feitos.map(f => '✅ ' + f), ...nao.map(n => `⚠️ ${n.pedido}: ${n.motivo}`)];
   if (r.duvida) linhas.push('❓ ' + r.duvida);
   if (r.erro) linhas.push('⚠️ ' + r.erro);
-  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'
-    : feitos.length && !r.simulado ? `${quem}, revise no OPS (Cardápio iFood › histórico do item).` : `${quem}, resolva com o cliente.`);
+  linhas.push(avGestorLinha(quem, r.status === 'sem_cliente' ? 'faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'
+    : feitos.length && !r.simulado ? `revise a alteração no OPS (Cardápio iFood › histórico do item)${nao.length ? ' e resolva o que não foi feito com o cliente' : ''}.` : 'resolva com o cliente.'));
   return linhas.join('\n');
 }
 export const avAgendadoText = (e: {ok?: boolean; cliente?: string; gestor?: string | null; texto?: string}) =>
-  `⏱ *Alteração com hora marcada*\n${e.cliente || 'Cliente'}\n${e.ok ? '✅' : '⚠️'} ${e.texto || ''}\n${e.gestor ? '@' + e.gestor : 'Gestor'}, revise no OPS.`;
+  `⏱ *Alteração com hora marcada*\n${e.cliente || 'Cliente'}\n${e.ok ? '✅' : '⚠️'} ${e.texto || ''}\n${avGestorLinha(e.gestor, e.ok ? 'revise a alteração no OPS.' : 'faça à mão no OPS.')}`;
 
 // Reuniões que vão para o OPS (link do Meet confirmado pela rotina e Anotações do Gemini) e para a Central (reunião de
 // venda com lead). O envio fica em index.ts; aqui, os textos dos avisos e como achar o card do lead.
 const avDia = (dia: string) => `${String(dia).slice(8, 10)}/${String(dia).slice(5, 7)}`;
 export type AvReuniaoOps = {status?: string; cliente?: string; gestor?: string | null; reuniao?: string; ja_estava_feita?: boolean; resumo_salvo?: boolean; tarefas?: string[]; proxima?: string | null; error?: string};
-export function avReuniaoOpsText(grupo: string, dia: string, r: AvReuniaoOps, fonte: 'meet' | 'gemini'){
-  if (r.status === 'sem_cliente') return `📆 *Reunião com cliente não registrada no OPS*\n${grupo} · ${avDia(dia)}\nO grupo não bate com uma loja só no OPS: marque a reunião à mão.`;
-  const quem = r.gestor ? '@' + r.gestor : 'Gestor', tarefas = r.tarefas || [];
+export function avReuniaoOpsText(grupo: string, dia: string, r: AvReuniaoOps, fonte: 'meet' | 'gemini', doGrupo?: AvGestores){
+  if (r.status === 'sem_cliente') return `📆 *Reunião com cliente não registrada no OPS*\n${grupo} · ${avDia(dia)}\nO grupo não bate com uma loja só no OPS.\n${avGestorLinha(doGrupo, 'marque a reunião à mão.')}`;
+  const tarefas = r.tarefas || [];
   const linhas = [`✅ *Reunião registrada no OPS*`, `${r.cliente || grupo} · ${avDia(dia)}${r.reuniao ? ' (' + r.reuniao + ')' : ''}`];
   if (fonte === 'gemini') linhas.push(r.resumo_salvo ? '📝 Resumo das Anotações do Gemini salvo na reunião.' : '📝 Anotações do Gemini sem resumo.');
-  if (tarefas.length) linhas.push(`${tarefas.length} ${tarefas.length === 1 ? 'tarefa' : 'tarefas'} no Comando para ${quem}:`, ...tarefas.slice(0, 8).map(t => '• ' + t));
+  if (tarefas.length) linhas.push(`${tarefas.length} ${tarefas.length === 1 ? 'tarefa' : 'tarefas'} no Comando:`, ...tarefas.slice(0, 8).map(t => '• ' + t));
   if (r.proxima) linhas.push(`Próxima reunião prevista: ${avDia(r.proxima)}.`);
+  linhas.push(avGestorLinha(r.gestor || doGrupo, tarefas.length ? 'revise a reunião e as tarefas no OPS.' : 'revise a reunião no OPS (ficha do cliente › Compromissos).'));
   return linhas.join('\n');
 }
 // Card do lead da reunião de venda: primeiro os leads com reunião marcada naquele dia, depois os em andamento; vale o que
