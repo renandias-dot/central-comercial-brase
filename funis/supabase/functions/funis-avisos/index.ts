@@ -10,7 +10,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avNotasComReuniao, avNotaLeadText, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -279,7 +279,37 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
 }
 const avIsAudioKind = (k: string) => ['audio', 'voice', 'ptt'].includes(k);
 // 3. Grupos dos clientes: relê os que tiveram mensagem nova, guarda as últimas 40 mensagens e avalia todos os grupos conhecidos.
-async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
+// Gestor de cada grupo, pelo OPS (op "gestores" da whatsapp-pedidos), para cada aviso do AVISOS - OPERACIONAIS dizer quem
+// precisa agir. Guardado em fn_config (k = 'ops_gestores'), relido a cada 30 min ou quando aparece grupo novo; se o OPS não
+// responder, vale o guardado e, sem ele, o aviso sai com "Gestor não identificado no OPS".
+const GESTORES_TTL = 30 * 60e3;
+type Gestores = (grupo: unknown) => string[];
+async function gestoresDosGrupos(nomes: string[]): Promise<{de: Gestores; st: Row}> {
+  const lista = [...new Set(nomes.map(n => String(n || '').trim()).filter(Boolean))];
+  const cache = await getConf('ops_gestores');
+  let mapa: Row = cache.grupos && typeof cache.grupos === 'object' ? cache.grupos : {};
+  const st: Row = {grupos: lista.length, fonte: 'guardado'};
+  const velho = Date.now() - (Date.parse(cache.at || '') || 0) >= GESTORES_TTL, novo = lista.some(n => !(n in mapa));
+  if (lista.length && (velho || novo)) {
+    const conf = await getConf('ops_pedidos');
+    if (conf.url && conf.key) {
+      try {
+        const r = await opsPedidos(conf, {op: 'gestores', grupos: lista});
+        if (r.grupos && typeof r.grupos === 'object') { mapa = {...mapa, ...r.grupos}; await setConf('ops_gestores', {at: brIso(Date.now()), grupos: mapa}); st.fonte = 'OPS' }
+      } catch (e) { st.erro = errText(e).slice(0, 200) }
+    }
+  }
+  // Grupo de loja que não está no OPS: gestor definido à mão em fn_config avisos.gestoresGrupo = {"nome do grupo": ["Nome"]}.
+  const manual: Row = (await getConf('avisos')).gestoresGrupo || {};
+  const de: Gestores = (grupo) => {
+    const k = String(grupo || '').trim(), m = manual[k], g = mapa[k];
+    if (Array.isArray(m) && m.length) return m.map(String);
+    return g && Array.isArray(g.gestores) ? g.gestores.map(String) : [];
+  };
+  st.semGestor = lista.filter(n => !de(n).length);
+  return {de, st};
+}
+async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []}){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
   const waitMin = Number(op.semRespostaMin) || 120, quietDays = Number(op.silencioDias) || 5, minGroups = Number(op.equipeGrupos) || 4;
   const groups = contacts.filter(x => avClientGroup(x.name));
@@ -317,22 +347,26 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = []){
     const contexto = l.msgs.filter(x => x.ts < m.ts).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author, texto: x.text, quando: brIso(x.ts * 1000)}));
     sink.push({mid: m.mid, grupo: l.name, autor: m.author, texto, ts: m.ts, contexto});
   }
-  const rows: AvRow[] = [], meetDays = Number(op.reuniaoDias) || 30;
+  const rows: AvRow[] = [], meetDays = Number(op.reuniaoDias) || 30, exp = avExpediente(op.expediente);
+  const gest = await gestoresDosGrupos(all.map((r: Row) => String(r.nome || (r.facts || {}).name || '')));
+  ctx.gestores = gest.de;
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
-    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.mapa, team), team, ignore);
+    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.mapa, team), team, ignore), quem = gest.de(name);
     const lm = lastMeet.get(String(r.user_ns));
     if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays))
-      rows.push({id: `reuniao30:${r.user_ns}:${lm.dia}`, canal: 'operacional', tipo: 'reuniao_30d', texto: avReuniao30Text(name, lm.dia, lm.status, meetDays)});
-    if (st.waiting && st.waiting.ts * 1000 >= c.sinceMs && now - st.waiting.ts * 1000 >= waitMin * 60e3)
-      rows.push({id: `semresp:${r.user_ns}:${st.waiting.mid}`, canal: 'operacional', tipo: 'sem_resposta', texto: avSemRespostaText(name, st.waiting, now - st.waiting.ts * 1000)});
+      rows.push({id: `reuniao30:${r.user_ns}:${lm.dia}`, canal: 'operacional', tipo: 'reuniao_30d', texto: avReuniao30Text(name, lm.dia, lm.status, meetDays, quem)});
+    // Espera do cliente: só conta o tempo dentro do horário comercial (mensagem da noite começa a contar às 9h do dia útil).
+    const util = st.waiting && st.waiting.ts * 1000 >= c.sinceMs ? avMsUteis(st.waiting.ts * 1000, now, exp) : 0;
+    if (st.waiting && util >= waitMin * 60e3)
+      rows.push({id: `semresp:${r.user_ns}:${st.waiting.mid}`, canal: 'operacional', tipo: 'sem_resposta', texto: avSemRespostaText(name, st.waiting, util, now, quem)});
     // Risco: no máximo um aviso por grupo a cada 6 h (a 1ª mensagem da janela).
-    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs) rows.push({id: `risco:${r.user_ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m)});
+    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs) rows.push({id: `risco:${r.user_ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m, quem)});
     const ref = st.lastBrase ? st.lastBrase * 1000 : Date.parse(f.firstSeen || '') || now;
-    if (now - ref >= quietDays * 864e5) rows.push({id: `silencio:${r.user_ns}:${st.lastBrase || 'nunca'}`, canal: 'operacional', tipo: 'silencio', texto: avSilencioText(name, Math.floor((now - ref) / 864e5))});
+    if (now - ref >= quietDays * 864e5) rows.push({id: `silencio:${r.user_ns}:${st.lastBrase || 'nunca'}`, canal: 'operacional', tipo: 'silencio', texto: avSilencioText(name, Math.floor((now - ref) / 864e5), quem)});
   }
-  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, queued: await queue(rows)};
+  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, gestores: gest.st, queued: await queue(rows)};
 }
 // 4. Horário que o Renan sugere: bloqueia a agenda da Central (holds sem lead) e avisa no AVISOS - COMERCIAIS. Prioridade: só
 // conta horário com cliente ou com lead; compromisso pessoal e o grupo de anotações do Renan não contam (reunião tem prioridade).
@@ -406,7 +440,7 @@ async function opsPedidos(conf: Row, body: Row){
   if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
   return j as Row;
 }
-async function pedidos(sink: Row[]){
+async function pedidos(sink: Row[], gestores: Gestores){
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key || conf.mode === 'off' || !conf.mode) return {skipped: 'desligado'};
   let enviados = 0, avisos = 0;
@@ -423,7 +457,7 @@ async function pedidos(sink: Row[]){
       await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${id}, 'operacional', 'pedido_nada', ${String(r.resumo || 'não é pedido').slice(0, 500)}, now()) on conflict (id) do nothing`;
       continue;
     }
-    avisos += await queue([{id, canal: 'operacional', tipo: 'pedido_ifood', texto: avPedidoText(p.grupo, p.autor, p.texto, r)}]);
+    avisos += await queue([{id, canal: 'operacional', tipo: 'pedido_ifood', texto: avPedidoText(p.grupo, p.autor, p.texto, r, gestores(p.grupo))}]);
   }
   let horaMarcada = 0;
   if (conf.mode === 'on') {
@@ -439,7 +473,7 @@ async function pedidos(sink: Row[]){
 // AVISOS - COMERCIAIS (lead). Até 3 de cada por rodada. Usa a mesma chave da whatsapp-pedidos (fn_config ops_pedidos).
 const REUNIOES_MAX = 3;
 class OpsAusente extends Error {}
-async function reunioesOps(){
+async function reunioesOps(gestores: Gestores){
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
   const url = String(conf.urlReunioes || String(conf.url).replace(/whatsapp-pedidos\/?$/, 'reunioes-clientes'));
@@ -460,7 +494,7 @@ async function reunioesOps(){
       catch (e) { if (e instanceof OpsAusente) throw e; await sql`update fn_reunioes_clientes set ops_status = 'erro', ops_info = ${errText(e).slice(0, 300)} where id = ${m.id}`; continue }
       st.meet++;
       await sql`update fn_reunioes_clientes set ops_status = ${r.status === 'ok' ? 'ok' : String(r.status || 'erro')}, ops_info = ${String(r.reuniao || r.cliente || '').slice(0, 200)}, ops_at = now() where id = ${m.id}`;
-      if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'operacional', tipo: 'reuniao_ops', texto: avReuniaoOpsText(String(m.grupo), String(m.dia), r, 'meet')}]);
+      if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'operacional', tipo: 'reuniao_ops', texto: avReuniaoOpsText(String(m.grupo), String(m.dia), r, 'meet', gestores(m.grupo))}]);
     }
     // (b) Anotações do Gemini.
     const notas = await sql`select * from fn_reunioes_notas where status = 'novo' and tries < 3 order by created_at limit ${REUNIOES_MAX}`;
@@ -474,7 +508,7 @@ async function reunioesOps(){
           const r = await ops({op: 'reuniao', id: 'gemini:' + n.id, grupo: n.grupo, dia, fonte: 'Anotações do Gemini', participantes: n.participantes || undefined,
             resumo: [n.resumo, n.proximos ? 'Próximos passos: ' + n.proximos : ''].filter(Boolean).join('\n'), acoes: Array.isArray(n.acoes) ? n.acoes : []});
           await sql`update fn_reunioes_notas set status = ${r.status === 'ok' ? 'feito' : 'sem_destino'}, destino = ${String(r.cliente || '').slice(0, 200) || null}, erro = null, updated_at = now() where id = ${n.id}`;
-          if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'operacional', tipo: 'reuniao_gemini', texto: avReuniaoOpsText(String(n.grupo), dia, r, 'gemini')}]);
+          if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'operacional', tipo: 'reuniao_gemini', texto: avReuniaoOpsText(String(n.grupo), dia, r, 'gemini', gestores(n.grupo))}]);
         } else {
           docs ??= (await crmCall({op: 'load'})).docs || [];
           const lead = avLeadDaReuniao(docs, {dia, titulo: String(n.titulo || ''), lead_hint: n.lead_hint});
@@ -549,10 +583,10 @@ async function run(){
   await step('contatos', async () => { contacts = await opsContacts(); return {n: contacts.length} });
   if (contacts) {
     const list: Row[] = contacts;
-    const sink: Row[] = [];
-    await step('grupos', () => grupos(c, list, sink));
-    await step('pedidos', () => pedidos(sink));
-    await step('reunioesOps', () => reunioesOps());
+    const sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []};
+    await step('grupos', () => grupos(c, list, sink, ctx));
+    await step('pedidos', () => pedidos(sink, ctx.gestores));
+    await step('reunioesOps', () => reunioesOps(ctx.gestores));
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }

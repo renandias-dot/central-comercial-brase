@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avNotasComReuniao, avNotaLeadText, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -106,7 +106,32 @@ Deno.test('textos dos avisos operacionais', () => {
   assertEquals(avDur(125 * 60e3), '2h05');
   assertEquals(avDur(120 * 60e3), '2h');
   assertEquals(avDur(40 * 60e3), '40 min');
-  assertEquals(avSemRespostaText('BRASE - Texas Burger', g('Carla', 'E a foto?', 1), 130 * 60e3), '⏰ *Sem resposta há 2h10*\nBRASE - Texas Burger\nCarla: “E a foto?”');
+  assertEquals(avSemRespostaText('BRASE - Texas Burger', g('Carla', 'E a foto?', 1), 130 * 60e3, 1000 + 130 * 60e3, ['Renan']), '⏰ *Sem resposta há 2h10 no horário comercial*\nBRASE - Texas Burger\nCarla: “E a foto?”\n👤 @Renan, responda o cliente.');
+  // mensagem da noite: diz quando o cliente mandou
+  const noite = Date.parse('2026-11-06T20:14:00-03:00') / 1000, seg11 = Date.parse('2026-11-09T11:00:00-03:00');
+  assertEquals(avSemRespostaText('D.I - Liz Café', g('Fabiola', 'Oi?', noite), 120 * 60e3, seg11, 'Gabriel'), '⏰ *Sem resposta há 2h no horário comercial*\nD.I - Liz Café\nFabiola: “Oi?”\nMandou sex 06/11 às 20:14.\n👤 @Gabriel, responda o cliente.');
+  assertEquals(avRiscoText('D.I - Meu Croc', g('Ana', 'quero cancelar', 1), ['Felipe']), '🚨 *Atenção: possível risco*\nD.I - Meu Croc\nAna: “quero cancelar”\n👤 @Felipe, fale com o cliente hoje.');
+  assertEquals(avSilencioText('D.I - Point da Lolo', 6, []), '😶 *6 dias sem mensagem da Brase*\nD.I - Point da Lolo\n👤 Gestor não identificado no OPS: mande uma mensagem no grupo.');
+  assertEquals(avGestorLinha(['Gabriel', 'Felipe', 'Gabriel', ''], 'revise.'), '👤 @Gabriel e @Felipe, revise.');
+});
+Deno.test('horário comercial: a espera do cliente só conta seg a sex, das 9h às 19h', () => {
+  const e = avExpediente(undefined), at = (s: string) => Date.parse(s + '-03:00');
+  assertEquals(e, {inicio: 540, fim: 1140, dias: [1, 2, 3, 4, 5]});
+  // dentro do expediente: conta tudo
+  assertEquals(avMsUteis(at('2026-11-10T10:00:00'), at('2026-11-10T12:30:00'), e), 150 * 60e3);
+  // terça 22h → quarta 10h30: só 1h30 (das 9h às 10h30)
+  assertEquals(avMsUteis(at('2026-11-10T22:00:00'), at('2026-11-11T10:30:00'), e), 90 * 60e3);
+  // sexta 18h → segunda 10h: 1h na sexta + 1h na segunda; sábado e domingo não contam
+  assertEquals(avMsUteis(at('2026-11-06T18:00:00'), at('2026-11-09T10:00:00'), e), 120 * 60e3);
+  // sábado inteiro: zero
+  assertEquals(avMsUteis(at('2026-11-07T08:00:00'), at('2026-11-07T23:00:00'), e), 0);
+  // cliente às 18h30: 30 min hoje; às 2h de espera, o aviso sai às 10h30 do dia seguinte
+  assertEquals(avMsUteis(at('2026-11-10T18:30:00'), at('2026-11-11T10:29:00'), e) < 120 * 60e3, true);
+  assertEquals(avMsUteis(at('2026-11-10T18:30:00'), at('2026-11-11T10:30:00'), e), 120 * 60e3);
+  // configuração própria (sábado de manhã também) e configuração inválida volta ao padrão
+  const sab = avExpediente({inicio: '08:00', fim: '12:00', dias: [6]});
+  assertEquals(avMsUteis(at('2026-11-07T07:00:00'), at('2026-11-07T23:00:00'), sab), 240 * 60e3);
+  assertEquals(avExpediente({inicio: '20:00', fim: '08:00', dias: ['x']}), {inicio: 540, fim: 1140, dias: [1, 2, 3, 4, 5]});
 });
 Deno.test('lead pelo telefone: em andamento e mais novo vence; excluído não conta', () => {
   const idx = leadIndex([
@@ -140,7 +165,8 @@ Deno.test('reunião com cliente: link do Meet no grupo vira reunião do dia; avi
   const now = Date.parse('2026-12-09T09:00:00-03:00');
   assert(avReuniao30Due('2026-11-09', now));
   assert(!avReuniao30Due('2026-11-12', now));
-  assertEquals(avReuniao30Text('D.I - Liz Café', '2026-11-09', 'provavel', 30), '📆 *30 dias desde a última reunião*\nD.I - Liz Café\nÚltima: 09/11 (link do Meet no grupo). Hora de marcar a próxima.');
+  assertEquals(avReuniao30Text('D.I - Liz Café', '2026-11-09', 'provavel', 30), '📆 *30 dias desde a última reunião*\nD.I - Liz Café\nÚltima: 09/11 (link do Meet no grupo).\n👤 Gestor não identificado no OPS: marque a próxima reunião.');
+  assert(avReuniao30Text('D.I - Liz Café', '2026-11-09', 'realizada', 30, ['Gabriel']).endsWith('(confirmada).\n👤 @Gabriel, marque a próxima reunião.'));
 });
 Deno.test('horário que o Renan sugere: vira data e hora certas', () => {
   const seg = Date.parse('2026-11-09T12:28:00-03:00'); // segunda, 12:28
@@ -177,11 +203,15 @@ Deno.test('pedido de alteração no grupo: filtro e aviso com o gestor marcado',
   for (const x of ['Acabou o pão de queijo', 'pausa o X-Bacon hoje', 'Pode tirar o açaí 500ml', 'amanhã não vamos abrir', 'o valor do combo agora é 39,90', 'pode ativar o X-Tudo de novo', 'Sem estoque de coca lata']) assert(avPedidoCandidato(x), x);
   for (const x of ['Bom dia, tudo certo?', 'Obrigado pelo relatório', 'Como vai ser as próximas etapas?', 'Chegou pedido agora']) assert(!avPedidoCandidato(x), x);
   const feito = avPedidoText('D.I - Liz Café', 'Fabiola', 'acabou o pão de queijo', {status: 'aplicado', gestor: 'Gabriel', feitos: ['Pão de queijo pausado']});
-  assertEquals(feito, '🛠 *Alteração feita no iFood*\nD.I - Liz Café\nFabiola: “acabou o pão de queijo”\n✅ Pão de queijo pausado\n@Gabriel, revise no OPS (Cardápio iFood › histórico do item).');
+  assertEquals(feito, '🛠 *Alteração feita no iFood*\nD.I - Liz Café\nFabiola: “acabou o pão de queijo”\n✅ Pão de queijo pausado\n👤 @Gabriel, revise a alteração no OPS (Cardápio iFood › histórico do item).');
+  // parte feita e parte não: revisar e resolver o resto
+  assert(avPedidoText('D.I - Liz Café', 'Fabiola', 'x', {status: 'aplicado', gestor: 'Gabriel', feitos: ['a'], nao_feitos: [{pedido: 'b', motivo: 'c'}]}).endsWith('👤 @Gabriel, revise a alteração no OPS (Cardápio iFood › histórico do item) e resolva o que não foi feito com o cliente.'));
   const nao = avPedidoText('BRASE - Texas Burger', 'João', 'pausa a coca', {status: 'nao_aplicado', gestor: 'Felipe Araújo', nao_feitos: [{pedido: 'pausar Coca', motivo: 'não ficou claro (duas cocas)'}]});
-  assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('@Felipe Araújo, resolva com o cliente.'));
-  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'));
-  assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).includes('✅ Pão de queijo ativado\n@Gabriel'));
+  assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('👤 @Felipe Araújo, resolva com o cliente.'));
+  // loja não identificada no OPS: o gestor do grupo (as duas lojas do Texas são do Renan) faz à mão
+  assert(avPedidoText('Gestão IFood - Texas Burguer', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}, ['Renan']).endsWith('👤 @Renan, faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'));
+  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('👤 Gestor não identificado no OPS: faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'));
+  assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).endsWith('✅ Pão de queijo ativado\n👤 @Gabriel, revise a alteração no OPS.'));
 });
 
 Deno.test('áudio: link só de outro participante, transcrição no lugar de [áudio], autor herdado', () => {
@@ -237,8 +267,8 @@ Deno.test('quem falou o áudio pela regra fixa (reserva da IA)', () => {
 
 Deno.test('reunião no OPS: aviso com a reunião do calendário, tarefas e próxima', () => {
   const t = avReuniaoOpsText('D.I - Liz Café', '2026-11-10', {status: 'ok', cliente: 'Liz Café', gestor: 'Gabriel', reuniao: 'Mês 2', resumo_salvo: true, tarefas: ['Subir fotos', 'Revisar combos'], proxima: '2026-12-10'}, 'gemini');
-  assertEquals(t, '✅ *Reunião registrada no OPS*\nLiz Café · 10/11 (Mês 2)\n📝 Resumo das Anotações do Gemini salvo na reunião.\n2 tarefas no Comando para @Gabriel:\n• Subir fotos\n• Revisar combos\nPróxima reunião prevista: 10/12.');
-  assert(avReuniaoOpsText('Gestão IFood - Texas Burguer', '2026-11-10', {status: 'sem_cliente'}, 'meet').includes('marque a reunião à mão'));
+  assertEquals(t, '✅ *Reunião registrada no OPS*\nLiz Café · 10/11 (Mês 2)\n📝 Resumo das Anotações do Gemini salvo na reunião.\n2 tarefas no Comando:\n• Subir fotos\n• Revisar combos\nPróxima reunião prevista: 10/12.\n👤 @Gabriel, revise a reunião e as tarefas no OPS.');
+  assert(avReuniaoOpsText('Gestão IFood - Texas Burguer', '2026-11-10', {status: 'sem_cliente'}, 'meet', ['Renan']).endsWith('👤 @Renan, marque a reunião à mão.'));
 });
 Deno.test('lead da reunião de venda: pelo dia da reunião e pelas palavras do título', () => {
   const docs = [
