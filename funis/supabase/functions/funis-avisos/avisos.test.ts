@@ -13,15 +13,20 @@ Deno.test('horário sugerido: duração, preço e conversa comum não contam', (
   for (const s of ['Te mando o diagnóstico em 24h', 'Fala João, aqui é o Luiz Felipe, da Brase!', 'A reunião dura 1h', 'Tenho as 2 lojas no iFood', 'Faturo uns 40 mil por mês',
     'Abre às 18h', 'https://www.ifood.com.br/delivery/sao-paulo-sp/loja/abc', 'Às 10 lojas da rede']) assert(!avHasTime(s), s);
 });
-Deno.test('horários da conversa do SDR: quem sugeriu e o trecho, só as mais recentes', () => {
+Deno.test('horários da conversa do SDR: quem sugeriu e o dia e a hora, só as mais recentes', () => {
   const m = (type: string, at: number, content: string, username = ''): WaMsg & {username?: string} => ({id: at, mid: 'm' + at, type, msg_type: 'text', content, ts: at, username});
   const list = [m('agent', t('10:00'), 'Tenho amanhã às 10h ou 15h, qual fica melhor?', 'Luiz Felipe'), m('in', t('10:05'), 'Pode ser às 15h'), m('agent', t('10:06'), 'Fechado!'), m('bot', t('10:07'), 'Lembrete: amanhã às 15h')];
   const out = avTimeOffers(list);
   assertEquals(out.map(x => [x.who, x.agent, x.mid]), [['sdr', 'Luiz Felipe', 'm' + t('10:00')], ['lead', '', 'm' + t('10:05')]]);
   assertEquals(avTimeOffers(list, 1).length, 1);
   const txt = avHorarioText(out[0], {name: 'João', company: 'Pizzaria do João', stage: 'agendando'}, '');
-  assertEquals(txt, '🕐 *SDR sugeriu horário*\nJoão · Pizzaria do João (Agendando)\n“Tenho amanhã às 10h ou 15h, qual fica melhor?”');
-  assert(avHorarioText(out[1], null, 'Maria').startsWith('🙋 *Lead sugeriu horário*\nMaria (sem card na Central)'));
+  assertEquals(txt, '🕐 *Lipe sugeriu horário*\nJoão · Pizzaria do João (Agendando)\nter 10/11 às 10:00 ou ter 10/11 às 15:00');
+  assertEquals(avHorarioText(out[1], null, 'Maria'), '🙋 *Lead sugeriu horário*\nMaria (sem card na Central)\nseg 09/11 às 15:00');
+  // mensagem longa: o horário vinha depois do corte do trecho; agora sai o dia e a hora lidos da mensagem inteira
+  const longa = m('agent', t('08:16', '2026-11-10'), 'Entendi meu amigo! Vamos marcar uma reunião com o Renan pra ele te mostrar o que tá travando suas vendas por aí e como corrigir isso. Como tá sua disponibilidade amanhã 13h ou 17h?');
+  assertEquals(avHorarioText(avTimeOffers([longa])[0], null, ''), '🕐 *Lipe sugeriu horário*\nLead (sem card na Central)\nqua 11/11 às 13:00 ou qua 11/11 às 17:00');
+  // cara de horário, mas sem um horário que dê para entender (já passou): não entra
+  assertEquals(avTimeOffers([m('agent', t('20:00'), 'Hoje às 10h deu certo?')]).length, 0);
 });
 
 Deno.test('reunião marcada: um aviso por marcação, remarcada quando o horário muda, espera 10 min sem horário', () => {
@@ -187,8 +192,8 @@ Deno.test('horário que o Renan sugere: vira data e hora certas', () => {
 });
 Deno.test('aviso do horário do Renan: D.I é reunião rápida; cliente e lead bloqueiam', () => {
   const s = [Date.parse('2026-11-10T15:00:00-03:00')];
-  assertEquals(avAgendaText('D.I - Point da Lolo', 'di', s, 'amanhã 15h?', true), '🗓 *Renan: reunião rápida (5 a 10 min)*\nD.I - Point da Lolo\nter 10/11 às 15:00\n“amanhã 15h?”\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois (14:30 ou 15:30, por exemplo).');
-  assertEquals(avAgendaText('BRASE - Texas Burger', 'cliente', s, 'quinta 15h', true), '🗓 *Renan sugeriu horário*\nBRASE - Texas Burger\nter 10/11 às 15:00\n“quinta 15h”\nBloqueado na agenda da Central: não ofereça esse horário.');
+  assertEquals(avAgendaText('D.I - Point da Lolo', 'di', s, true), '🗓 *Renan: reunião rápida (5 a 10 min)*\nD.I - Point da Lolo\nter 10/11 às 15:00\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois (14:30 ou 15:30, por exemplo).');
+  assertEquals(avAgendaText('BRASE - Texas Burger', 'cliente', s, true), '🗓 *Renan sugeriu horário*\nBRASE - Texas Burger\nter 10/11 às 15:00\nBloqueado na agenda da Central: não ofereça esse horário.');
   assert(avIsDi('G: D.I - Liz Café') && avIsDi('D.I - Liz Café') && avIsDi('G: D.I. Sushi') && !avIsDi('G: DI Blasi - Batel') && !avIsDi('G: BRASE - X') && !avIsDi('G: Desconto em Games'));
 });
 Deno.test('privado com cliente: o nome do contato é o mesmo de quem escreve no grupo', () => {

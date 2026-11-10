@@ -66,18 +66,22 @@ export function avHasTime(text: unknown){
   const t = fold(text);
   return AV_TIME.some(r => r.test(t)) && (AV_DAY.test(t) || AV_CTX.test(t));
 }
-// Mensagens com horário numa conversa do SDR (as 5 mais recentes): quem sugeriu, quem da equipe mandou e o trecho.
-export type AvTime = {mid: string; ts: number; who: 'sdr' | 'lead'; agent: string; text: string};
+// Mensagens com horário numa conversa do SDR (as 5 mais recentes): quem sugeriu, os horários (data e hora, lidos da mensagem
+// inteira) e o trecho. Mensagem com cara de horário mas sem um horário que dê para entender não entra.
+export type AvTime = {mid: string; ts: number; who: 'sdr' | 'lead'; agent: string; text: string; slots: number[]};
 export function avTimeOffers(list: (WaMsg & {username?: string})[], max = 5): AvTime[] {
   return (Array.isArray(list) ? list : []).filter(m => m && typeof m.ts === 'number' && (m.type === 'in' || m.type === 'agent') && typeof m.content === 'string' && avHasTime(m.content))
     .sort((a, b) => (a.ts as number) - (b.ts as number)).slice(-max)
-    .map(m => ({mid: String(m.mid || m.id || m.ts), ts: m.ts as number, who: m.type === 'agent' ? 'sdr' : 'lead', agent: m.type === 'agent' ? String(m.username || '') : '', text: waSnippet(m)}));
+    .map(m => ({mid: String(m.mid || m.id || m.ts), ts: m.ts as number, who: m.type === 'agent' ? 'sdr' as const : 'lead' as const, agent: m.type === 'agent' ? String(m.username || '') : '', text: waSnippet(m),
+      slots: avParseSlots(String(m.content), (m.ts as number) * 1000)}))
+    .filter(t => t.slots.length);
 }
-export function avHorarioText(t: AvTime, lead: any, contactName: string){
+// Aviso do horário que o SDR sugeriu: só o lead e o dia e a hora (o trecho da mensagem cortava antes do horário).
+export function avHorarioText(t: AvTime, lead: any, contactName: string, sdr = 'Lipe'){
   const who = lead ? `${lead.name || 'Lead sem nome'}${lead.company ? ' · ' + lead.company : ''}${AV_STAGE[stageId(lead.stage)] ? ' (' + AV_STAGE[stageId(lead.stage)] + ')' : ''}`
     : `${contactName || 'Lead'} (sem card na Central)`;
   // Sem o nome de quem mandou: no NicoChat o SDR e o Renan usam a mesma conta, então tudo chega como "Renan".
-  return `${t.who === 'sdr' ? '🕐 *SDR sugeriu horário*' : '🙋 *Lead sugeriu horário*'}\n${who}\n${avQuote(t.text)}`;
+  return `${t.who === 'sdr' ? `🕐 *${sdr || 'SDR'} sugeriu horário*` : '🙋 *Lead sugeriu horário*'}\n${who}\n${t.slots.map(x => avWhen(brIso(x))).join(' ou ')}`;
 }
 
 // Reunião marcada na Central: etapa "marcada" com bookedAt depois de os avisos ligarem. Um aviso por marcação; se o horário
@@ -351,13 +355,14 @@ export function avClientOf(contactName: unknown, groups: {nome: string; authors:
   return null;
 }
 export const AV_DI_MIN = 10;
-export function avAgendaText(where: string, kind: AvAgendaKind, slots: number[], snippet: string, blocked: boolean){
-  const when = slots.map(s => avWhen(brIso(s))).join(' ou '), quote = snippet ? '\n' + avQuote(snippet) : '';
+// Só com quem é e o dia e a hora (sem o trecho da mensagem, que cortava e escondia o horário).
+export function avAgendaText(where: string, kind: AvAgendaKind, slots: number[], blocked: boolean){
+  const when = slots.map(s => avWhen(brIso(s))).join(' ou ');
   if (kind === 'di') {
     const near = slots.length === 1 ? ` (${avWhen(brIso(slots[0] - 30 * 60e3)).slice(-5)} ou ${avWhen(brIso(slots[0] + 30 * 60e3)).slice(-5)}, por exemplo)` : '';
-    return `🗓 *Renan: reunião rápida (5 a 10 min)*\n${where}\n${when}${quote}\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois${near}.`;
+    return `🗓 *Renan: reunião rápida (5 a 10 min)*\n${where}\n${when}\nNão fecha o horário: dá para marcar outra reunião logo antes ou depois${near}.`;
   }
-  return `🗓 *Renan sugeriu horário*\n${where}\n${when}${quote}\n${blocked ? 'Bloqueado na agenda da Central: não ofereça esse horário.' : 'Não ofereça esse horário (não deu para bloquear na agenda da Central).'}`;
+  return `🗓 *Renan sugeriu horário*\n${where}\n${when}\n${blocked ? 'Bloqueado na agenda da Central: não ofereça esse horário.' : 'Não ofereça esse horário (não deu para bloquear na agenda da Central).'}`;
 }
 // Bloqueio na agenda da Central (coleção holds, sem lead): id e início no formato da tela ("r202611101500", "2026-11-10T15:00").
 export const avHoldId = (ms: number) => 'r' + brIso(ms).slice(0, 16).replace(/\D/g, '');
