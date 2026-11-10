@@ -313,8 +313,9 @@ export const avReuniao30Text = (group: string, dia: string, status: string, days
 
 // Horário que o Renan sugere (em grupo ou no privado): os horários da mensagem como data e hora (Brasília), para avisar o
 // comercial e bloquear a agenda da Central. Dia: "hoje", "amanhã", "depois de amanhã", dia da semana (o próximo; o mesmo dia
-// da semana = semana que vem), "12/11" ou "dia 12"; sem dia, hoje se o horário ainda não passou, senão amanhã. Vários horários
-// viram vários ("10h ou 15h"). Só horários futuros e até 30 dias.
+// da semana = semana que vem), "12/11" ou "dia 12"; com mais de um dia na mensagem, cada horário fica com o dia do mesmo trecho da frase;
+// sem dia, hoje se o horário ainda não passou, senão amanhã. Vários horários viram vários ("10h ou 15h"). Só horários futuros e
+// até 30 dias.
 const AV_WD: Record<string, number> = {domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6};
 const AV_TIME_G = [/(?:^|[^\d:])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])/g, /(?:^|[^\d])(0?[7-9]|1\d|2[0-2]) ?h(?:rs?|s)?(?: ?([0-5]\d))?(?![a-z\d])/g,
   /(?:^|\s)as (0?[7-9]|1\d|2[0-2])(?![\d%:h])(?! ?(?:reais|dias|lojas|vezes|pessoas|pedidos|unidades))/g];
@@ -322,20 +323,30 @@ export function avParseSlots(text: unknown, msgMs: number): number[] {
   const t = fold(text);
   if (!avHasTime(t)) return [];
   const b = new Date(msgMs - 3 * 3600e3), y = b.getUTCFullYear(), mo = b.getUTCMonth(), d = b.getUTCDate(), nowMin = b.getUTCHours() * 60 + b.getUTCMinutes();
-  let off: number | null = null, date: [number, number, number] | null = null, m: RegExpExecArray | null;
-  if (/depois de amanha/.test(t)) off = 2;
-  else if (/(?:^|[^a-z])amanha(?![a-z])/.test(t)) off = 1;
-  else if (/(?:^|[^a-z])hoje(?![a-z])/.test(t)) off = 0;
-  else if ((m = /(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/.exec(t)) && +m[1] >= 1 && +m[1] <= 31 && +m[2] >= 1 && +m[2] <= 12) {
-    const yy = Date.UTC(y, +m[2] - 1, +m[1]) < Date.UTC(y, mo, d) - 30 * 864e5 ? y + 1 : y;
-    date = [yy, +m[2] - 1, +m[1]];
-  } else if ((m = /(?:^|[^a-z])(segunda|terca|quarta|quinta|sexta|sabado|domingo)(?![a-z])/.exec(t))) off = (AV_WD[m[1]] - b.getUTCDay() + 7) % 7 || 7;
-  else if ((m = /(?:^|[^a-z])dia (\d{1,2})(?![\d/])/.exec(t)) && +m[1] >= 1 && +m[1] <= 31) date = +m[1] >= d ? [y, mo, +m[1]] : [y, mo + 1, +m[1]];
-  const mins = new Set<number>();
-  for (const r of AV_TIME_G) for (const x of t.matchAll(r)) mins.add(+x[1] * 60 + (x[2] ? +x[2] : 0));
+  // Todos os dias citados, com a posição na mensagem, para cada horário ficar com o seu dia ("Só na quinta vou estar na
+  // estrada, podemos sexta às 10h?" = sexta 10h, não quinta).
+  const dias: {pos: number; off?: number; date?: [number, number, number]}[] = [];
+  for (const x of t.matchAll(/depois de amanha/g)) dias.push({pos: x.index ?? 0, off: 2});
+  for (const x of t.matchAll(/(?:^|[^a-z])amanha(?![a-z])/g)) if (!/depois de\s*$/.test(t.slice(0, (x.index ?? 0) + 1))) dias.push({pos: x.index ?? 0, off: 1});
+  for (const x of t.matchAll(/(?:^|[^a-z])hoje(?![a-z])/g)) dias.push({pos: x.index ?? 0, off: 0});
+  for (const x of t.matchAll(/(?:^|[^\d/])(\d{1,2})\/(\d{1,2})(?![\d/])/g)) {
+    if (+x[1] < 1 || +x[1] > 31 || +x[2] < 1 || +x[2] > 12) continue;
+    const yy = Date.UTC(y, +x[2] - 1, +x[1]) < Date.UTC(y, mo, d) - 30 * 864e5 ? y + 1 : y;
+    dias.push({pos: x.index ?? 0, date: [yy, +x[2] - 1, +x[1]]});
+  }
+  for (const x of t.matchAll(/(?:^|[^a-z])(segunda|terca|quarta|quinta|sexta|sabado|domingo)(?![a-z])/g)) dias.push({pos: x.index ?? 0, off: (AV_WD[x[1]] - b.getUTCDay() + 7) % 7 || 7});
+  for (const x of t.matchAll(/(?:^|[^a-z])dia (\d{1,2})(?![\d/])/g)) if (+x[1] >= 1 && +x[1] <= 31) dias.push({pos: x.index ?? 0, date: +x[1] >= d ? [y, mo, +x[1]] : [y, mo + 1, +x[1]]});
+  // Trechos da frase (vírgula, ponto, "?", "!", ";", quebra de linha e " ou "): vale o dia do mesmo trecho do horário; trecho
+  // sem dia fica com o último dia citado antes ("quinta às 10h ou 14h30"); sem nenhum antes, o primeiro depois ("10h de amanhã").
+  const cortes = [...t.matchAll(/[,;.!?\n]| ou /g)].map(x => x.index ?? 0);
+  const trecho = (pos: number) => cortes.filter(c => c < pos).length;
   const out = new Set<number>();
-  for (const mi of mins) {
-    const at = date ? Date.UTC(date[0], date[1], date[2], 0, mi) : Date.UTC(y, mo, d + (off ?? (mi > nowMin ? 0 : 1)), 0, mi);
+  for (const r of AV_TIME_G) for (const x of t.matchAll(r)) {
+    const pos = x.index ?? 0, mi = +x[1] * 60 + (x[2] ? +x[2] : 0), tr = trecho(pos);
+    const noTrecho = dias.filter(c => trecho(c.pos) === tr).sort((a, c) => Math.abs(a.pos - pos) - Math.abs(c.pos - pos))[0];
+    const antes = dias.filter(c => c.pos < pos).sort((a, c) => c.pos - a.pos)[0], depois = dias.filter(c => c.pos > pos).sort((a, c) => a.pos - c.pos)[0];
+    const dia = noTrecho || antes || depois || null;
+    const at = dia && dia.date ? Date.UTC(dia.date[0], dia.date[1], dia.date[2], 0, mi) : Date.UTC(y, mo, d + (dia ? dia.off ?? 0 : (mi > nowMin ? 0 : 1)), 0, mi);
     const ms = at + 3 * 3600e3;
     if (ms > msgMs && ms < msgMs + 30 * 864e5) out.add(ms);
   }

@@ -188,6 +188,15 @@ Deno.test('horário que o Renan sugere: vira data e hora certas', () => {
   assertEquals(p('A promoção vai até o fim do mês'), []);
   assertEquals(p('Te mando o diagnóstico em 24h'), []);
   assertEquals(p('hoje as 10h'), []);                                   // já passou
+  // mais de um dia na mensagem: cada horário fica com o dia do seu trecho da frase (caso real do grupo do Shinkai, 10/11)
+  assertEquals(p('Só na quinta vou estar na estrada, podemos sexta às 10h?', Date.parse('2026-11-10T16:14:00-03:00')), ['2026-11-13T10:00']);
+  assertEquals(p('Amanhã não consigo, quinta 10h pode?'), ['2026-11-12T10:00']);
+  assertEquals(p('Quinta às 10h ou sexta às 15h'), ['2026-11-12T10:00', '2026-11-13T15:00']);
+  assertEquals(p('Tenho amanhã às 10h ou às 15h'), ['2026-11-10T10:00', '2026-11-10T15:00']);
+  assertEquals(p('Depois de amanhã 9h ou amanhã 17h'), ['2026-11-10T17:00', '2026-11-11T09:00']);
+  assertEquals(p('Às 10h na quinta ou às 15h na sexta'), ['2026-11-12T10:00', '2026-11-13T15:00']);
+  assertEquals(p('Tenho quinta às 10h ou 14h30, qual fica melhor?'), ['2026-11-12T10:00', '2026-11-12T14:30']);
+  assertEquals(p('Pode ser 10h de amanhã?'), ['2026-11-10T10:00']);
   assertEquals([avHoldId(Date.parse('2026-11-10T15:00:00-03:00')), avHoldStart(Date.parse('2026-11-10T15:00:00-03:00'))], ['r202611101500', '2026-11-10T15:00']);
 });
 Deno.test('aviso do horário do Renan: D.I é reunião rápida; cliente e lead bloqueiam', () => {
