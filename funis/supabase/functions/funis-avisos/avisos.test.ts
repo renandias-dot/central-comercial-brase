@@ -51,6 +51,9 @@ Deno.test('grupos dos clientes: "G: BRASE - " e "G: DI ", sem os grupos de aviso
   assert(avClientGroup('G: DI Hamburgueria'));
   assert(avClientGroup('G: D.I - Sanduba Lanches'));
   assert(avClientGroup('G: D.I. - Liz Café'));
+  assert(avClientGroup('G: Gestão IFood - Texas Burguer'));
+  assert(avClientGroup('G: gestao ifood - Pizzaria'));
+  assert(!avClientGroup('G: Gestão de Pessoas'));
   assert(!avClientGroup('G: Desconto em Games #1102'));
   assert(!avClientGroup('G: EQUIPE - Delivery Intense'));
   assert(!avClientGroup('G: Organização - BRASE 🎯'));
@@ -177,7 +180,7 @@ Deno.test('pedido de alteração no grupo: filtro e aviso com o gestor marcado',
   assertEquals(feito, '🛠 *Alteração feita no iFood*\nD.I - Liz Café\nFabiola: “acabou o pão de queijo”\n✅ Pão de queijo pausado\n@Gabriel, revise no OPS (Cardápio iFood › histórico do item).');
   const nao = avPedidoText('BRASE - Texas Burger', 'João', 'pausa a coca', {status: 'nao_aplicado', gestor: 'Felipe Araújo', nao_feitos: [{pedido: 'pausar Coca', motivo: 'não ficou claro (duas cocas)'}]});
   assert(nao.startsWith('🛠 *Pedido de alteração NÃO aplicado*') && nao.includes('⚠️ pausar Coca: não ficou claro (duas cocas)') && nao.endsWith('@Felipe Araújo, resolva com o cliente.'));
-  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com nenhum cliente do OPS.'));
+  assert(avPedidoText('D.I - Point da Lolo', 'Patrick', 'pausa o combo', {status: 'sem_cliente'}).endsWith('Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'));
   assert(avAgendadoText({ok: true, cliente: 'Liz Café', gestor: 'Gabriel', texto: 'Pão de queijo ativado'}).includes('✅ Pão de queijo ativado\n@Gabriel'));
 });
 

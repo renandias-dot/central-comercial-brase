@@ -108,9 +108,9 @@ export function avReuniaoText(l: any, kind: 'nova' | 'remarcada' | 'horario', se
   return `${title}\n${l.name || 'Lead sem nome'}${l.company ? ' · ' + l.company : ''}\n${when || 'horário ainda não preenchido na Central'}${owner ? ' · SDR: ' + owner : ''}`;
 }
 
-// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja" ou "G: D.I - Loja" (também "DI Loja"). Os grupos de
-// aviso ficam de fora.
-export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-))/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
+// Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja", "G: D.I - Loja" (também "DI Loja") ou
+// "G: Gestão IFood - Loja". Os grupos de aviso ficam de fora.
+export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-)|gest[aã]o\s+ifood\b)/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
@@ -335,12 +335,12 @@ export type AvPedidoResp = {status?: string; cliente?: string; gestor?: string |
 // Aviso no AVISOS - OPERACIONAIS com o que o OPS fez (ou não), marcando o gestor do cliente para revisar.
 export function avPedidoText(grupo: string, autor: string, texto: string, r: AvPedidoResp){
   const quem = r.gestor ? '@' + r.gestor : 'Gestor', feitos = r.feitos || [], nao = r.nao_feitos || [];
-  const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (cliente não está no OPS)*'
+  const head = r.status === 'sem_cliente' ? '🛠 *Pedido de alteração (loja não identificada no OPS)*'
     : feitos.length ? (r.simulado ? '🧪 *Alteração no iFood (simulação, nada foi gravado)*' : '🛠 *Alteração feita no iFood*') : '🛠 *Pedido de alteração NÃO aplicado*';
   const linhas = [head, grupo, `${autor || 'Cliente'}: ${avQuote(texto, 220)}`, ...feitos.map(f => '✅ ' + f), ...nao.map(n => `⚠️ ${n.pedido}: ${n.motivo}`)];
   if (r.duvida) linhas.push('❓ ' + r.duvida);
   if (r.erro) linhas.push('⚠️ ' + r.erro);
-  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com nenhum cliente do OPS.'
+  linhas.push(r.status === 'sem_cliente' ? 'Faça à mão: o grupo não bate com uma loja só no OPS (nenhuma, ou mais de uma loja no mesmo grupo).'
     : feitos.length && !r.simulado ? `${quem}, revise no OPS (Cardápio iFood › histórico do item).` : `${quem}, resolva com o cliente.`);
   return linhas.join('\n');
 }
