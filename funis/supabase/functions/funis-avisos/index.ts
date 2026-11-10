@@ -88,7 +88,8 @@ async function horarios(c: Row, prev: Row){
   const found: {phone: string; t: ReturnType<typeof avTimeOffers>[number]}[] = [];
   for (const r of rows) {
     const j = await nico(SDR_KEY, 'subscriber/chat-messages', {user_ns: String(r.user_ns), limit: 30});
-    for (const t of avTimeOffers(Array.isArray(j.data) ? j.data : [])) if (t.ts * 1000 >= c.sinceMs) found.push({phone: String(r.phone_key || ''), t});
+    // Só o horário que o SDR (o Lipe) sugeriu; o que o lead sugere fica de fora (volta com com.horarioLead = true).
+    for (const t of avTimeOffers(Array.isArray(j.data) ? j.data : [])) if (t.ts * 1000 >= c.sinceMs && (t.who === 'sdr' || (c.com && c.com.horarioLead === true))) found.push({phone: String(r.phone_key || ''), t});
   }
   let queued = 0;
   const ids = found.map(x => 'horario:' + x.t.mid);
@@ -99,7 +100,7 @@ async function horarios(c: Row, prev: Row){
     await sellersFrom(docs);
     const idx = leadIndex(docs);
     queued = await queue(fresh.map(({phone, t}) => ({id: 'horario:' + t.mid, canal: 'comercial' as const, tipo: t.who === 'sdr' ? 'horario_sdr' : 'horario_lead',
-      texto: avHorarioText(t, (idx.get(phone) || {data: null}).data, '')})));
+      texto: avHorarioText(t, (idx.get(phone) || {data: null}).data, '', String((c.com && c.com.sdrNome) || 'Lipe'))})));
   }
   return {read: rows.length, found: found.length, queued, cursor: new Date(rows[rows.length - 1].updated_at).toISOString()};
 }
@@ -198,6 +199,41 @@ Responda em JSON: {"quem": "cliente" | "equipe" | "incerto", "motivo": "uma fras
     }
     ultimo = 'O Groq respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
     if (r.status === 429) throw new AudioLimite(ultimo);
+    if (r.status !== 400) break;
+  }
+  throw new Error(ultimo);
+}
+// Conversa no privado do Renan que não é de cliente (pelo nome) nem de lead da Central (pelo telefone): a IA gratuita do Groq
+// lê as últimas mensagens e diz com quem é pelo contexto. Só lead e cliente contam para a agenda; equipe (o Lipe, os gestores),
+// pessoal e incerto ficam de fora.
+const PRIVADO_SCHEMA = {type: 'object', properties: {tipo: {type: 'string', enum: ['lead', 'cliente', 'equipe', 'pessoal', 'incerto']}, motivo: {type: 'string'}}, required: ['tipo', 'motivo'], additionalProperties: false};
+async function conversaDeQuem(contato: string, msgs: Row[], equipe: string[], modelo: string){
+  const sistema = `Você lê uma conversa de WhatsApp no celular do Renan, dono da Brase (agência que cuida do iFood de restaurantes: cardápio, promoções, anúncios), e diz com quem é a conversa.
+Equipe da Brase: ${equipe.join(', ') || 'Luiz Felipe (Lipe), Gabriel, Felipe, Luis, Thalita'}. O Lipe (Luiz Felipe) é o SDR: o Renan passa para ele horários, leads e tarefas.
+- "lead": dono, sócio ou gerente de restaurante que ainda não é cliente: marcar reunião ou diagnóstico, apresentação da Brase, proposta, preço, o iFood da loja dele.
+- "cliente": restaurante que já é cliente da Brase: cardápio, resultados, relatório, gestor, reunião de acompanhamento.
+- "equipe": alguém da Brase. Falam de terceiros ("marca o fulano", "o lead X", "a reunião com a pizzaria"), de tarefas e da operação da agência.
+- "pessoal": amigo, família, fornecedor, banco, compromisso pessoal ou qualquer outra coisa.
+- "incerto": só se não der para saber.
+Responda em JSON: {"tipo": "lead" | "cliente" | "equipe" | "pessoal" | "incerto", "motivo": "uma frase curta"}.`;
+  const linhas = msgs.filter(m => m && typeof m.content === 'string' && (m.type === 'agent' || m.type === 'in')).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-14)
+    .map(m => `${m.type === 'agent' ? 'Renan' : 'Contato'}: ${String(m.content).replace(/^\s*👤[^\n]*\n?/u, '').replace(/\s+/g, ' ').trim().slice(0, 300)}`);
+  const usuario = [`Contato salvo como: ${contato || '(sem nome)'}`, 'Conversa (mais antigas primeiro):', ...linhas].join('\n');
+  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 600};
+  const tentativas = [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'conversa', strict: true, schema: PRIVADO_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}];
+  let ultimo = '';
+  for (const body of tentativas) {
+    const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      try {
+        const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
+        if (['lead', 'cliente', 'equipe', 'pessoal', 'incerto'].includes(o.tipo)) return {tipo: String(o.tipo), motivo: String(o.motivo || '').slice(0, 200)};
+      } catch { /* fora do formato: tenta a próxima forma */ }
+      ultimo = 'resposta fora do formato';
+      continue;
+    }
+    ultimo = 'O Groq respondeu ' + r.status + (j && j.error && j.error.message ? ': ' + String(j.error.message).slice(0, 200) : '');
     if (r.status !== 400) break;
   }
   throw new Error(ultimo);
@@ -373,13 +409,21 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores:
 // - grupo de cliente "BRASE - ": bloqueia 60 min; grupo "D.I - " (1ª reunião, o Renan fica 5 a 10 min): só avisa e bloqueia 10 min;
 // - privado com cliente (o mesmo nome de quem escreve num grupo de cliente, fora a equipe): segue a regra do grupo dele;
 // - privado com lead da Central (pelo telefone): bloqueia 60 min;
-// - qualquer outra conversa ou grupo: ignora.
+// - privado com alguém da equipe (o Lipe, os gestores; pelo nome do contato): ignora (horário que o Renan passa para o Lipe);
+// - outro privado: a IA (Groq) lê a conversa e só conta se for lead ou cliente pelo contexto (bloqueia 60 min). Muitos contatos
+//   chegam sem nome no NicoChat (o do Lipe pode ser um deles), então o que a IA decide fica guardado por contato por 14 dias em
+//   fn_config (k = 'privados', {mapa: {user_ns: {tipo, motivo, contato, at}}}); dá para corrigir à mão ali (tipo "equipe");
+// - qualquer outro grupo: ignora.
+const CONTEXTO_MAX = 3; // conversas classificadas por rodada
+const CONTEXTO_VALE = 14 * 864e5;
 async function agenda(c: Row, contacts: Row[], prev: Row){
   if (c.com && c.com.renan === false) return {skipped: 'desligado'};
   const now = Date.now(), cursor = Math.max(Date.parse(prev.renanCursor || '') || 0, c.sinceMs);
   const list = contacts.filter(x => (avClientGroup(x.name) || !/^\s*g:/i.test(String(x.name || ''))) && nicoTime(x.last_message_at) > cursor)
     .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, AG_READ_MAX);
-  let found = 0, queued = 0, blocked = 0, ignored = 0, maxAt = cursor;
+  let found = 0, queued = 0, blocked = 0, ignored = 0, maxAt = cursor, contexto = 0;
+  const porContexto: Row = {}, modelo = String((c.op && c.op.audioQuemModelo) || 'openai/gpt-oss-20b');
+  let privados: Row | null = null, privadosMudou = false;
   let clientGroups: {nome: string; authors: string[]}[] | null = null, leads: Map<string, {id: string; data: Row}> | null = null;
   const team = [...(c.team || [])];
   for (const x of list) {
@@ -391,6 +435,7 @@ async function agenda(c: Row, contacts: Row[], prev: Row){
     // Com quem é a conversa.
     let where = '', kind: AvAgendaKind | null = null;
     if (avClientGroup(x.name)) { where = avGroupLabel(x.name); kind = avIsDi(x.name) ? 'di' : 'cliente' }
+    else if (avNameIn(String(x.name || ''), team.filter(n => !/^renan$/i.test(String(n).trim())))) { porContexto.equipe_nome = (porContexto.equipe_nome || 0) + 1 }
     else {
       clientGroups ??= (await sql`select nome, facts->'authors' as authors from fn_grupos`).map((r: Row) => ({nome: String(r.nome), authors: (r.authors || []).filter((a: string) => !avNameIn(a, team))}));
       const g = avClientOf(x.name, clientGroups);
@@ -399,6 +444,21 @@ async function agenda(c: Row, contacts: Row[], prev: Row){
         leads ??= leadIndex((await crmCall({op: 'load'})).docs || []);
         const lead = leads.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
         if (lead) { where = `Lead ${lead.data.name || ''}${lead.data.company ? ' · ' + lead.data.company : ''}, no privado`; kind = 'lead' }
+        else {
+          privados ??= (await getConf('privados')).mapa || {};
+          const ns = String(x.user_ns), memo = (privados as Row)[ns];
+          let tipo = memo && ['lead', 'cliente', 'equipe', 'pessoal'].includes(memo.tipo) && Date.now() - (Date.parse(memo.at || '') || 0) < CONTEXTO_VALE ? String(memo.tipo) : '';
+          if (!tipo && GROQ_KEY && contexto < CONTEXTO_MAX) {
+            contexto++;
+            try {
+              const r = await conversaDeQuem(String(x.name || ''), Array.isArray(j.data) ? j.data : [], team, modelo);
+              tipo = r.tipo;
+              if (tipo !== 'incerto') { (privados as Row)[ns] = {tipo, motivo: r.motivo, contato: String(x.name || x.phone || ''), at: brIso(Date.now())}; privadosMudou = true }
+            } catch (e) { porContexto.erro = errText(e).slice(0, 200) }
+          }
+          if (tipo) porContexto[tipo] = (porContexto[tipo] || 0) + 1;
+          if (tipo === 'lead' || tipo === 'cliente') { where = `${x.name || 'Contato sem nome'} (${tipo} pela conversa), no privado`; kind = tipo === 'lead' ? 'lead' : 'cliente' }
+        }
       }
     }
     if (!kind) { ignored += mine.length; continue }
@@ -411,11 +471,11 @@ async function agenda(c: Row, contacts: Row[], prev: Row){
         try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: kind === 'di' ? AV_DI_MIN : 60, label: 'Renan: ' + where + (kind === 'di' ? ' (rápida)' : ''), by: 'avisos', at: new Date().toISOString()}}); blocked++ }
         catch { ok = false }
       }
-      const g = grpMsg(m);
-      queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, g ? g.text : '', ok)}]);
+      queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, ok)}]);
     }
   }
-  return {read: list.length, found, queued, blocked, ignored, cursor: new Date(maxAt).toISOString()};
+  if (privadosMudou && privados) await setConf('privados', {mapa: privados});
+  return {read: list.length, found, queued, blocked, ignored, contexto: porContexto, cursor: new Date(maxAt).toISOString()};
 }
 // Ajustes pedidos na agenda da Central (fn_config avisos.agendaFila: [{op: 'delete', id} | {op: 'set', id, data}]): roda uma vez e limpa.
 async function agendaFila(c: Row){
