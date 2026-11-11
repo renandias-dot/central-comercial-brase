@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
 <style>[hidden]{display:none!important}img{max-width:100%}</style>
-<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "11c9ba79ec";</script>
+<script>window.BRASE_HOST = {"api":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1/crm-api","functions":"https://wndgqvkeguampmtmkmhq.supabase.co/functions/v1"};window.BRASE_BUILD = "01c739778a";</script>
 <title>Central Comercial Brase</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3554,13 +3554,26 @@ function waRulesTick(){
     else if (changed) updateLead(id, {...extra, waDone: done});
   }
 }
+const R_LAST = {nav: '', view: '', name: ''};
+const scrollKey = el => { const col = el.classList.contains('col-b') && el.closest('[data-drop]'); return col ? 'col:' + col.dataset.drop : el.id || '' };
 function render(){
   try { waRulesTick() } catch (e) { console.error('regras do WhatsApp', e) }
   openPendingLead();
   const b = $('#board'), sl = b ? b.scrollLeft : 0, sb = $('.stagebar'), sbl = sb && typeof sb.scrollLeft === 'number' ? sb.scrollLeft : -1;
-  $('#nav').innerHTML = navHTML();
+  const navH = navHTML(); if (navH !== R_LAST.nav){ $('#nav').innerHTML = navH; R_LAST.nav = navH }
   alRefresh();
-  $('#view').innerHTML = updateBannerHTML() + installBannerHTML() + pushBannerHTML() + alertBarHTML() + VIEWS[UI.view]();
+  // Os avisos e a sincronização redesenham a tela a cada poucos segundos: só troca o que mudou e, quando troca,
+  // mantém a rolagem das colunas do quadro, das listas e da página (antes a lista voltava para o topo do nada).
+  const view = $('#view'), html = updateBannerHTML() + installBannerHTML() + pushBannerHTML() + alertBarHTML() + VIEWS[UI.view]();
+  if (html !== R_LAST.view || !view.firstChild){
+    const same = R_LAST.name === UI.view, wy = window.scrollY, kept = [];
+    if (same) view.querySelectorAll('.col-b,.cr-list,.ag-resl,[id]').forEach(el => { const k = scrollKey(el); if (k && (el.scrollTop || el.scrollLeft)) kept.push([k, el.scrollTop, el.scrollLeft]) });
+    view.innerHTML = html; R_LAST.view = html; R_LAST.name = UI.view;
+    if (same){
+      kept.forEach(([k, t, l]) => { const el = k.startsWith('col:') ? view.querySelector(`[data-drop="${k.slice(4)}"] .col-b`) : document.getElementById(k); if (el){ el.scrollTop = t; el.scrollLeft = l } });
+      if (Math.abs(window.scrollY - wy) > 1) window.scrollTo(0, wy);
+    }
+  }
   const nb = $('#board'); if (nb) nb.scrollLeft = sl;
   const nsb = $('.stagebar'); if (nsb && nsb.querySelector){ const cur = nsb.querySelector('[aria-selected="true"]'); if (UI.sbCenter && cur) nsb.scrollLeft = cur.offsetLeft - (nsb.clientWidth - cur.offsetWidth) / 2; else if (sbl >= 0) nsb.scrollLeft = sbl; UI.sbCenter = false }
   try { document.documentElement.style.setProperty('--navh', ($('#nav').offsetHeight || 56) + 'px') } catch {}
@@ -3793,8 +3806,8 @@ const CHG = {
 const INP = {
   'ag-q': t => { if (!UI.ag) return; UI.ag.q = t.value; const r = document.querySelector('#ag-res'); if (r) r.innerHTML = agLeadResults(); offerLast = offerModalHTML() },
   'ag-msg': t => { if (UI.ag){ UI.ag.msg = t.value; offerLast = offerModalHTML() } },
-  'pipe-search': t => { UI.search = t.value; const b = $('#board'); if (b) b.innerHTML = boardHTML(); else if ($('#stage-list')){ const p = phoneStageParts(); $('#stagebar').innerHTML = p.chips; $('#stage-list').innerHTML = p.list } },
-  'doc-q': t => { UI.docQ = t.value; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
+  'pipe-search': t => { UI.search = t.value; R_LAST.view = ''; const b = $('#board'); if (b) b.innerHTML = boardHTML(); else if ($('#stage-list')){ const p = phoneStageParts(); $('#stagebar').innerHTML = p.chips; $('#stage-list').innerHTML = p.list } },
+  'doc-q': t => { UI.docQ = t.value; R_LAST.view = ''; const l = $('#doc-list'); if (l) l.innerHTML = docListHTML(UI.docShown) },
 };
 const FORM = {
   'new-lead': (f, fd) => {
