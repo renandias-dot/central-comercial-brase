@@ -67,7 +67,7 @@ A Central tem nomes de etapa, campos e metas próprios. Esta seção diz onde es
 | Diagnóstico Pendente | Link recebido (`link`) | nenhum | Não tem. A Central dá 60 min para mandar o print (das 9h às 19h, em dia útil) |
 | Qualificando | Print Enviado (`print`) e Qualificando (`qualificando`) | print enviado, primeiro contato, qualificando, em contato | QL-1 a QL-5 (o Print Enviado usa a mesma) |
 | Agendando | Agendando (`agendando`) | agendando | AG-1 a AG-6 |
-| Reunião Marcada | Reunião Marcada (`marcada`) | reunião marcada | RM-1 ao marcar, RM-2 véspera, RM-3 1 h antes, RM-4 na hora, RM-5 10 min depois |
+| Reunião Marcada | Reunião Marcada (`marcada`) | reunião marcada | RM-1 ao marcar, RM-2 véspera, RM-3 1 h antes, RM-4 15 min antes (áudio do Renan), RM-5 na hora, RM-6 10 min depois |
 | No-show | No-show (`noshow`) | nenhum | NS-1 a NS-5 |
 | Reunião Feita | Reunião Feita (`feita`) | reunião feita | RF-1 a RF-5 (o Renan envia) |
 | Ganho | Fechado (`fechado`) | fechado | |
@@ -92,6 +92,8 @@ As cadências estão em `DEFAULT_CADENCES` no `index.html`. O que foi editado em
 | Toque que gerou resposta | Não fica gravado. `repliedAt` guarda só a hora da última resposta; dá para deduzir pelo último toque feito antes dela, e só dessa última |
 
 Outros campos úteis: `stageAt` e `history` (etapas com data), `bookedAt`, `meetingAt`, `meetingDoneAt`, `closedAt`, `value` (valor da venda), `team` (estrutura, do quiz), `ownerId` e `sdrId`, `clickupId`.
+
+Diagnóstico da loja, no card: `finding` (o achado na loja, que preenche o [achado da loja] do print, do convite e dos lembretes), `rival` (o concorrente que mais vende) e `meetLink` (link da sala; sem ele vale o link fixo de Configurações › Agenda). O Banco de dores da loja e o Motivo para comparecer à reunião estão em Processos.
 
 ### Como a Central conta o funil
 
