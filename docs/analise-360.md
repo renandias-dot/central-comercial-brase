@@ -67,7 +67,7 @@ A Central tem nomes de etapa, campos e metas próprios. Esta seção diz onde es
 | Diagnóstico Pendente | Link recebido (`link`) | nenhum | Não tem. A Central dá 60 min para mandar o print (das 9h às 19h, em dia útil) |
 | Qualificando | Print Enviado (`print`) e Qualificando (`qualificando`) | print enviado, primeiro contato, qualificando, em contato | QL-1 a QL-5 (o Print Enviado usa a mesma) |
 | Agendando | Agendando (`agendando`) | agendando | AG-1 a AG-6 |
-| Reunião Marcada | Reunião Marcada (`marcada`) | reunião marcada | RM-1 ao marcar, RM-2 véspera, RM-3 1 h antes, RM-4 15 min antes (áudio do Renan), RM-5 na hora, RM-6 10 min depois |
+| Reunião Marcada | Reunião Marcada (`marcada`) | reunião marcada | RM-1 ao marcar, RM-2 pedir o áudio ao Renan, RM-3 áudio do Renan (manhã do dia; véspera às 17h se a reunião for de manhã), RM-4 1 h antes, RM-5 na hora, RM-6 10 min depois |
 | No-show | No-show (`noshow`) | nenhum | NS-1 a NS-5 |
 | Reunião Feita | Reunião Feita (`feita`) | reunião feita | RF-1 a RF-5 (o Renan envia) |
 | Ganho | Fechado (`fechado`) | fechado | |
@@ -85,7 +85,7 @@ As cadências estão em `DEFAULT_CADENCES` no `index.html`. O que foi editado em
 | Faixa de faturamento declarada | `revenue`, um número. O quiz pergunta o faturamento da loja como um todo, não só o do iFood |
 | Faturamento confirmado, iFood e salão separados | Não existe |
 | Tempo de loja | Não existe. O quiz não pergunta |
-| A dor, nas palavras do lead | `pain` traz a opção escolhida no quiz, não as palavras do lead. Texto livre só em `notes` |
+| A dor, nas palavras do lead | `painSaid` (Dor que ele contou, no card). `pain` traz a opção escolhida no quiz |
 | Quem decide junto | Não existe. O RM-1 pergunta, mas a resposta fica só na conversa |
 | Toque atual e due date | `touches`: cada toque tem `code` (LN-1, QL-2…), `due`, `done` e `doneAt`. O próximo é o primeiro não feito, pela data (`nextTouch`). Ao mudar de etapa, a Central recria os toques da etapa nova |
 | Motivo de saída | `lostReason`. A Central pede ao mover para Perdido ou Desqualificado; para Frio não pede |
@@ -93,7 +93,7 @@ As cadências estão em `DEFAULT_CADENCES` no `index.html`. O que foi editado em
 
 Outros campos úteis: `stageAt` e `history` (etapas com data), `bookedAt`, `meetingAt`, `meetingDoneAt`, `closedAt`, `value` (valor da venda), `team` (estrutura, do quiz), `ownerId` e `sdrId`, `clickupId`.
 
-Diagnóstico da loja, no card: `finding` (o achado na loja, que preenche o [achado da loja] do print, do convite e dos lembretes), `rival` (o concorrente que mais vende) e `meetLink` (link da sala; sem ele vale o link fixo de Configurações › Agenda). O Banco de dores da loja e o Motivo para comparecer à reunião estão em Processos.
+Diagnóstico da loja, no card: `finding` (o achado na loja, que preenche o [achado da loja] do print, do convite e dos lembretes), `rival` (o concorrente que mais vende), `painSaid` (a dor nas palavras do lead, que vai para o áudio do Renan) e `meetLink` (link da sala; sem ele vale o link fixo de Configurações › Agenda). O Banco de dores da loja, o Motivo para comparecer à reunião e o Áudio de confirmação do Renan estão em Processos.
 
 ### Como a Central conta o funil
 
@@ -135,5 +135,5 @@ Onde o documento e a Central não batem. O relatório aponta o que encontrar, se
 - **Diagnóstico Pendente:** o documento pede resposta do SDR em 10 min; a Central dá 60 min para o print e chama a etapa de Link recebido.
 - **Primeira resposta ao Lead Novo:** o documento pede 5 min; a meta da Central para o 1º toque é 15 min. Os 5 min aparecem no aviso de lead novo, que fica vermelho depois de 5 min, e na meta de respostas no WhatsApp.
 - **Etapas:** a Central tem Print Enviado e Morno, que o documento não tem, e chama Ganho de Fechado. O No-show e o Link recebido não existem como status lido do ClickUp.
-- **Campos:** faturamento confirmado (iFood e salão), tempo de loja, quem decide junto e toque que gerou resposta não existem na Central; a dor é a opção do quiz, não as palavras do lead.
+- **Campos:** faturamento confirmado (iFood e salão), tempo de loja, quem decide junto e toque que gerou resposta não existem na Central.
 - **Motivo de saída:** a Central não pede ao mover para Frio.
