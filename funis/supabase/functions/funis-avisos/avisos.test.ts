@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -299,4 +299,35 @@ Deno.test('lead da reunião de venda: pelo dia da reunião e pelas palavras do t
   assertEquals(n, 'Dono quer crescer\n\n📝 Reunião 10/11 (Anotações do Gemini) [gemini:doc123]\nFatura 40 mil\nPróximos passos: Mandar proposta');
   assertEquals(avNotasComReuniao(n, {id: 'doc123', dia: '2026-11-10', resumo: 'outro'}), n);
   assert(avNotaLeadText({titulo: 'Brase x Bella', dia: '2026-11-10', resumo: 'r'}, null).startsWith('📝 *Resumo de reunião de venda sem card na Central*'));
+});
+
+// Pré-análise da loja
+Deno.test('pré-análise: código da loja no link e lead pendente', () => {
+  assertEquals(avLojaId('https://www.ifood.com.br/delivery/sp/loja/FFA2361B-be09-4aec-b912-5e1336d6571b'), 'ffa2361b-be09-4aec-b912-5e1336d6571b');
+  assertEquals(avLojaId('https://www.ifood.com.br/'), '');
+  const now = Date.parse('2026-11-11T12:00:00-03:00'), link = 'https://www.ifood.com.br/delivery/sp/loja/abc';
+  assert(avLojaPendente({stage: 'link', ifoodUrl: link, linkAt: '2026-11-11T12:01:00-03:00'}, now));
+  assert(!avLojaPendente({stage: 'link', ifoodUrl: link, linkAt: '2026-11-11T11:00:00-03:00'}, now), 'link antes de ligar');
+  assert(avLojaPendente({stage: 'print', ifoodUrl: link, storeCheck: {at: '2026-11-11T12:00:00-03:00'}, storeCheckAsk: '2026-11-11T12:05:00-03:00'}, now), 'pedido de refazer');
+  assert(!avLojaPendente({stage: 'marcada', ifoodUrl: link, storeCheckAsk: '2026-11-11T12:05:00-03:00'}, 0), 'depois de marcar não analisa');
+});
+Deno.test('pré-análise: palavra-chave, avaliações e horário', () => {
+  const shifts = ['TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'].map(d => ({dayOfWeek: d, start: '18:45:00', duration: 225}));
+  const a = avLojaAnalise('x', {name: 'Fama Lanches e Massas', description: '', mainCategory: {description: 'Hambúrguer'}, userRatingCount: 7, minimumOrderValue: 20, shifts});
+  assertEquals([a.kw, a.kwMotivo, a.rev, a.avaliacoes, a.horario], ['erro', 'a loja está sem descrição', 'erro', 7, 'ter a dom, 18h45 às 22h30']);
+  const b = avLojaAnalise('y', {name: 'Nova York', description: 'As melhores pizzas da região, com massa de fermentação natural.', mainCategory: {description: 'Pizza'}, userRatingCount: 300});
+  assertEquals([b.kw, b.rev], ['erro', null]);
+  assert(b.kwMotivo.includes('Nova York'));
+  const c = avLojaAnalise('z', {name: 'Brêsa Pizzas', description: 'Pizzaria com entrega rápida e massa artesanal feita todo dia.', mainCategory: {description: 'Pizza'}, userRatingCount: 53, minimumOrderValue: 35});
+  assertEquals([c.kw, c.rev, c.avisos, c.horario], ['forte', null, ['pedido mínimo alto (R$ 35,00)'], 'sem horário no iFood']);
+  assertEquals(avLojaHorario([{dayOfWeek: 'MONDAY', start: '10:00:00', duration: 360}]).avisos, ['abre só 1 dias por semana', 'fechada no jantar']);
+});
+Deno.test('pré-análise: roteiro com o que deu para ver e colchetes para o resto', () => {
+  const a = avLojaAnalise('x', {name: 'Fama Lanches', description: '', mainCategory: {description: 'Hambúrguer'}, userRatingCount: 7});
+  const r = avLojaRoteiro({contact: 'joão silva'}, a);
+  assert(r.startsWith('Fala João! Aqui é o Luiz Felipe, da Brase.'));
+  assert(r.includes('Como, por exemplo, ainda falta palavra-chave na loja'));
+  assert(r.includes('Percebi também que a loja tem poucas avaliações'));
+  assert(r.includes('[outro erro, se tiver: produto isca, cardápio ou fotos]'));
+  assert(r.endsWith('ou é só delivery?'));
 });
