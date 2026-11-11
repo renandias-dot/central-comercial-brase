@@ -65,7 +65,7 @@ A Central tem nomes de etapa, campos e metas próprios. Esta seção diz onde es
 | --- | --- | --- | --- |
 | Lead Novo | Lead Novo (`novo`) | lead novo | LN-1 a LN-6 |
 | Diagnóstico Pendente | Link recebido (`link`) | nenhum | Não tem. A Central dá 60 min para mandar o print (das 9h às 19h, em dia útil) |
-| Qualificando | Print Enviado (`print`) e Qualificando (`qualificando`) | print enviado, primeiro contato, qualificando, em contato | QL-1 a QL-5 (o Print Enviado usa a mesma) |
+| Qualificando | Print Enviado (`print`) e Qualificando (`qualificando`) | print enviado, primeiro contato, qualificando, em contato | QL-1 a QL-6: print, áudio dos 3 pontos, perguntas e retomadas (o Print Enviado usa a mesma e pula o QL-1) |
 | Agendando | Agendando (`agendando`) | agendando | AG-1 a AG-6 |
 | Reunião Marcada | Reunião Marcada (`marcada`) | reunião marcada | RM-1 ao marcar, RM-2 pedir o áudio ao Renan, RM-3 áudio do Renan (manhã do dia; véspera às 17h se a reunião for de manhã), RM-4 1 h antes, RM-5 na hora, RM-6 10 min depois |
 | No-show | No-show (`noshow`) | nenhum | NS-1 a NS-5 |
@@ -93,7 +93,7 @@ As cadências estão em `DEFAULT_CADENCES` no `index.html`. O que foi editado em
 
 Outros campos úteis: `stageAt` e `history` (etapas com data), `bookedAt`, `meetingAt`, `meetingDoneAt`, `closedAt`, `value` (valor da venda), `team` (estrutura, do quiz), `ownerId` e `sdrId`, `clickupId`.
 
-Diagnóstico da loja, no card: `finding` (o achado na loja, que preenche o [achado da loja] do print, do convite e dos lembretes), `rival` (o concorrente que mais vende), `painSaid` (a dor nas palavras do lead, que vai para o áudio do Renan) e `meetLink` (link da sala; sem ele vale o link fixo de Configurações › Agenda). O Banco de dores da loja, o Motivo para comparecer à reunião e o Áudio de confirmação do Renan estão em Processos.
+Diagnóstico da loja, no card: `finding` (o achado na loja, que preenche o [achado da loja] do print, do convite e dos lembretes), `rival` (o concorrente que mais vende), `painSaid` (a dor nas palavras do lead, que vai para o áudio do Renan), `ptKw`, `ptMenu` e `ptPhoto` (nota de palavra-chave, cardápio e fotos: `bom`, `melhorar` ou `erro`, que monta o áudio do QL-2) e `meetLink` (link da sala; sem ele vale o link fixo de Configurações › Agenda). O Áudio dos 3 pontos da loja, o Banco de dores da loja, o Motivo para comparecer à reunião e o Áudio de confirmação do Renan estão em Processos.
 
 ### Como a Central conta o funil
 
