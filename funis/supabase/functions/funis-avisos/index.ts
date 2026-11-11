@@ -1,6 +1,7 @@
 // funis-avisos — avisos automáticos nos grupos de WhatsApp da Brase, 24 h por dia, pelo canal Operacional do NicoChat
 // (o número do Renan, conexão não oficial). Chamada pelo pg_cron a cada 2 min (op cron.avisos, cabeçalho x-fn-cron).
-//   AVISOS - COMERCIAIS: horário sugerido na conversa do SDR (pelo SDR ou pelo lead) e reunião marcada/remarcada na Central.
+//   AVISOS - COMERCIAIS: horário sugerido na conversa do SDR (pelo SDR ou pelo lead), reunião marcada/remarcada na Central e
+//   pré-análise da loja quando o lead manda o link do iFood (dados públicos da loja, marcas no card e o roteiro do áudio).
 //   AVISOS - OPERACIONAIS: grupos dos clientes ("BRASE - " e "DI "): sem resposta da Brase, sinal de risco e silêncio longo.
 // Configuração em fn_config (k = 'avisos'); estado da última rodada em fn_config (k = 'avisos_state'); fila em fn_avisos
 // (id = a chave do evento, então nada sai duas vezes); grupos dos clientes em fn_grupos. Segredos: NICOCHAT_OPS_KEY (canal
@@ -10,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -105,12 +106,17 @@ async function horarios(c: Row, prev: Row){
   return {read: rows.length, found: found.length, queued, cursor: new Date(rows[rows.length - 1].updated_at).toISOString()};
 }
 // 2. Reunião marcada ou remarcada: lê na Central só os documentos que mudaram (com folga de 12 min para esperar o horário).
-async function reunioes(c: Row, prev: Row){
-  if (c.com && c.com.reunioes === false) return {skipped: 'desligado'};
+async function crmChanges(prev: Row){
   const now = Date.now(), cursor = Date.parse(prev.crmCursor || '') || now;
   const since = new Date(Math.max(now - 864e5, Math.min(cursor, now - 12 * 60e3))).toISOString();
-  const j = await crmCall({op: 'changes', since});
+  return await crmCall({op: 'changes', since});
+}
+async function reunioes(c: Row, prev: Row, sink: Row[] = []){
+  if (c.com && c.com.reunioes === false) return {skipped: 'desligado'};
+  const now = Date.now();
+  const j = await crmChanges(prev);
   const docs: Row[] = j.docs || [];
+  sink.push(...docs);
   if (docs.some(d => d && d.col === 'sellers')) await sellersFrom((await crmCall({op: 'load'})).docs || []);
   const leads = docs.filter(d => d && d.col === 'leads' && !d.deleted && d.data && d.data.stage === 'marcada' && d.data.bookedAt);
   let queued = 0;
@@ -124,6 +130,40 @@ async function reunioes(c: Row, prev: Row){
     queued = await queue(rows);
   }
   return {docs: docs.length, marcadas: leads.length, queued, cursor: j.cursor || null};
+}
+// 3. Pré-análise da loja: lead que mandou o link do iFood (ou pediu de novo na Central). Lê os dados públicos da loja pelo
+// próprio link, grava no card o resultado (storeCheck) e as marcas que estiverem vazias (palavra-chave, avaliações), e
+// manda o aviso com o roteiro do áudio. Só links que chegaram depois de ligar (avisos_state.lojasDesde).
+const LOJA_MAX = 4;
+async function lojas(c: Row, prev: Row, docs: Row[], desde: number){
+  if (c.com && c.com.lojas === false) return {skipped: 'desligado'};
+  let lista = docs;
+  if (!lista.length && c.com && c.com.reunioes === false) lista = (await crmChanges(prev)).docs || [];
+  const pend = lista.filter(d => d && d.col === 'leads' && !d.deleted && d.data && avLojaPendente(d.data, desde));
+  const rows: AvRow[] = [], erros: string[] = [];
+  let feitas = 0;
+  for (const d of pend.slice(0, LOJA_MAX)) {
+    const l: Row = d.data, link = String(l.ifoodUrl || (l.wa && l.wa.ifoodLink) || ''), id = avLojaId(link), at = new Date().toISOString();
+    let check: Row;
+    try {
+      if (!id) throw new Error('o link não tem o código da loja');
+      const r = await fetch(`https://marketplace.ifood.com.br/v1/merchants/${id}/extra`, {headers: {accept: 'application/json'}, signal: AbortSignal.timeout(15000)});
+      if (!r.ok) throw new Error('o iFood respondeu ' + r.status);
+      const a = avLojaAnalise(id, await r.json());
+      check = {...a, at, link};
+      const lead: Row = {...l, storeCheck: check, updatedAt: at};
+      if (!lead.ptKw && a.kw) lead.ptKw = a.kw;
+      if (!lead.ptRev && a.rev) lead.ptRev = a.rev;
+      await crmCall({op: 'set', col: 'leads', id: d.id, data: lead});
+      rows.push({id: `loja:${d.id}:${l.storeCheckAsk || id}`, canal: 'comercial', tipo: 'loja', texto: avLojaTexto(lead, a, link, String((c.com && c.com.sdrNome) || 'Lipe'))});
+      feitas++;
+    } catch (e) {
+      // Grava o erro no card para não tentar de novo a cada rodada; "Fazer pré-análise" na Central tenta outra vez.
+      erros.push(String(d.id) + ': ' + errText(e));
+      await crmCall({op: 'set', col: 'leads', id: d.id, data: {...l, storeCheck: {at, link, erro: errText(e).slice(0, 200)}, updatedAt: at}}).catch(() => {});
+    }
+  }
+  return {pendentes: pend.length, feitas, queued: await queue(rows), erros: erros.length ? erros : undefined, desde: brIso(desde)};
 }
 // Conversas do canal Operacional com mensagem nas últimas 24 h (grupos e privado), uma vez por rodada.
 async function opsContacts(){
@@ -638,7 +678,10 @@ async function run(){
   let groups: Row = c.groups || {};
   await step('alvos', async () => { groups = await targets(c); return {comercial: !!groups.comercial, operacional: !!groups.operacional} });
   await step('horarios', () => horarios(c, prev));
-  await step('reunioes', () => reunioes(c, prev));
+  const mudou: Row[] = [];
+  await step('reunioes', () => reunioes(c, prev, mudou));
+  st.lojasDesde = prev.lojasDesde || brIso(t0);
+  await step('lojas', () => lojas(c, prev, mudou, Date.parse(st.lojasDesde)));
   let contacts: Row[] | null = null;
   await step('contatos', async () => { contacts = await opsContacts(); return {n: contacts.length} });
   if (contacts) {

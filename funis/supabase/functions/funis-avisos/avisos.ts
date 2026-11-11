@@ -442,3 +442,140 @@ export function avNotaLeadText(nota: {titulo: string; dia: string; resumo?: stri
   if (!lead) return `📝 *Resumo de reunião de venda sem card na Central*\n${nota.titulo} · ${avDia(nota.dia)}\nNão achei o lead: cole o resumo no card à mão.\n${avQuote(String(nota.resumo || ''), 300)}`;
   return `📝 *Resumo da reunião salvo na Central*\n${lead.name || 'Lead sem nome'}${lead.company ? ' · ' + lead.company : ''} · ${avDia(nota.dia)}\n${avQuote(String(nota.resumo || ''), 220)}`;
 }
+
+// ---------- Pré-análise da loja (AVISOS - COMERCIAIS) ----------
+// Quando o lead manda o link do iFood, a função lê os dados públicos da loja pelo próprio link
+// (marketplace.ifood.com.br/v1/merchants/{id}/extra: nome, descrição, categoria, avaliações, pedido mínimo e horários)
+// e marca o que dá para ver de fora: palavra-chave (nome e descrição) e poucas avaliações. Produto isca, cardápio e fotos
+// não vêm nesses dados: ficam para o SDR conferir no link. As frases do roteiro são as mesmas da Central (PONTOS no
+// index.html da Central): mude nos dois lugares.
+export type AvLoja = {id: string; nome: string; categoria: string; avaliacoes: number | null; pedidoMinimo: number | null; descricao: number;
+  kw: 'erro' | 'forte' | null; kwMotivo: string; rev: 'erro' | null; revMotivo: string; horario: string; avisos: string[]};
+export const avLojaId = (url: unknown) => { const m = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.exec(String(url ?? '')); return m ? m[0].toLowerCase() : '' };
+const lojaNorm = (s: unknown) => ' ' + String(s ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+// Palavras que o cliente digita na busca, por categoria do iFood (descrição sem acento). Categoria fora da lista é ampla
+// demais (Brasileira, Mercado, Variada...) para julgar o nome: aí só a descrição conta.
+const LOJA_KW: Record<string, string[]> = {
+  'pizza': ['pizza', 'pizzaria'],
+  'lanches': ['lanche', 'burger', 'burguer', 'hamburguer', 'hamburgueria', 'sanduiche', 'dog', 'smash', 'x '],
+  'hamburguer': ['burger', 'burguer', 'hamburguer', 'hamburgueria', 'smash', 'lanche'],
+  'japonesa': ['sushi', 'japones', 'japonesa', 'temaki', 'oriental', 'poke', 'sashimi', 'niguiri'],
+  'chinesa': ['china', 'chines', 'chinesa', 'oriental', 'yakisoba', 'wok'],
+  'acai': ['acai'],
+  'doces bolos': ['doce', 'bolo', 'confeitaria', 'brigadeiro', 'bolaria', 'sobremesa', 'torta', 'cake', 'brownie'],
+  'vegetariana': ['vegan', 'vegano', 'vegana', 'vegetarian', 'veg ', 'plant'],
+  'vegana': ['vegan', 'vegano', 'vegana', 'veg ', 'plant'],
+  'italiana': ['italian', 'massa', 'pasta', 'cantina', 'trattoria', 'pizza', 'lasanha'],
+  'arabe': ['arabe', 'esfiha', 'esfirra', 'kebab', 'shawarma', 'beirute', 'libanes'],
+  'mexicana': ['mexican', 'taco', 'burrito', 'nacho', 'tex mex'],
+  'pastel': ['pastel', 'pastelaria'],
+  'sorvetes': ['sorvete', 'sorveteria', 'gelato', 'picole', 'gelateria'],
+  'salgados': ['salgado', 'coxinha', 'empada', 'esfiha'],
+  'carnes': ['carne', 'churrasco', 'churrascaria', 'grill', 'espeto', 'espetinho', 'steak', 'parrilla', 'costela'],
+  'frutos do mar': ['peixe', 'frutos do mar', 'camarao', 'ostra', 'mariscos', 'pescado'],
+  'padaria': ['padaria', 'pao', 'panificadora', 'panificacao', 'confeitaria'],
+  'cafeteria': ['cafe', 'cafeteria', 'coffee'],
+  'saudavel': ['fit', 'saudavel', 'salada', 'natural', 'low carb', 'healthy', 'light', 'marmita fit'],
+  'marmita': ['marmita', 'marmitex', 'quentinha', 'comida caseira', 'prato feito'],
+  'crepe': ['crepe', 'creperia'],
+  'tapioca': ['tapioca'],
+  'nordestina': ['nordest', 'baiana', 'cuscuz', 'tapioca', 'acaraje', 'baiao'],
+  'peruana': ['peru', 'ceviche'],
+  'coreana': ['corean', 'korea', 'kimchi'],
+  'tailandesa': ['tailand', 'thai'],
+};
+const DIAS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'], DIA_PT = ['seg', 'ter', 'qua', 'qui', 'sex', 'sáb', 'dom'];
+const hhmm = (min: number) => { const m = ((min % 1440) + 1440) % 1440, h = Math.floor(m / 60), r = m % 60; return h + 'h' + (r ? String(r).padStart(2, '0') : '') };
+// Horário: dias abertos e a faixa, e se a loja fica fechada no jantar (20h) em todos os dias.
+export function avLojaHorario(shifts: unknown): {texto: string; avisos: string[]} {
+  const list = (Array.isArray(shifts) ? shifts : []).map((s: any) => ({d: DIAS.indexOf(String(s && s.dayOfWeek)), ini: (([h, m]) => (+h || 0) * 60 + (+m || 0))(String((s && s.start) || '0:0').split(':')), dur: +((s && s.duration) || 0)})).filter(s => s.d >= 0 && s.dur > 0);
+  if (!list.length) return {texto: 'sem horário no iFood', avisos: []};
+  const dias = [...new Set(list.map(s => s.d))].sort((a, b) => a - b);
+  const faixas = [...new Set(list.map(s => hhmm(s.ini) + ' às ' + hhmm(s.ini + s.dur)))];
+  // Dias seguidos viram faixa ("qua a dom"); com horários diferentes, a abertura mais cedo e o fechamento mais tarde.
+  const grupos: number[][] = [];
+  for (const d of dias) { const g = grupos[grupos.length - 1]; if (g && d === g[g.length - 1] + 1) g.push(d); else grupos.push([d]) }
+  const diasTxt = dias.length === 7 ? 'todos os dias' : grupos.map(g => g.length > 2 ? DIA_PT[g[0]] + ' a ' + DIA_PT[g[g.length - 1]] : g.map(d => DIA_PT[d]).join(', ')).join(', ');
+  // Turno que começa à 0h é a continuação da noite anterior: não conta como abertura.
+  const abre = list.filter(s => s.ini > 0), ini = Math.min(...(abre.length ? abre : list).map(s => s.ini)), fim = Math.max(...list.map(s => s.ini + s.dur));
+  const texto = diasTxt + ', ' + (faixas.length === 1 ? faixas[0] : 'entre ' + hhmm(ini) + ' e ' + hhmm(fim));
+  const jantar = list.some(s => s.ini <= 21 * 60 && s.ini + s.dur >= 21 * 60);
+  const avisos: string[] = [];
+  if (dias.length < 5) avisos.push('abre só ' + dias.length + ' dias por semana');
+  if (!jantar) avisos.push('fechada no jantar');
+  return {texto, avisos};
+}
+export function avLojaAnalise(id: string, x: any): AvLoja {
+  const nome = String((x && x.name) || '').trim(), desc = String((x && x.description) || '').trim();
+  const cat = String((x && x.mainCategory && x.mainCategory.description) || '').trim();
+  const kws = LOJA_KW[lojaNorm(cat).trim().replace(/\s+/g, ' ')] || null;
+  const has = (s: string) => !!kws && kws.some(k => lojaNorm(s).includes(k.endsWith(' ') ? ' ' + k : k));
+  let kw: AvLoja['kw'] = null, kwMotivo = '';
+  if (kws && !has(nome)) { kw = 'erro'; kwMotivo = `o nome "${nome}" não diz que é ${cat.toLowerCase()}` }
+  else if (desc.length < 40) { kw = 'erro'; kwMotivo = desc ? 'a descrição da loja é curta demais (' + desc.length + ' letras)' : 'a loja está sem descrição' }
+  else if (kws && has(desc)) { kw = 'forte'; kwMotivo = 'o nome e a descrição já falam o que a loja vende' }
+  else kwMotivo = kws ? 'o nome diz o que vende, mas a descrição não usa a palavra' : 'categoria ampla (' + (cat || 'sem categoria') + '): confira o nome e os produtos';
+  const n = x && x.userRatingCount != null && isFinite(+x.userRatingCount) ? Math.round(+x.userRatingCount) : null;
+  const rev: AvLoja['rev'] = n != null && n < 50 ? 'erro' : null;
+  const revMotivo = n == null ? 'sem o número de avaliações' : rev ? 'só ' + n + ' avaliações' : n + ' avaliações (compare com o concorrente do print)';
+  const minimo = x && x.minimumOrderValue != null && isFinite(+x.minimumOrderValue) ? +x.minimumOrderValue : null;
+  const h = avLojaHorario(x && x.shifts);
+  const avisos = [...h.avisos];
+  if (minimo != null && minimo >= 30) avisos.push('pedido mínimo alto (R$ ' + minimo.toFixed(2).replace('.', ',') + ')');
+  return {id, nome, categoria: cat, avaliacoes: n, pedidoMinimo: minimo, descricao: desc.length, kw, kwMotivo, rev, revMotivo, horario: h.texto, avisos};
+}
+// Frases iguais às da Central (PONTOS): erro e ponto forte de palavra-chave, e erro de avaliações.
+const LOJA_F = {
+  kwErro: 'ainda falta palavra-chave na loja, que é o que traz visibilidade, melhora o ranqueamento e faz as pessoas acharem vocês mais fácil',
+  kwForte: 'um nome que já diz o que vocês vendem',
+  revErro: 'a loja tem poucas avaliações perto dos concorrentes, e o iFood mostra primeiro quem tem mais',
+};
+const primeiroNome = (s: unknown) => { const t = String(s ?? '').trim().split(/\s+/)[0] || ''; return t ? t[0].toUpperCase() + t.slice(1).toLowerCase() : '' };
+// Roteiro do áudio do QL-2 com o que já deu para ver; o resto fica entre colchetes para o SDR completar.
+export function avLojaRoteiro(l: any, a: AvLoja, sdr = 'Luiz Felipe'): string {
+  const nome = primeiroNome(l && l.contact) || primeiroNome(l && l.name) || '[nome]';
+  const loja = a.nome || String((l && (l.company || l.name)) || 'sua loja');
+  const erros = [a.kw === 'erro' ? LOJA_F.kwErro : '', a.rev === 'erro' ? LOJA_F.revErro : ''].filter(Boolean);
+  erros.push(erros.length ? '[outro erro, se tiver: produto isca, cardápio ou fotos]' : '[o erro que você viu: produto isca, cardápio ou fotos]');
+  const fortes = [a.kw === 'forte' ? LOJA_F.kwForte : '', '[ponto forte: uma avaliação boa, fotos boas ou um cardápio organizado]'].filter(Boolean);
+  return [
+    `Fala ${nome}! Aqui é o ${sdr}, da Brase.`,
+    'Eu já reparei alguns erros na sua loja por aqui também.',
+    erros.map((e, i) => (i === 0 ? 'Como, por exemplo, ' : i === 1 ? 'Percebi também que ' : 'E ') + e + (e.startsWith('[') ? '' : '.')).join(' '),
+    `Mas vi que a ${loja} tem ${fortes.join(' e ')}, então tem muito potencial pra crescer, meu amigo.`,
+    'Quem vai entrar mais em detalhe nessas questões da sua loja é o Renan, que é o nosso especialista aqui da Brase.',
+    `Mas antes de marcar a reunião com ele, me conta: como tá o momento da ${loja} hoje? Quanto vocês têm faturado por mês no iFood? E vocês têm espaço físico também, ou é só delivery?`,
+  ].join('\n');
+}
+const reais = (v: number) => 'R$ ' + v.toFixed(2).replace('.', ',');
+// Aviso no grupo AVISOS - COMERCIAIS.
+export function avLojaTexto(l: any, a: AvLoja, link: string, sdrNome = 'Lipe'): string {
+  const quem = [String((l && l.contact) || '').trim(), String((l && (l.company || l.name)) || '').trim()].filter(Boolean).filter((v, i, arr) => arr.indexOf(v) === i).join(' · ');
+  const linha2 = [a.categoria, a.avaliacoes != null ? a.avaliacoes + ' avaliações' : '', a.pedidoMinimo != null ? 'pedido mínimo ' + reais(a.pedidoMinimo) : ''].filter(Boolean).join(' · ');
+  const marcas = [
+    a.kw ? (a.kw === 'erro' ? '❌' : '✅') + ' Palavra-chave: ' + a.kwMotivo : '➖ Palavra-chave: ' + a.kwMotivo,
+    (a.rev ? '❌' : '➖') + ' Avaliações: ' + a.revMotivo,
+    ...a.avisos.map(x => '⚠️ ' + x[0].toUpperCase() + x.slice(1)),
+  ];
+  return [
+    `🔎 *Pré-análise da loja* · ${a.nome || 'loja'}${quem ? '\nLead: ' + quem : ''}`,
+    linha2, 'Horário: ' + a.horario, link, '',
+    '*O que deu pra ver pelo link:*', ...marcas,
+    '*Falta conferir no link:* produto isca, cardápio e fotos (e as avaliações contra o concorrente do print).', '',
+    '*Roteiro do áudio (QL-2):*', avLojaRoteiro(l, a), '',
+    `👤 @${sdrNome}, confira a loja, marque o resto no card e grave o áudio.`,
+  ].join('\n');
+}
+// Lead que precisa de pré-análise: link do iFood, etapa antes da reunião e (sem análise e link chegado depois de `desde`)
+// ou pedido de refazer pela Central (storeCheckAsk mais novo que a última análise).
+export function avLojaPendente(l: any, desde: number): boolean {
+  if (!l || !['novo', 'link', 'print', 'qualificando', 'agendando'].includes(String(l.stage))) return false;
+  const link = String(l.ifoodUrl || (l.wa && l.wa.ifoodLink) || '');
+  if (!/ifood/i.test(link)) return false;
+  const feita = l.storeCheck && Date.parse(l.storeCheck.at || '');
+  const pedido = Date.parse(l.storeCheckAsk || '');
+  if (pedido && (!feita || pedido > feita)) return true;
+  if (l.storeCheck) return false;
+  const chegou = Date.parse((l.wa && l.wa.ifoodLinkAt) || l.linkAt || '') || 0;
+  return chegou >= desde;
+}
