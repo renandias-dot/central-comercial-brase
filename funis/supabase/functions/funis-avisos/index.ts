@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemPeloMid, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -326,8 +326,9 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
         const antes = msgs.filter(x => x.ts < Number(a.ts) && !(avIsAudioKind(x.kind))).slice(-6).map(x => `[${brIso(x.ts * 1000).slice(11, 16)}] ${x.own ? 'Renan (Brase)' : x.author || '?'}: ${x.text}`);
         let quem: string, motivo: string;
         // O jeito do id da mensagem (aparelho de quem mandou) decide antes da IA, que errava com áudio da equipe.
-        const pm = avQuemPeloMid(a.mid, msgs, team);
-        if (pm) { quem = pm.quem; motivo = 'pelo tipo de id da mensagem (mesmo aparelho de ' + (pm.quem === 'equipe' ? 'mensagens da equipe' : pm.autor) + ')' }
+        const eu = msgs.find(x => x.mid === String(a.mid));
+        const pm = eu ? avQuemMandou(eu, msgs, team) : null;
+        if (pm) { quem = pm.quem; motivo = 'pela conversa: ' + pm.por + (pm.autor ? ' (' + pm.autor + ')' : '') }
         else try { ({quem, motivo} = await quemFalou(String(a.texto || ''), antes, team, clientes, String(op.audioQuemModelo || 'openai/gpt-oss-20b'))) }
         catch (e) {
           if (e instanceof AudioLimite) { st.limite = errText(e).slice(0, 200); break }
@@ -342,7 +343,8 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
   }
   const mapa = new Map<string, AvAudio>((await sql`select mid, texto, quem from fn_audios where status = 'ok' and ts >= ${Math.floor((now - 3 * 864e5) / 1000)}`).map((r: Row) => [String(r.mid), {texto: String(r.texto || ''), quem: r.quem}]));
   // 3. Pedido de alteração em áudio: só os do cliente (ou incertos) classificados agora, cada áudio uma vez; áudio da equipe nunca.
-  const cand = classificados.filter(a => a.quem !== 'equipe' && Number(a.ts) * 1000 >= desde && avPedidoCandidato(a.texto));
+  // Só áudio que se sabe ser do cliente vira pedido (incerto não: pode ser da equipe).
+  const cand = classificados.filter(a => a.quem === 'cliente' && Number(a.ts) * 1000 >= desde && avPedidoCandidato(a.texto));
   if (cand.length) {
     const ns = [...new Set(cand.map(a => String(a.group_ns)))];
     const fatos = new Map<string, GrpMsg[]>((await sql`select user_ns, facts->'msgs' as msgs from fn_grupos where user_ns = any(${ns})`).map((r: Row) => [String(r.user_ns), r.msgs || []]));
