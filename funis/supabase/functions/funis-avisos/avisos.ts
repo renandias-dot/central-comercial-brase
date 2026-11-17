@@ -155,12 +155,20 @@ export function avIsAck(m: GrpMsg){
   const t = fold(m.text).replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
   return !t || (t.length <= 30 && AV_ACK.test(t));
 }
-// Sinal de risco na mensagem do cliente. "Cancelar o pedido" é rotina de restaurante e não conta.
-const AV_RISK = /(cancelar|cancelamento|cancelo|encerrar|rescindir|rescisao|distrato|nao (esta|ta|tem|tao|estao) (dando|tendo|trazendo) (resultado|retorno)|sem resultado|nao vi resultado|nenhum resultado|insatisfeit|decepcionad|quero parar|vou parar|pensando em (parar|sair|cancelar)|nao vale a pena|muito caro|caro demais|ta caro|esta caro|vendas? (cairam|caiu|caindo|despencou|despencaram|piorou|piorando)|caiu muito)/;
-const AV_ROUTINE = /(pedido|entrega|cupom|promocao|motoboy|item|produto|complemento)/;
+// Sinal de risco na mensagem do cliente (um filtro: a IA confirma antes do aviso sair). Cancelar, encerrar, parar e sair só
+// contam falando do contrato ou do serviço, ou com "quero"/"vou"/"pensando em"; seguido de pedido, entrega, campanha ou
+// promoção é rotina de restaurante. Caso real (Benditta, 16/11): "o iFood encerrou a campanha de 9,90" virava risco.
+const AV_RISK = [
+  /(?:^|[^a-z])(quero|vou|vamos ter que|pensando em|penso em|estou pensando em|to pensando em|melhor) (cancelar|encerrar|rescindir)(?![a-z])/,
+  /(?:^|[^a-z])(quero|pensando em|penso em|estou pensando em|to pensando em) (parar|sair|dar um tempo|pausar)(?![a-z])/,
+  /(?:^|[^a-z])(cancelar|cancelamento|encerrar|encerramento|rescindir|rescisao|distrato|sair)( d[aeo]s?| o| a| com| esse| essa| nosso| nossa)? (contrato|servico|parceria|assessoria|gestao|plano|mensalidade|trabalho|brase|voces)(?![a-z])/,
+  /(?:^|[^a-z])(distrato|rescisao)(?![a-z])/,
+  /nao (esta|ta|tem|tao|estao) (dando|tendo|trazendo) (resultado|retorno)|sem resultado|nao vi resultado|nenhum resultado|insatisfeit|decepcionad|nao vale a pena|muito caro|caro demais|(?:^|[^a-z])(ta|esta) caro|vendas? (cairam|caiu|caindo|despencou|despencaram|piorou|piorando)|caiu muito/,
+];
+const AV_ROUTINE = /^.{0,40}?(pedido|entrega|cupom|promocao|promo|campanha|anuncio|motoboy|item|produto|complemento|combo|cardapio|loja)/;
 export function avIsRisk(text: unknown){
-  const t = fold(text), hit = AV_RISK.exec(t);
-  return !!hit && !(/cancel|encerrar/.test(hit[0]) && AV_ROUTINE.test(t));
+  const t = fold(text);
+  return AV_RISK.some(r => { const hit = r.exec(t); return !!hit && !(/cancel|encerr|parar|sair|pausar/.test(hit[0]) && AV_ROUTINE.test(t.slice((hit.index || 0) + hit[0].length))) });
 }
 // Nomes da lista (equipe ou ignorados) casam pelo começo: "Luiz Felipe" vale para "Luiz Felipe Souza".
 export function avNameIn(author: string, names: string[]){
@@ -707,4 +715,11 @@ export function avRotinasDoDia(rotinas: unknown, nowMs: number): string[] {
 export function avTextoPacote(content: unknown){
   const s = String(content ?? '').replace(/^\s*👤[^\n]*\n?/u, '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim();
   return s.length > 500 ? s.slice(0, 499) + '…' : s;
+}
+
+// Janela de envio do AVISOS - OPERACIONAIS (os gestores são marcados): fora dela o aviso espera e sai no começo da próxima.
+// Padrão das 8h às 20h, todo dia (fn_config avisos.op.envioDe / envioAte).
+export function avNaJanela(nowMs: number, de = '08:00', ate = '20:00'){
+  const b = new Date(nowMs - 3 * 3600e3), agora = b.getUTCHours() * 60 + b.getUTCMinutes(), d = avMin(de, 480), a = avMin(ate, 1200);
+  return d <= a ? agora >= d && agora < a : agora >= d || agora < a;
 }

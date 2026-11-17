@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -82,6 +82,10 @@ Deno.test('mensagem que não pede resposta', () => {
 Deno.test('risco: contrato e resultado contam; cancelar pedido não', () => {
   for (const s of ['Tô pensando em cancelar', 'Não está dando resultado', 'As vendas caíram muito essa semana', 'Quero encerrar o contrato', 'tá caro demais pra mim']) assert(avIsRisk(s), s);
   for (const s of ['O cliente pediu pra cancelar o pedido', 'Cancelaram a entrega de novo', 'Bom dia, tudo certo?', 'Vamos parar a promoção de terça?']) assert(!avIsRisk(s), s);
+  // caso real (Benditta, 16/11): o iFood encerrou a campanha; não é risco
+  assert(!avIsRisk('o final de semana foi até que razoável a sexta-feira foi um pouco mais devagar mas eu acredito que é porque a 9.9 encerrou aquela campanha que eles estavam fazendo lá de 9.90 Eles encerraram essa semana'));
+  for (const s of ['Quero cancelar o pedido 1234', 'vou pausar o combo hoje', 'Vou sair agora, depois vejo', 'pode encerrar a campanha de natal']) assert(!avIsRisk(s), s);
+  for (const s of ['Quero cancelar o serviço', 'Acho melhor encerrar o contrato com vocês', 'Vou cancelar com a Brase', 'Estou pensando em sair', 'Vou mandar o distrato']) assert(avIsRisk(s), s);
 });
 Deno.test('nomes casam pelo começo, sem acento', () => {
   assert(avNameIn('Luiz Felipe Souza', ['Luiz Felipe']));
@@ -415,4 +419,11 @@ Deno.test('grupos BRASE (só do Luis), Texas e Liz Café ficam fora dos avisos',
   assert(avTextoFora('🙋 *Cliente precisa de atendimento*\nBRASE - Shinkai & Sky_Pokee\nRafael: “oi”'));
   assert(avTextoFora('☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Bella Capri: 5 dias sem mensagem da Brase'));
   assert(!avTextoFora('⏰ *Sem resposta*\nD.I - Meu Croc\n👤 @Felipe, 5 dias sem mensagem da Brase'));
+});
+
+Deno.test('janela do AVISOS - OPERACIONAIS: das 8h às 20h, à noite espera', () => {
+  const at = (h: string) => Date.parse(`2026-11-17T${h}:00-03:00`);
+  assert(avNaJanela(at('08:00')) && avNaJanela(at('19:59')) && avNaJanela(at('12:30')));
+  assert(!avNaJanela(at('20:00')) && !avNaJanela(at('23:40')) && !avNaJanela(at('07:59')));
+  assert(avNaJanela(at('23:00'), '22:00', '06:00') && !avNaJanela(at('12:00'), '22:00', '06:00'));
 });

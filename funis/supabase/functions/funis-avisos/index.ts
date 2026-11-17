@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemPeloMid, avNaJanela, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -429,6 +429,30 @@ Responda em JSON: {"precisa": true | false, "desde": número da primeira mensage
   }
   return reserva();
 }
+// Risco de cancelamento: o filtro de palavras (avIsRisk) só indica; a IA gratuita do Groq lê a mensagem com o contexto e
+// confirma se o cliente está insatisfeito com a Brase, reclamando do resultado ou pensando em sair. Decisão guardada por
+// mensagem em fn_config (k = 'riscos'). Sem o Groq, vale o filtro.
+const RISCO_SCHEMA = {type: 'object', properties: {risco: {type: 'boolean'}, motivo: {type: 'string'}}, required: ['risco', 'motivo'], additionalProperties: false};
+async function confirmaRisco(grupo: string, msg: GrpMsg, antes: GrpMsg[], modelo: string): Promise<{risco: boolean; motivo: string}> {
+  if (!GROQ_KEY) return {risco: true, motivo: 'filtro (sem IA)'};
+  const sistema = `Você lê um grupo de WhatsApp entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante) e diz se uma mensagem do cliente é RISCO DE CANCELAMENTO do serviço da Brase.
+- risco = true: o cliente fala em cancelar, encerrar ou pausar o contrato ou o serviço da Brase, sair, que não está tendo resultado com a Brase, que está caro, está insatisfeito ou decepcionado com o trabalho, ou reclama forte das vendas culpando o serviço.
+- risco = false: rotina da loja (cancelar pedido, entrega, o iFood encerrou uma campanha, pausar item), comentário normal sobre o movimento ("a sexta foi mais devagar", "o fim de semana foi razoável"), explicação, pedido de ajuda sem insatisfação.
+Responda em JSON: {"risco": true | false, "motivo": "uma frase curta"}.`;
+  const linha = (m: GrpMsg) => `${m.own ? 'Renan (Brase)' : m.author || '?'}: ${String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 600)}`;
+  const usuario = [`Grupo: ${grupo}`, 'Antes:', ...(antes.length ? antes.map(linha) : ['(nada)']), '', 'MENSAGEM: ' + linha(msg)].join('\n');
+  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 500};
+  for (const body of [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'risco', strict: true, schema: RISCO_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}]) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { if (r.status === 400) continue; break }
+      const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
+      if (typeof o.risco === 'boolean') return {risco: o.risco, motivo: String(o.motivo || '').slice(0, 200)};
+    } catch { /* tenta a próxima forma */ }
+  }
+  return {risco: true, motivo: 'filtro (IA não respondeu)'};
+}
 async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novoCtx(c)){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
   const waitMin = Number(op.semRespostaMin) || 120, quietDays = Number(op.silencioDias) || 5, minGroups = Number(op.equipeGrupos) || 4;
@@ -476,6 +500,8 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
   // Espera que começou antes de ligar o aviso novo (op.atendimentoDesde) não dispara na hora: vai só para o resumo das 9h.
   const atendDesde = Date.parse(op.atendimentoDesde || '') || c.sinceMs;
   const riscoCom: string[] = Array.isArray(op.riscoTambem) ? op.riscoTambem : ['Luis'];
+  const riscos: Row = (await getConf('riscos')).msgs || {};
+  let riscosMudou = false, riscosIa = 0;
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
@@ -508,11 +534,25 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
       }
     }
     // Risco de cancelamento: na hora, marcando o Luis e o gestor (no máximo um por grupo a cada 6 h).
-    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs)
-      rows.push({id: `risco:${ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m, avQuemCuida([...riscoCom, ...quem], cfgGestores(c)).map(ctx.marca))});
+    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs) {
+      let d = riscos[m.mid];
+      if (!d) {
+        if (riscosIa >= 2) continue; // o resto fica para a próxima rodada
+        riscosIa++;
+        d = {...(await confirmaRisco(name, m, msgsA.filter(x => x.ts < m.ts).slice(-6), modelo)), at: brIso(now)};
+        riscos[m.mid] = d; riscosMudou = true;
+      }
+      if (d.risco) rows.push({id: `risco:${ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m, avQuemCuida([...riscoCom, ...quem], cfgGestores(c)).map(ctx.marca))});
+    }
     ctx.estado.push(estado);
   }
   if (atendMudou) await setConf('atendimento', {grupos: atend});
+  if (riscosMudou) {
+    // Guarda só os dos últimos 7 dias.
+    const corte = brIso(now - 7 * 864e5);
+    for (const k of Object.keys(riscos)) if (String(riscos[k].at || '') < corte) delete riscos[k];
+    await setConf('riscos', {msgs: riscos});
+  }
   ctx.gruposOk = true;
   return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, gestores: gest.st, atendimento: {classificados}, queued: await queue(rows)};
 }
@@ -807,9 +847,13 @@ async function targets(c: Row){
   await sql`update fn_config set v = jsonb_set(v, '{groups}', ${json(g)}), updated_at = now() where k = 'avisos'`;
   return g;
 }
-async function send(groups: Row, mode: string, ignorados: unknown = [], prefixos: unknown = undefined){
+async function send(groups: Row, mode: string, ignorados: unknown = [], prefixos: unknown = undefined, op: Row = {}){
   if (mode !== 'on') return {sent: 0, pending: Number((await sql`select count(*)::int as n from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo'`)[0].n)};
-  const rows = await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo' order by created_at, id limit ${SEND_MAX}`;
+  // AVISOS - OPERACIONAIS marca os gestores: fora da janela (padrão 8h às 20h) os avisos esperam e saem no começo da próxima.
+  const opAberto = avNaJanela(Date.now(), String(op.envioDe || '08:00'), String(op.envioAte || '20:00'));
+  const rows = opAberto
+    ? await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo' order by created_at, id limit ${SEND_MAX}`
+    : await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal not in ('resumo', 'operacional') order by created_at, id limit ${SEND_MAX}`;
   if (!rows.length) return {sent: 0, failed: 0};
   // Trava: só sai mensagem para os grupos AVISOS. Nada é enviado no grupo do cliente (decisão do dono).
   const clientes = new Set((await sql`select user_ns from fn_grupos`).map((r: Row) => String(r.user_ns)));
@@ -859,7 +903,7 @@ async function run(){
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }
-  await step('envio', () => send(groups, mode, c.gruposIgnorados, c.gruposForaPrefixo));
+  await step('envio', () => send(groups, mode, c.gruposIgnorados, c.gruposForaPrefixo, c.op || {}));
   st.waCursor = (st.horarios && st.horarios.cursor) || prev.waCursor || null;
   st.renanCursor = (st.agenda && st.agenda.cursor) || prev.renanCursor || null;
   st.crmCursor = (st.reunioes && st.reunioes.cursor) || prev.crmCursor || null;
