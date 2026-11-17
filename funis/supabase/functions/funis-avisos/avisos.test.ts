@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -387,4 +387,32 @@ Deno.test('pacote do resumo do dia: janela das 6h15 às 6h50, rotinas do dia e t
   assertEquals(avRotinasDoDia(undefined, at('2026-11-17T07:00:00')), []);                                              // terça
   assertEquals(avRotinasDoDia([{dias: [2], texto: 'Conferir anúncios'}], at('2026-11-17T07:00:00')), ['Conferir anúncios']);
   assertEquals(avTextoPacote('👤 Renan Dias:\nHoje:\n\nResponder Rafael @220997961691161'), 'Hoje: Responder Rafael');
+});
+
+Deno.test('quem mandou pelo jeito do id: caso real do Point da Lolo (14/11)', () => {
+  const team = ['Felipe Araújo', 'Luis - Gestão Performance'];
+  const m = (mid: string, ts: number, author: string, text = 'x', kind = 'text'): GrpMsg => ({mid, ts, own: false, author, text, kind});
+  const msgs = [
+    m('3AE5D0DC304EE848FFBA', 1, 'Patrick William'), m('2A0E2AD813691CD41BE8', 2, 'Felipe Araújo'), m('3A008B272E18495410CA', 3, 'Luis - Gestão Performance'),
+    m('2AB5016A4DE7A0307611', 4, 'Felipe Araújo'), m('3A644FD5714D9310CF64', 5, 'Patrick William'), m('3EB0012B9C1F355818D49E', 6, 'Felipe Araújo'),
+    m('2AF9B9B1FD91FB17FF5F', 7, 'Felipe Araújo', 'Chegou a abrir contestação do pedido ?'),
+    m('3A2EB74AAB7327FA0354', 8, '', '[áudio]', 'audio'), m('2AE0D89299CF24A1DAE7', 9, '', '[áudio]', 'audio'),
+  ];
+  assertEquals([avMidChave('2AE0D89299CF24A1DAE7'), avMidChave('3EB0012B9C1F355818D49E')], ['2A:20', '3EB0']);
+  assertEquals(avQuemPeloMid('2AE0D89299CF24A1DAE7', msgs, team), {quem: 'equipe'});   // áudio do Felipe (não transcrito)
+  assertEquals(avQuemPeloMid('3A2EB74AAB7327FA0354', msgs, team), null);               // iPhone: Patrick e Luis, misturado
+  // o áudio do Felipe agora conta como resposta da Brase: o cliente não fica esperando
+  const comAudio = avComAudios(msgs, new Map([['3A2EB74AAB7327FA0354', {texto: 'Não, eu não entendo muito bem não.', quem: 'cliente'}]]), team);
+  assertEquals(comAudio.find(x => x.mid === '2AE0D89299CF24A1DAE7')!.author, AV_AUDIO_EQUIPE);
+  assertEquals(avGroupState(comAudio, team).waiting, null);
+  // um cliente só com aquele jeito de id: o áudio é dele
+  assertEquals(avQuemPeloMid('3A99', [m('3A11', 1, 'Ana'), m('3A22', 2, 'Ana'), m('2A33', 3, 'Felipe Araújo')], team), {quem: 'cliente', autor: 'Ana'});
+});
+Deno.test('grupos BRASE (só do Luis), Texas e Liz Café ficam fora dos avisos', () => {
+  for (const g of ['G: BRASE - Bella Capri', 'BRASE - Shinkai & Sky_Pokee', 'brase- Marmita Moxuara', 'Gestão IFood - Texas Burguer']) assert(avForaDosAvisos(g), g);
+  assert(avForaDosAvisos('D.I - Liz Café', ['Liz Café']));
+  for (const g of ['D.I - Point da Lolo', 'G: Organização - BRASE 🎯', 'D.I - Kero+Açaí']) assert(!avForaDosAvisos(g), g);
+  assert(avTextoFora('🙋 *Cliente precisa de atendimento*\nBRASE - Shinkai & Sky_Pokee\nRafael: “oi”'));
+  assert(avTextoFora('☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Bella Capri: 5 dias sem mensagem da Brase'));
+  assert(!avTextoFora('⏰ *Sem resposta*\nD.I - Meu Croc\n👤 @Felipe, 5 dias sem mensagem da Brase'));
 });
