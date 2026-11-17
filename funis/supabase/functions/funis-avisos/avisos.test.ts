@@ -371,5 +371,7 @@ Deno.test('resumo das 9h: um por gestor, seções, sem repetir linha; sai uma ve
   assertEquals(avResumoDue(t9, '2026-11-17'), null);                                  // já saiu hoje
   assertEquals(avResumoDue(Date.parse('2026-11-17T08:58:00-03:00'), ''), null);       // antes das 9h
   assertEquals(avResumoDue(Date.parse('2026-11-21T10:00:00-03:00'), ''), null);       // sábado
+  assertEquals(avResumoDue(Date.parse('2026-11-16T22:38:00-03:00'), ''), null);       // à noite não (caso real de 16/11)
+  assertEquals(avResumoDue(Date.parse('2026-11-17T11:59:00-03:00'), ''), '2026-11-17'); // até 3 h depois das 9h
   assertEquals(avReuniaoOpsLinha('2026-11-10', {status: 'ok', reuniao: 'Adicional #1', tarefas: ['a', 'b'], proxima: '2026-12-10'}), 'reunião de 10/11 registrada (Adicional #1), 2 tarefas no Comando, próxima 10/12');
 });

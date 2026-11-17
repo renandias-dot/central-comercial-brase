@@ -350,11 +350,13 @@ export function avResumoText(marca: string, itens: AvResumoItem[], nowMs: number
   }
   return linhas.join('\n');
 }
-// O resumo sai na 1ª rodada a partir das 9h (Brasília) de um dia útil, uma vez por dia. Devolve o dia (AAAA-MM-DD) ou null.
+// O resumo sai na 1ª rodada a partir das 9h (Brasília) de um dia útil, uma vez por dia, e só até 3 h depois (publicar ou
+// religar a função à noite não manda resumo marcando os gestores fora de hora). Devolve o dia (AAAA-MM-DD) ou null.
 export function avResumoDue(nowMs: number, ultimoDia: unknown, hora = '09:00', dias = [1, 2, 3, 4, 5]){
   const b = new Date(nowMs - 3 * 3600e3), dia = b.toISOString().slice(0, 10), m = /^(\d{1,2}):(\d{2})$/.exec(hora);
   const min = m ? +m[1] * 60 + +m[2] : 540;
-  if (!dias.includes(b.getUTCDay()) || b.getUTCHours() * 60 + b.getUTCMinutes() < min || String(ultimoDia || '') === dia) return null;
+  const agora = b.getUTCHours() * 60 + b.getUTCMinutes();
+  if (!dias.includes(b.getUTCDay()) || agora < min || agora >= min + 180 || String(ultimoDia || '') === dia) return null;
   return dia;
 }
 
