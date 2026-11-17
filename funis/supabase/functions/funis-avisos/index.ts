@@ -778,7 +778,7 @@ async function manha(c: Row, contacts: Row[]){
     const aud = new Map((await sql`select mid, texto from fn_audios where mid = any(${mids}) and status = 'ok'`).map((r: Row) => [String(r.mid), String(r.texto || '')]));
     const lead = grupo ? null : idx.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
     conversas.push({
-      conversa: avGroupLabel(x.name) || 'Contato sem nome', tipo: cliente ? 'grupo de cliente' : grupo ? 'grupo' : lead ? 'lead da Central' : 'privado',
+      conversa: avGroupLabel(x.name).replace(/^[~\s]*$/, '') || `Contato sem nome (final ${String(x.phone || '').replace(/\D/g, '').slice(-4) || '?'})`, tipo: cliente ? 'grupo de cliente' : grupo ? 'grupo' : lead ? 'lead da Central' : 'privado',
       lead: lead ? {nome: lead.data.name || '', empresa: lead.data.company || '', etapa: lead.data.stage || '', reuniao: lead.data.meetingAt || null} : undefined,
       mensagens: recentes.map((m: Row) => {
         const g = grpMsg(m), mid = String(m.mid || m.id || m.ts), a = aud.get(mid);
