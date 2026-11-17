@@ -122,6 +122,16 @@ export function avIgnorado(texto: unknown, extra: unknown = []){
   const t = fold(texto), lista = [...AV_IGNORADOS, ...(Array.isArray(extra) ? extra : [])].map(x => fold(x).trim()).filter(x => x.length >= 3);
   return lista.some(k => t.includes(k));
 }
+// Grupos que começam com "BRASE - " são só do Luis: nada deles aparece nos grupos AVISOS (decisão do dono, 17/11). Outros
+// começos em fn_config avisos.gruposForaPrefixo. Junto com avIgnorado (Texas, Liz Café…), é o que fica fora dos avisos.
+export function avForaDosAvisos(nome: unknown, ignorados: unknown = [], prefixos: unknown = ['brase']){
+  const n = fold(nome).replace(/^\s*g:\s*/, '').trim(), lista = Array.isArray(prefixos) && prefixos.length ? prefixos : ['brase'];
+  return avIgnorado(nome, ignorados) || lista.some(p => { const k = fold(p).replace(/\s*-\s*$/, '').trim(); return !!k && new RegExp('^' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-').test(n) });
+}
+// Trava do envio: aviso que cita grupo fora dos avisos numa linha própria ("BRASE - Loja", "• BRASE - Loja: …").
+export function avTextoFora(texto: unknown, ignorados: unknown = [], prefixos: unknown = ['brase']){
+  return avIgnorado(texto, ignorados) || String(texto || '').split('\n').some(l => avForaDosAvisos(l.replace(/^\s*(•|[^\p{L}\p{N}]+)\s*/u, ''), [], prefixos));
+}
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
@@ -199,6 +209,21 @@ export function avAudioUrl(m: WaMsg){
 }
 export const avAudioTexto = (t: unknown) => { const s = String(t ?? '').replace(/\s+/g, ' ').trim(); return '🎤 ' + (s ? (s.length > 600 ? s.slice(0, 599) + '…' : s) : '(áudio sem fala)') };
 export type AvAudio = {texto: string; quem?: string | null};
+// Quem mandou uma mensagem sem nome (áudio, imagem) pelo jeito do id: o WhatsApp gera o id de um jeito em cada tipo de
+// aparelho (iPhone "3A…", WhatsApp Web "3EB0…", outros "2A…"). Se no grupo todas as mensagens com nome e o mesmo jeito de id
+// são da equipe, é da equipe; se são todas de uma pessoa só do cliente, é ela. Misturado ou pouca amostra: não decide.
+// Caso real (Point da Lolo, 14/11): os áudios do Felipe ("2A…") contavam como do cliente e a resposta dele não contava.
+export const avMidChave = (mid: unknown) => { const m = String(mid || ''); return /^3EB0/i.test(m) ? '3EB0' : m.slice(0, 2).toUpperCase() + ':' + m.length };
+export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = []): {quem: 'equipe' | 'cliente'; autor?: string} | null {
+  const k = avMidChave(mid);
+  const autores = (msgs || []).filter(m => m.mid !== String(mid) && avMidChave(m.mid) === k && (m.own || (m.author && m.author !== AV_AUDIO_EQUIPE && m.author !== AV_AUDIO_CLIENTE && m.author !== AV_AUDIO_SEM_AUTOR)))
+    .map(m => m.own ? '' : m.author);
+  if (autores.length < 2) return null;
+  const daEquipe = (a: string) => !a || avNameIn(a, team) || /brase/i.test(a);
+  if (autores.every(daEquipe)) return {quem: 'equipe'};
+  const doCliente = [...new Set(autores.filter(a => !daEquipe(a)))];
+  return autores.some(daEquipe) || doCliente.length !== 1 ? null : {quem: 'cliente', autor: doCliente[0]};
+}
 // Põe a transcrição no lugar de "[áudio]" (mapa mid → {texto, quem}). Equipe: vira mensagem da Brase, sem o conteúdo.
 // Cliente: o nome é o da mensagem anterior de alguém do cliente (até 15 min antes), senão "Cliente (áudio)". Sem
 // classificação ainda: fica sem autor (só conta para o sinal de risco).
@@ -206,6 +231,10 @@ export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: 
   const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
   return sorted.map((m, i) => {
     const a = avIsAudio(m) ? audios.get(m.mid) : undefined;
+    // Sem nome: o jeito do id decide antes de tudo (vale também para áudio não transcrito e imagem).
+    const pm = !m.own && !m.author ? avQuemPeloMid(m.mid, sorted, team) : null;
+    if (pm && pm.quem === 'equipe') return {...m, author: AV_AUDIO_EQUIPE, text: avIsAudio(m) ? '🎤 (áudio da equipe)' : m.text};
+    if (pm && pm.quem === 'cliente') return {...m, author: pm.autor || AV_AUDIO_CLIENTE, text: a ? avAudioTexto(a.texto) : m.text};
     if (!a) return m;
     if (a.quem === 'equipe') return {...m, author: AV_AUDIO_EQUIPE, text: '🎤 (áudio da equipe)'};
     const text = avAudioTexto(a.texto);
