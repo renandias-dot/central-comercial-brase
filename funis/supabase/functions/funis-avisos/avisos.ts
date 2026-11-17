@@ -55,7 +55,7 @@ const fold = (s: unknown) => String(s ?? '').normalize('NFD').replace(/\p{M}/gu,
 const AV_WEEK = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
 export const AV_STAGE: Record<string, string> = {novo: 'Lead Novo', link: 'Link recebido', print: 'Print Enviado', qualificando: 'Qualificando', agendando: 'Agendando',
   marcada: 'Reunião Marcada', feita: 'Reunião Feita', fechado: 'Fechado', noshow: 'No-show', perdido: 'Perdido', desqualificado: 'Desqualificado', frio: 'Frio', morno: 'Morno'};
-const avQuote = (t: string, max = 160) => { const s = String(t || '').replace(/\s+/g, ' ').trim(); return '“' + (s.length > max ? s.slice(0, max - 1) + '…' : s) + '”' };
+const avQuote = (t: string, max = 160) => { const s = String(t || '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim(); return '“' + (s.length > max ? s.slice(0, max - 1) + '…' : s) + '”' };
 
 // Horário concreto numa mensagem: "amanhã às 10h", "quinta 14h30", "pode ser 16:00?". Precisa de um dia ou de uma palavra de
 // agenda junto; duração ("em 24h", "dura 1h") não conta (só 7h a 22h no formato "10h").
@@ -293,8 +293,72 @@ export function avSemRespostaText(group: string, w: GrpMsg, msUteis: number, now
   linhas.push(avGestorLinha(gestores, 'responda o cliente.'));
   return linhas.join('\n');
 }
-export const avRiscoText = (group: string, m: GrpMsg, gestores?: AvGestores) => `🚨 *Atenção: possível risco*\n${group}\n${m.author || 'Cliente'}: ${avQuote(m.text, 220)}\n${avGestorLinha(gestores, 'fale com o cliente hoje.')}`;
+// Risco de cancelamento: sai na hora, marcando o Luis (head) e o gestor da loja (decisão do dono, 17/11).
+export function avRiscoText(group: string, m: GrpMsg, gestores?: AvGestores){
+  const n = new Set((Array.isArray(gestores) ? gestores : [gestores]).map(x => String(x || '').trim()).filter(Boolean)).size;
+  return `🚨 *Risco de cancelamento*\n${group}\n${m.author || 'Cliente'}: ${avQuote(m.text, 220)}\n${avGestorLinha(gestores, n > 1 ? 'falem com o cliente hoje.' : 'fale com o cliente hoje.')}`;
+}
 export const avSilencioText = (group: string, days: number, gestores?: AvGestores) => `😶 *${days} dias sem mensagem da Brase*\n${group}\n${avGestorLinha(gestores, 'mande uma mensagem no grupo.')}`;
+
+// Marcação de verdade no WhatsApp: "@<número>" no texto vira o nome em azul e notifica (testado em 16/11 com o Gabriel). O
+// número de cada gestor fica em fn_config avisos.gestoresTelefone ({"Gabriel": "557196234092"}); sem número, "@Nome" em texto.
+// Quem saiu da operação (avisos.gestoresSairam, ex.: Thalita) é trocado pelo gestor padrão (avisos.gestorPadrao, o Luis).
+export type AvTelefones = Record<string, string>;
+export function avMarca(nome: unknown, tel: AvTelefones = {}){
+  const n = fold(nome).trim();
+  if (!n) return '';
+  const k = Object.keys(tel || {}).find(x => { const f = fold(x).trim(); return !!f && (f === n || n.startsWith(f + ' ') || f.startsWith(n + ' ')) });
+  const num = k ? String(tel[k]).replace(/\D/g, '') : '';
+  return num.length >= 10 && num.length <= 15 ? num : String(nome).trim();
+}
+export function avQuemCuida(nomes: unknown, cfg: {sairam?: unknown; padrao?: unknown} = {}){
+  const sairam = (Array.isArray(cfg.sairam) ? cfg.sairam : []).map(x => fold(x).trim()).filter(Boolean), padrao = String(cfg.padrao || 'Luis');
+  const lista = (Array.isArray(nomes) ? nomes : [nomes]).map(x => String(x || '').trim()).filter(Boolean)
+    .map(x => sairam.some(sa => fold(x).trim() === sa || fold(x).startsWith(sa + ' ')) ? padrao : x);
+  const vistos = new Set<string>(), unicos = lista.filter(x => { const k = fold(x).trim(); if (vistos.has(k)) return false; vistos.add(k); return true });
+  return unicos.length ? unicos : [padrao];
+}
+
+// Cliente precisa de atendimento: no lugar do "sem resposta". Só quando o cliente perguntou, pediu algo ou reclamou (uma IA
+// gratuita lê as mensagens; a regra fixa abaixo é a reserva) e ficou 2 h sem resposta no horário comercial.
+const AV_PEDE = /(\?|(?:^|[^a-z])(pod(e|em|eria|eriam) (me|nos|ver|mudar|tirar|colocar|subir|pausar|ativar|mandar|enviar|fazer|verificar|olhar|criar|trocar|alterar|atualizar|ajudar|arrumar|corrigir|incluir|montar|lancar)|consegue|conseguem|conseguiria|preciso|precisamos|precisava|quero|queria|gostaria|ajuda|ajudar|como (faco|fazer|funciona|fica)|quando|qual|quais|por que|porque nao|cade|nao (esta|ta|tao|estao) (funcionando|aparecendo|saindo|chegando)|problema|erro|urgente|reclam|me (liga|ligar|chama|retorna)|retorno|alguem)(?![a-z]))/;
+export function avPrecisaPeloTexto(textos: unknown[]): number {
+  const i = (Array.isArray(textos) ? textos : []).findIndex(t => { const f = fold(t).replace(/@\d{6,}/g, ''); return AV_PEDE.test(f) && !(AV_ACK.test(f.trim()) && f.trim().length < 30 && !f.includes('?')) });
+  return i + 1; // 0 = nenhuma; senão, a posição (1 = a primeira) da mensagem que pede atendimento
+}
+export function avAtendimentoText(group: string, w: GrpMsg, pedido: string, msUteis: number, nowMs: number, gestores?: AvGestores){
+  const linhas = [`🙋 *Cliente precisa de atendimento*`, group, `${w.author || 'Cliente'}: ${avQuote(w.text, 200)}`];
+  const p = String(pedido || '').replace(/\s+/g, ' ').trim();
+  if (p) linhas.push(`O que precisa: ${p.length > 120 ? p.slice(0, 119) + '…' : p}`);
+  const fora = nowMs - w.ts * 1000 - msUteis > 15 * 60e3;
+  linhas.push(`Esperando há ${avDur(msUteis)} no horário comercial${fora ? ` (mandou ${avWhen(brIso(w.ts * 1000))})` : ''}.`);
+  linhas.push(avGestorLinha(gestores, 'responda o cliente.'));
+  return linhas.join('\n');
+}
+
+// Resumo das 9h (seg a sex): uma mensagem por gestor, marcando ele, só com as lojas dele. Atendimento ainda pendente, grupo
+// parado e reunião a marcar saem do estado do momento (repetem enquanto não resolver); reunião registrada ou não no OPS vem
+// da fila (canal 'resumo'). Gestor sem pendência não recebe nada.
+export type AvResumoItem = {tipo: 'atendimento' | 'parado' | 'reuniao30' | 'ops'; grupo: string; texto: string};
+const AV_RESUMO_SECAO: [AvResumoItem['tipo'], string][] = [['atendimento', '🙋 *Atendimento pendente*'], ['parado', '😶 *Grupo parado*'], ['reuniao30', '📆 *Marcar reunião*'], ['ops', '📝 *Reuniões no OPS*']];
+export function avResumoText(marca: string, itens: AvResumoItem[], nowMs: number){
+  const dia = avWhen(brIso(nowMs)).replace(/ às .*/, '');
+  const linhas = [`☀️ *Resumo de ${dia}* · @${marca}`];
+  for (const [tipo, titulo] of AV_RESUMO_SECAO) {
+    const daqui = [...new Set(itens.filter(x => x.tipo === tipo).map(x => `• ${x.grupo}: ${x.texto}`))];
+    if (daqui.length) linhas.push('', titulo, ...daqui);
+  }
+  return linhas.join('\n');
+}
+// O resumo sai na 1ª rodada a partir das 9h (Brasília) de um dia útil, uma vez por dia, e só até 3 h depois (publicar ou
+// religar a função à noite não manda resumo marcando os gestores fora de hora). Devolve o dia (AAAA-MM-DD) ou null.
+export function avResumoDue(nowMs: number, ultimoDia: unknown, hora = '09:00', dias = [1, 2, 3, 4, 5]){
+  const b = new Date(nowMs - 3 * 3600e3), dia = b.toISOString().slice(0, 10), m = /^(\d{1,2}):(\d{2})$/.exec(hora);
+  const min = m ? +m[1] * 60 + +m[2] : 540;
+  const agora = b.getUTCHours() * 60 + b.getUTCMinutes();
+  if (!dias.includes(b.getUTCDay()) || agora < min || agora >= min + 180 || String(ultimoDia || '') === dia) return null;
+  return dia;
+}
 
 // Reunião com o cliente: cada link do Meet num grupo de cliente vira uma reunião "provável" no dia do link (Brasília); a rotina
 // de IA confirma (realizada / não realizada) pelo contexto e pelas Anotações do Gemini, e corrige o dia. Id = grupo:código:dia.
@@ -420,6 +484,14 @@ export function avReuniaoOpsText(grupo: string, dia: string, r: AvReuniaoOps, fo
   if (r.proxima) linhas.push(`Próxima reunião prevista: ${avDia(r.proxima)}.`);
   linhas.push(avGestorLinha(r.gestor || doGrupo, tarefas.length ? 'revise a reunião e as tarefas no OPS.' : 'revise a reunião no OPS (ficha do cliente › Compromissos).'));
   return linhas.join('\n');
+}
+// Linha da reunião no resumo das 9h (registrada ou não no OPS). Link do Meet e Anotações do Gemini da mesma reunião dão a mesma
+// linha "não registrada", e o resumo junta as iguais.
+export function avReuniaoOpsLinha(dia: string, r: AvReuniaoOps){
+  if (r.status === 'sem_cliente') return `reunião de ${avDia(dia)} não registrada no OPS (o grupo não bate com uma loja só): marque à mão`;
+  if (r.status !== 'ok') return `reunião de ${avDia(dia)} não registrada no OPS${r.error ? ` (${String(r.error).slice(0, 80)})` : ''}: marque à mão`;
+  const t = (r.tarefas || []).length;
+  return `reunião de ${avDia(dia)} registrada${r.reuniao ? ' (' + r.reuniao + ')' : ''}${t ? `, ${t} ${t === 1 ? 'tarefa' : 'tarefas'} no Comando` : ''}${r.proxima ? `, próxima ${avDia(r.proxima)}` : ''}`;
 }
 // Card do lead da reunião de venda: primeiro os leads com reunião marcada naquele dia, depois os em andamento; vale o que
 // tem mais palavras do título/participantes no nome, empresa ou contato (empate não escolhe nenhum).

@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -30,7 +30,7 @@ const AUDIO_BYTES = 24e6;      // o plano gratuito do Groq aceita até 25 MB
 const AUDIO_JANELA = 6 * 3600e3; // só áudio das últimas 6 h (o mesmo prazo dos pedidos)
 const QUEM_MAX = 4;            // áudios classificados (cliente ou equipe) por rodada: o plano gratuito tem limite por minuto
 type Row = Record<string, any>;
-type AvRow = {id: string; canal: 'comercial' | 'operacional'; tipo: string; texto: string};
+type AvRow = {id: string; canal: 'comercial' | 'operacional' | 'resumo'; tipo: string; texto: string; grupo?: string | null; gestores?: string[] | null};
 const json = (v: unknown) => (sql as any).json(v);
 const errText = (e: unknown) => e instanceof Error ? e.message : String(e);
 const reply = (status: number, data: unknown) => new Response(JSON.stringify(data), {status, headers: {'content-type': 'application/json; charset=utf-8'}});
@@ -62,7 +62,8 @@ async function crmCall(body: Row){
 }
 async function queue(rows: AvRow[]){
   if (!rows.length) return 0;
-  const ins = await sql`insert into fn_avisos ${sql(rows as unknown as Row[], 'id', 'canal', 'tipo', 'texto')} on conflict (id) do nothing returning id`;
+  const lista = rows.map(r => ({...r, grupo: r.grupo ?? null, gestores: r.gestores ?? null}));
+  const ins = await sql`insert into fn_avisos ${sql(lista as unknown as Row[], 'id', 'canal', 'tipo', 'texto', 'grupo', 'gestores')} on conflict (id) do nothing returning id`;
   return ins.length;
 }
 // Nomes da equipe da Central (para "SDR: Fulano" no aviso de reunião), guardados por 6 h.
@@ -360,7 +361,7 @@ const avIsAudioKind = (k: string) => ['audio', 'voice', 'ptt'].includes(k);
 // responder, vale o guardado e, sem ele, o aviso sai com "Gestor não identificado no OPS".
 const GESTORES_TTL = 30 * 60e3;
 type Gestores = (grupo: unknown) => string[];
-async function gestoresDosGrupos(nomes: string[]): Promise<{de: Gestores; st: Row}> {
+async function gestoresDosGrupos(nomes: string[], avisosConf: Row = {}): Promise<{de: Gestores; st: Row}> {
   const lista = [...new Set(nomes.map(n => String(n || '').trim()).filter(Boolean))];
   const cache = await getConf('ops_gestores');
   let mapa: Row = cache.grupos && typeof cache.grupos === 'object' ? cache.grupos : {};
@@ -376,16 +377,56 @@ async function gestoresDosGrupos(nomes: string[]): Promise<{de: Gestores; st: Ro
     }
   }
   // Grupo de loja que não está no OPS: gestor definido à mão em fn_config avisos.gestoresGrupo = {"nome do grupo": ["Nome"]}.
-  const manual: Row = (await getConf('avisos')).gestoresGrupo || {};
-  const de: Gestores = (grupo) => {
+  const manual: Row = avisosConf.gestoresGrupo || {};
+  const bruto = (grupo: unknown): string[] => {
     const k = String(grupo || '').trim(), m = manual[k], g = mapa[k];
     if (Array.isArray(m) && m.length) return m.map(String);
     return g && Array.isArray(g.gestores) ? g.gestores.map(String) : [];
   };
-  st.semGestor = lista.filter(n => !de(n).length);
+  // Sem gestor, ou gestor que saiu da operação: vai para o gestor padrão (o Luis).
+  const de: Gestores = (grupo) => avQuemCuida(bruto(grupo), cfgGestores(avisosConf));
+  st.semGestor = lista.filter(n => !bruto(n).length);
   return {de, st};
 }
-async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []}){
+// Quem cuida e como marcar: fn_config avisos.gestoresTelefone ({"Gabriel": "557196234092"}), gestoresSairam (["Thalita"]) e
+// gestorPadrao ("Luis"). "@<número>" vira a marcação de verdade no WhatsApp; sem número, "@Nome" em texto.
+const cfgGestores = (c: Row) => ({sairam: c.gestoresSairam || [], padrao: c.gestorPadrao || 'Luis'});
+type Ctx = {gestores: Gestores; marca: (nome: unknown) => string; estado: Row[]; gruposOk: boolean};
+function novoCtx(c: Row): Ctx {
+  const tel = c.gestoresTelefone || {};
+  return {gestores: () => avQuemCuida([], cfgGestores(c)), marca: (nome) => avMarca(avQuemCuida(nome, cfgGestores(c))[0], tel), estado: [], gruposOk: false};
+}
+// Cliente precisa de atendimento? A IA gratuita do Groq lê as mensagens do cliente que ainda não tiveram resposta da Brase
+// e diz se alguma pergunta, pede algo ou reclama (e qual é a primeira); agradecimento, "pode ser", aviso solto e mensagem de
+// outra agência não contam. Sem o Groq, vale a regra fixa (avPrecisaPeloTexto). A decisão fica guardada por grupo em
+// fn_config (k = 'atendimento') até chegar mensagem nova do cliente.
+const ATEND_SCHEMA = {type: 'object', properties: {precisa: {type: 'boolean'}, desde: {type: 'integer'}, pedido: {type: 'string'}, motivo: {type: 'string'}}, required: ['precisa', 'desde', 'pedido', 'motivo'], additionalProperties: false};
+const ATEND_MAX = 4; // grupos classificados por rodada
+async function decideAtendimento(grupo: string, antes: GrpMsg[], pend: GrpMsg[], modelo: string){
+  const reserva = () => { const i = avPrecisaPeloTexto(pend.map(m => m.text)); return {precisa: i > 0, desdeMid: i > 0 ? pend[i - 1].mid : '', pedido: '', motivo: 'regra fixa', fonte: 'regra'} };
+  if (!GROQ_KEY || !pend.length) return reserva();
+  const sistema = `Você lê um grupo de WhatsApp entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante ou alguém da loja) e decide se o cliente está esperando atendimento da Brase.
+- precisa = true: o cliente perguntou algo, pediu algo (mudança no cardápio, preço, foto, combo, campanha, relatório, reunião, ajuda), relatou um problema ou reclamou, e a Brase ainda não respondeu.
+- precisa = false: agradecimento, confirmação ("ok", "pode ser", "por mim tudo bem", "combinado", "show"), aviso que não pede resposta ("tô chegando", "gravamos hoje", "acabou o insumo e pausei"), número ou informação solta que responde algo da Brase, conversa entre pessoas do cliente, mensagem de outra agência ou fornecedor que não é para a Brase.
+Responda em JSON: {"precisa": true | false, "desde": número da primeira mensagem do cliente que pede atendimento (1 = a primeira da lista; 0 se nenhuma), "pedido": o que o cliente precisa em até 12 palavras ("" se nada), "motivo": uma frase curta}.`;
+  const linha = (m: GrpMsg) => `${m.own ? 'Renan (Brase)' : m.author || 'Cliente'}: ${String(m.text || '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim().slice(0, 400)}`;
+  const usuario = [`Grupo: ${grupo}`, 'Antes (contexto):', ...(antes.length ? antes.map(linha) : ['(nada)']), '', 'Mensagens do cliente sem resposta da Brase:', ...pend.map((m, i) => `${i + 1}. ${linha(m)}`)].join('\n');
+  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 700};
+  const tentativas = [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'atendimento', strict: true, schema: ATEND_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}];
+  for (const body of tentativas) {
+    try {
+      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { if (r.status === 400) continue; break }
+      const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
+      if (typeof o.precisa !== 'boolean') continue;
+      const i = Number.isInteger(o.desde) && o.desde >= 1 && o.desde <= pend.length ? o.desde : 1;
+      return {precisa: o.precisa, desdeMid: o.precisa ? pend[i - 1].mid : '', pedido: String(o.pedido || '').slice(0, 160), motivo: String(o.motivo || '').slice(0, 200), fonte: 'ia'};
+    } catch { /* fora do formato ou rede: tenta a próxima forma */ }
+  }
+  return reserva();
+}
+async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novoCtx(c)){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
   const waitMin = Number(op.semRespostaMin) || 120, quietDays = Number(op.silencioDias) || 5, minGroups = Number(op.equipeGrupos) || 4;
   // Grupo fora dos avisos (o Texas, decisão do dono): nem é lido.
@@ -425,25 +466,52 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores:
     sink.push({mid: m.mid, grupo: l.name, autor: m.author, texto, ts: m.ts, contexto});
   }
   const rows: AvRow[] = [], meetDays = Number(op.reuniaoDias) || 30, exp = avExpediente(op.expediente);
-  const gest = await gestoresDosGrupos(all.map((r: Row) => String(r.nome || (r.facts || {}).name || '')));
+  const gest = await gestoresDosGrupos(all.map((r: Row) => String(r.nome || (r.facts || {}).name || '')), c);
   ctx.gestores = gest.de;
+  const atend: Row = (await getConf('atendimento')).grupos || {}, modelo = String(op.audioQuemModelo || 'openai/gpt-oss-20b');
+  let classificados = 0, atendMudou = false;
+  // Espera que começou antes de ligar o aviso novo (op.atendimentoDesde) não dispara na hora: vai só para o resumo das 9h.
+  const atendDesde = Date.parse(op.atendimentoDesde || '') || c.sinceMs;
+  const riscoCom: string[] = Array.isArray(op.riscoTambem) ? op.riscoTambem : ['Luis'];
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
-    const f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), st = avGroupState(avComAudios(f.msgs || [], aud.mapa, team), team, ignore), quem = gest.de(name);
-    const lm = lastMeet.get(String(r.user_ns));
-    if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays))
-      rows.push({id: `reuniao30:${r.user_ns}:${lm.dia}`, canal: 'operacional', tipo: 'reuniao_30d', texto: avReuniao30Text(name, lm.dia, lm.status, meetDays, quem)});
-    // Espera do cliente: só conta o tempo dentro do horário comercial (mensagem da noite começa a contar às 9h do dia útil).
-    const util = st.waiting && st.waiting.ts * 1000 >= c.sinceMs ? avMsUteis(st.waiting.ts * 1000, now, exp) : 0;
-    if (st.waiting && util >= waitMin * 60e3)
-      rows.push({id: `semresp:${r.user_ns}:${st.waiting.mid}`, canal: 'operacional', tipo: 'sem_resposta', texto: avSemRespostaText(name, st.waiting, util, now, quem)});
-    // Risco: no máximo um aviso por grupo a cada 6 h (a 1ª mensagem da janela).
-    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs) rows.push({id: `risco:${r.user_ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m, quem)});
+    const ns = String(r.user_ns), f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), msgsA = avComAudios(f.msgs || [], aud.mapa, team);
+    const st = avGroupState(msgsA, team, ignore), quem = gest.de(name), marcas = quem.map(ctx.marca);
+    const estado: Row = {grupo: name, gestores: quem};
+    // 30 dias sem reunião e grupo parado: só no resumo das 9h (repetem enquanto não resolver).
+    const lm = lastMeet.get(ns);
+    if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays)) estado.reuniao30 = `última reunião em ${lm.dia.slice(8, 10)}/${lm.dia.slice(5, 7)}${lm.status === 'realizada' ? '' : ' (link do Meet no grupo)'}`;
     const ref = st.lastBrase ? st.lastBrase * 1000 : Date.parse(f.firstSeen || '') || now;
-    if (now - ref >= quietDays * 864e5) rows.push({id: `silencio:${r.user_ns}:${st.lastBrase || 'nunca'}`, canal: 'operacional', tipo: 'silencio', texto: avSilencioText(name, Math.floor((now - ref) / 864e5), quem)});
+    if (now - ref >= quietDays * 864e5) estado.parado = `${Math.floor((now - ref) / 864e5)} dias sem mensagem da Brase`;
+    // Cliente precisa de atendimento: pergunta, pedido ou reclamação sem resposta há 2 h no horário comercial (sai na hora;
+    // o que seguir pendente entra no resumo das 9h).
+    if (st.waiting && st.waiting.ts * 1000 >= c.sinceMs && avMsUteis(st.waiting.ts * 1000, now, exp) >= waitMin * 60e3) {
+      const doCliente = (m: GrpMsg) => !m.own && !!m.author && !avNameIn(m.author, team) && !avNameIn(m.author, ignore) && !/brase/i.test(m.author) && m.author !== AV_AUDIO_SEM_AUTOR;
+      const pend = msgsA.filter(m => m.ts >= st.waiting!.ts && doCliente(m)).slice(-12);
+      const ultimo = pend.length ? pend[pend.length - 1].mid : st.waiting.mid;
+      let d = atend[ns];
+      if ((!d || d.ultimo !== ultimo) && classificados < ATEND_MAX) {
+        classificados++;
+        d = {ultimo, ...(await decideAtendimento(name, msgsA.filter(m => m.ts < st.waiting!.ts).slice(-6), pend.length ? pend : [st.waiting], modelo)), at: brIso(now)};
+        atend[ns] = d; atendMudou = true;
+      }
+      if (d && d.ultimo === ultimo && d.precisa) {
+        const alvo = pend.find(m => m.mid === d.desdeMid) || st.waiting, util = avMsUteis(alvo.ts * 1000, now, exp);
+        if (util >= waitMin * 60e3) {
+          if (alvo.ts * 1000 >= atendDesde) rows.push({id: `atend:${ns}:${alvo.mid}`, canal: 'operacional', tipo: 'atendimento', texto: avAtendimentoText(name, alvo, String(d.pedido || ''), util, now, marcas)});
+          estado.atendimento = `esperando desde ${avWhen(brIso(alvo.ts * 1000))}${d.pedido ? ` (${d.pedido})` : ''}`;
+        }
+      }
+    }
+    // Risco de cancelamento: na hora, marcando o Luis e o gestor (no máximo um por grupo a cada 6 h).
+    if (op.risco !== false) for (const m of st.risks) if (m.ts * 1000 >= c.sinceMs)
+      rows.push({id: `risco:${ns}:${Math.floor(m.ts / 21600)}`, canal: 'operacional', tipo: 'risco', texto: avRiscoText(name, m, avQuemCuida([...riscoCom, ...quem], cfgGestores(c)).map(ctx.marca))});
+    ctx.estado.push(estado);
   }
-  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, gestores: gest.st, queued: await queue(rows)};
+  if (atendMudou) await setConf('atendimento', {grupos: atend});
+  ctx.gruposOk = true;
+  return {contacts: contacts.length, groups: groups.length, read: changed.length, known: all.length, team: team.length, audios: aud.st, gestores: gest.st, atendimento: {classificados}, queued: await queue(rows)};
 }
 // 4. Horário que o Renan sugere: bloqueia a agenda da Central (holds sem lead) e avisa no AVISOS - COMERCIAIS. Prioridade: só
 // conta horário com cliente ou com lead; compromisso pessoal e o grupo de anotações do Renan não contam (reunião tem prioridade).
@@ -541,7 +609,7 @@ async function opsPedidos(conf: Row, body: Row){
   if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
   return j as Row;
 }
-async function pedidos(sink: Row[], gestores: Gestores){
+async function pedidos(sink: Row[], ctx: Ctx){
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key || conf.mode === 'off' || !conf.mode) return {skipped: 'desligado'};
   let enviados = 0, avisos = 0;
@@ -558,12 +626,12 @@ async function pedidos(sink: Row[], gestores: Gestores){
       await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${id}, 'operacional', 'pedido_nada', ${String(r.resumo || 'não é pedido').slice(0, 500)}, now()) on conflict (id) do nothing`;
       continue;
     }
-    avisos += await queue([{id, canal: 'operacional', tipo: 'pedido_ifood', texto: avPedidoText(p.grupo, p.autor, p.texto, r, gestores(p.grupo))}]);
+    avisos += await queue([{id, canal: 'operacional', tipo: 'pedido_ifood', texto: avPedidoText(p.grupo, p.autor, p.texto, {...r, gestor: r.gestor ? ctx.marca(r.gestor) : null}, ctx.gestores(p.grupo).map(ctx.marca))}]);
   }
   let horaMarcada = 0;
   if (conf.mode === 'on') {
     const ag = await opsPedidos(conf, {op: 'agendados'});
-    for (const e of Array.isArray(ag.executados) ? ag.executados : []) { horaMarcada++; avisos += await queue([{id: 'agendado:' + crypto.randomUUID(), canal: 'operacional', tipo: 'pedido_agendado', texto: avAgendadoText(e)}]) }
+    for (const e of Array.isArray(ag.executados) ? ag.executados : []) { horaMarcada++; avisos += await queue([{id: 'agendado:' + crypto.randomUUID(), canal: 'operacional', tipo: 'pedido_agendado', texto: avAgendadoText({...e, gestor: ctx.marca(e.gestor || '')})}]) }
   }
   return {candidatos: sink.length, enviados, horaMarcada, avisos};
 }
@@ -574,7 +642,8 @@ async function pedidos(sink: Row[], gestores: Gestores){
 // AVISOS - COMERCIAIS (lead). Até 3 de cada por rodada. Usa a mesma chave da whatsapp-pedidos (fn_config ops_pedidos).
 const REUNIOES_MAX = 3;
 class OpsAusente extends Error {}
-async function reunioesOps(gestores: Gestores, ignorados: unknown = []){
+async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
+  const gestores = ctx.gestores, quem = (r: Row, grupo: unknown) => r.gestor ? avQuemCuida([r.gestor], cfgGestores(cfg)) : gestores(grupo);
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
   const url = String(conf.urlReunioes || String(conf.url).replace(/whatsapp-pedidos\/?$/, 'reunioes-clientes'));
@@ -596,7 +665,7 @@ async function reunioesOps(gestores: Gestores, ignorados: unknown = []){
       catch (e) { if (e instanceof OpsAusente) throw e; await sql`update fn_reunioes_clientes set ops_status = 'erro', ops_info = ${errText(e).slice(0, 300)} where id = ${m.id}`; continue }
       st.meet++;
       await sql`update fn_reunioes_clientes set ops_status = ${r.status === 'ok' ? 'ok' : String(r.status || 'erro')}, ops_info = ${String(r.reuniao || r.cliente || '').slice(0, 200)}, ops_at = now() where id = ${m.id}`;
-      if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'operacional', tipo: 'reuniao_ops', texto: avReuniaoOpsText(String(m.grupo), String(m.dia), r, 'meet', gestores(m.grupo))}]);
+      if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'resumo', tipo: 'reuniao_ops', texto: avReuniaoOpsLinha(String(m.dia), r), grupo: String(r.cliente || m.grupo), gestores: quem(r, m.grupo)}]);
     }
     // (b) Anotações do Gemini.
     const notas = await sql`select * from fn_reunioes_notas where status = 'novo' and tries < 3 order by created_at limit ${REUNIOES_MAX}`;
@@ -610,7 +679,7 @@ async function reunioesOps(gestores: Gestores, ignorados: unknown = []){
           const r = await ops({op: 'reuniao', id: 'gemini:' + n.id, grupo: n.grupo, dia, fonte: 'Anotações do Gemini', participantes: n.participantes || undefined,
             resumo: [n.resumo, n.proximos ? 'Próximos passos: ' + n.proximos : ''].filter(Boolean).join('\n'), acoes: Array.isArray(n.acoes) ? n.acoes : []});
           await sql`update fn_reunioes_notas set status = ${r.status === 'ok' ? 'feito' : 'sem_destino'}, destino = ${String(r.cliente || '').slice(0, 200) || null}, erro = null, updated_at = now() where id = ${n.id}`;
-          if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'operacional', tipo: 'reuniao_gemini', texto: avReuniaoOpsText(String(n.grupo), dia, r, 'gemini', gestores(n.grupo))}]);
+          if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'resumo', tipo: 'reuniao_gemini', texto: avReuniaoOpsLinha(dia, r), grupo: String(r.status === 'ok' && r.cliente ? r.cliente : n.grupo), gestores: quem(r, n.grupo)}]);
         } else {
           docs ??= (await crmCall({op: 'load'})).docs || [];
           const lead = avLeadDaReuniao(docs, {dia, titulo: String(n.titulo || ''), lead_hint: n.lead_hint});
@@ -633,6 +702,31 @@ async function reunioesOps(gestores: Gestores, ignorados: unknown = []){
   }
   return st;
 }
+// 7. Resumo das 9h (seg a sex) no AVISOS - OPERACIONAIS: uma mensagem por gestor, marcando ele, só com as lojas dele. Do estado
+// desta rodada: atendimento pendente, grupo parado, reunião a marcar; da fila (canal 'resumo'): reuniões registradas ou não no
+// OPS desde o último resumo. fn_config avisos.resumo = {ligado, hora: '09:00', dias: [1..5]}; o dia enviado fica em resumo_state.
+async function resumo(c: Row, ctx: Ctx){
+  const cfg = c.resumo || {};
+  if (cfg.ligado === false) return {skipped: 'desligado'};
+  const now = Date.now(), ult = await getConf('resumo_state');
+  const dia = avResumoDue(now, ult.dia, String(cfg.hora || '09:00'), Array.isArray(cfg.dias) && cfg.dias.length ? cfg.dias.map(Number) : [1, 2, 3, 4, 5]);
+  if (!dia) return {skipped: 'fora da hora'};
+  if (!ctx.gruposOk) return {skipped: 'grupos não leram nesta rodada; tenta na próxima'};
+  const porGestor = new Map<string, {nome: string; itens: AvResumoItem[]}>();
+  const add = (nomes: unknown, item: AvResumoItem) => { for (const n of avQuemCuida(nomes, cfgGestores(c))) { const k = n.toLowerCase(); if (!porGestor.has(k)) porGestor.set(k, {nome: n, itens: []}); porGestor.get(k)!.itens.push(item) } };
+  for (const e of ctx.estado) {
+    if (e.atendimento) add(e.gestores, {tipo: 'atendimento', grupo: e.grupo, texto: e.atendimento});
+    if (e.parado) add(e.gestores, {tipo: 'parado', grupo: e.grupo, texto: e.parado});
+    if (e.reuniao30) add(e.gestores, {tipo: 'reuniao30', grupo: e.grupo, texto: e.reuniao30});
+  }
+  const fila = await sql`select id, grupo, gestores, texto from fn_avisos where canal = 'resumo' and sent_at is null and tries < 3 order by created_at`;
+  for (const f of fila) if (!avIgnorado([f.grupo, f.texto].join(' '), c.gruposIgnorados)) add(f.gestores || [], {tipo: 'ops', grupo: String(f.grupo || ''), texto: String(f.texto)});
+  const rows: AvRow[] = [...porGestor.values()].map(g => ({id: `resumo:${dia}:${g.nome.toLowerCase().replace(/\W+/g, '-')}`, canal: 'operacional', tipo: 'resumo', texto: avResumoText(ctx.marca(g.nome), g.itens, now)}));
+  const queued = await queue(rows);
+  if (fila.length) await sql`update fn_avisos set sent_at = now() where id = any(${fila.map((f: Row) => String(f.id))})`;
+  await setConf('resumo_state', {dia, at: brIso(now), gestores: rows.length});
+  return {dia, gestores: rows.length, queued, fila: fila.length};
+}
 // Acha os grupos de aviso pelo nome ("AVISOS - COMERCIAIS" e "AVISOS - OPERACIONAIS") e guarda o id deles na configuração.
 async function targets(c: Row){
   const g = {...(c.groups || {})};
@@ -648,8 +742,8 @@ async function targets(c: Row){
   return g;
 }
 async function send(groups: Row, mode: string, ignorados: unknown = []){
-  if (mode !== 'on') return {sent: 0, pending: Number((await sql`select count(*)::int as n from fn_avisos where sent_at is null and tries < 3`)[0].n)};
-  const rows = await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 order by created_at, id limit ${SEND_MAX}`;
+  if (mode !== 'on') return {sent: 0, pending: Number((await sql`select count(*)::int as n from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo'`)[0].n)};
+  const rows = await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo' order by created_at, id limit ${SEND_MAX}`;
   if (!rows.length) return {sent: 0, failed: 0};
   // Trava: só sai mensagem para os grupos AVISOS. Nada é enviado no grupo do cliente (decisão do dono).
   const clientes = new Set((await sql`select user_ns from fn_grupos`).map((r: Row) => String(r.user_ns)));
@@ -690,10 +784,11 @@ async function run(){
   await step('contatos', async () => { contacts = await opsContacts(); return {n: contacts.length} });
   if (contacts) {
     const list: Row[] = contacts;
-    const sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []};
+    const sink: Row[] = [], ctx = novoCtx(c);
     await step('grupos', () => grupos(c, list, sink, ctx));
-    await step('pedidos', () => pedidos(sink, ctx.gestores));
-    await step('reunioesOps', () => reunioesOps(ctx.gestores, c.gruposIgnorados));
+    await step('pedidos', () => pedidos(sink, ctx));
+    await step('reunioesOps', () => reunioesOps(ctx, c.gruposIgnorados, c));
+    await step('resumo', () => resumo(c, ctx));
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }
