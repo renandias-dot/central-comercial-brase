@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemPeloMid, avNaJanela, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemPeloMid, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -685,18 +685,30 @@ async function pedidos(sink: Row[], ctx: Ctx){
 // AVISOS - COMERCIAIS (lead). Até 3 de cada por rodada. Usa a mesma chave da whatsapp-pedidos (fn_config ops_pedidos).
 const REUNIOES_MAX = 3;
 class OpsAusente extends Error {}
-async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
-  const gestores = ctx.gestores, quem = (r: Row, grupo: unknown) => r.gestor ? avQuemCuida([r.gestor], cfgGestores(cfg)) : gestores(grupo);
+// Chamada à função reunioes-clientes do OPS (mesma chave da whatsapp-pedidos). null = sem a configuração do OPS.
+async function opsReunioes(): Promise<((body: Row) => Promise<Row>) | null> {
   const conf = await getConf('ops_pedidos');
-  if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
+  if (!conf.url || !conf.key) return null;
   const url = String(conf.urlReunioes || String(conf.url).replace(/whatsapp-pedidos\/?$/, 'reunioes-clientes'));
-  const ops = async (body: Row) => {
+  return async (body: Row) => {
     const r = await fetch(url, {method: 'POST', headers: {'content-type': 'application/json', 'x-pedidos-key': String(conf.key)}, body: JSON.stringify(body), signal: AbortSignal.timeout(60000)});
     const j = await r.json().catch(() => ({}));
     if (r.status === 404 && !j.status) throw new OpsAusente('função reunioes-clientes ainda não publicada no OPS');
     if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
     return j as Row;
   };
+}
+// Ações criadas na aba Ações do OPS ganham um número (fn_tarefas.codigo) para o gestor concluir com "feito 12".
+async function salvarAcoes(lista: unknown, origem: string){
+  const rows = (Array.isArray(lista) ? lista : []).filter((t: Row) => t && /^[0-9a-f-]{36}$/i.test(String(t.id || '')) && t.titulo)
+    .map((t: Row) => ({ops_id: String(t.id), origem, titulo: String(t.titulo).slice(0, 300), cliente: t.cliente ? String(t.cliente) : null, responsavel: t.responsavel ? String(t.responsavel) : null, prazo: t.prazo ? String(t.prazo).slice(0, 10) : null}));
+  if (!rows.length) return 0;
+  return (await sql`insert into fn_tarefas ${sql(rows, 'ops_id', 'origem', 'titulo', 'cliente', 'responsavel', 'prazo')} on conflict (ops_id) do nothing returning codigo`).length;
+}
+async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
+  const gestores = ctx.gestores, quem = (r: Row, grupo: unknown) => r.gestor ? avQuemCuida([r.gestor], cfgGestores(cfg)) : gestores(grupo);
+  const ops = await opsReunioes();
+  if (!ops) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
   const st: Row = {meet: 0, notas: 0, avisos: 0};
   try {
     // (a) Reuniões confirmadas pela rotina (dos últimos 45 dias).
@@ -707,6 +719,7 @@ async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
       try { r = await ops({op: 'reuniao', id: 'meet:' + m.id, grupo: m.grupo, dia: m.dia, fonte: 'rotina dos grupos'}) }
       catch (e) { if (e instanceof OpsAusente) throw e; await sql`update fn_reunioes_clientes set ops_status = 'erro', ops_info = ${errText(e).slice(0, 300)} where id = ${m.id}`; continue }
       st.meet++;
+      st.acoes = (st.acoes || 0) + await salvarAcoes(r.tarefas_criadas, 'meet:' + m.id);
       await sql`update fn_reunioes_clientes set ops_status = ${r.status === 'ok' ? 'ok' : String(r.status || 'erro')}, ops_info = ${String(r.reuniao || r.cliente || '').slice(0, 200)}, ops_at = now() where id = ${m.id}`;
       if (!r.repetido && !(r.status === 'ok' && r.ja_estava_feita)) st.avisos += await queue([{id: 'reuniaoops:' + m.id, canal: 'resumo', tipo: 'reuniao_ops', texto: avReuniaoOpsLinha(String(m.dia), r), grupo: String(r.cliente || m.grupo), gestores: quem(r, m.grupo)}]);
     }
@@ -716,11 +729,23 @@ async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
     for (const n of notas) {
       const dia = n.dia instanceof Date ? n.dia.toISOString().slice(0, 10) : String(n.dia).slice(0, 10);
       try {
-        if (n.tipo === 'interna' || avIgnorado([n.grupo, n.titulo, n.lead_hint].join(' '), ignorados) || avForaDosAvisos(n.grupo, [], cfg.gruposForaPrefixo)) { await sql`update fn_reunioes_notas set status = 'ignorado', updated_at = now() where id = ${n.id}`; continue }
+        const acoes = Array.isArray(n.acoes) ? n.acoes : [];
+        if ((n.tipo === 'interna' && !acoes.length) || avIgnorado([n.grupo, n.titulo, n.lead_hint].join(' '), ignorados) || (n.tipo !== 'interna' && avForaDosAvisos(n.grupo, [], cfg.gruposForaPrefixo))) { await sql`update fn_reunioes_notas set status = 'ignorado', updated_at = now() where id = ${n.id}`; continue }
+        if (n.tipo === 'interna') {
+          // Reunião do time: o que cada um ficou de fazer vira ação na aba Ações (uma por cliente; sem cliente não entra).
+          const r = await ops({op: 'reuniao_interna', id: 'gemini:' + n.id, dia, titulo: n.titulo || '', acoes});
+          const novas = await salvarAcoes(r.tarefas_criadas, 'gemini:' + n.id);
+          st.acoes = (st.acoes || 0) + novas;
+          const fora = Array.isArray(r.sem_cliente) ? r.sem_cliente.length : 0;
+          await sql`update fn_reunioes_notas set status = 'feito', destino = ${`${(r.tarefas_criadas || []).length} ações na aba Ações${fora ? `, ${fora} sem cliente ficaram de fora` : ''}`}, erro = null, updated_at = now() where id = ${n.id}`;
+          st.notas++;
+          continue;
+        }
         if (n.tipo === 'cliente') {
           if (!n.grupo) { await sql`update fn_reunioes_notas set status = 'sem_destino', erro = 'sem o grupo do cliente', updated_at = now() where id = ${n.id}`; continue }
           const r = await ops({op: 'reuniao', id: 'gemini:' + n.id, grupo: n.grupo, dia, fonte: 'Anotações do Gemini', participantes: n.participantes || undefined,
             resumo: [n.resumo, n.proximos ? 'Próximos passos: ' + n.proximos : ''].filter(Boolean).join('\n'), acoes: Array.isArray(n.acoes) ? n.acoes : []});
+          st.acoes = (st.acoes || 0) + await salvarAcoes(r.tarefas_criadas, 'gemini:' + n.id);
           await sql`update fn_reunioes_notas set status = ${r.status === 'ok' ? 'feito' : 'sem_destino'}, destino = ${String(r.cliente || '').slice(0, 200) || null}, erro = null, updated_at = now() where id = ${n.id}`;
           if (!r.repetido) st.avisos += await queue([{id: 'notaops:' + n.id, canal: 'resumo', tipo: 'reuniao_gemini', texto: avReuniaoOpsLinha(dia, r), grupo: String(r.status === 'ok' && r.cliente ? r.cliente : n.grupo), gestores: quem(r, n.grupo)}]);
         } else {
@@ -745,7 +770,60 @@ async function reunioesOps(ctx: Ctx, ignorados: unknown = [], cfg: Row = {}){
   }
   return st;
 }
-// 7. Resumo das 9h (seg a sex) no AVISOS - OPERACIONAIS: uma mensagem por gestor, marcando ele, só com as lojas dele. Do estado
+// 7. Ações das reuniões: lê o AVISOS - OPERACIONAIS atrás de "feito 12" (de um gestor ou do Renan) e conclui a ação no OPS,
+// com a confirmação no grupo; e, a cada 30 min, atualiza a situação das ações abertas pelo OPS (concluída lá, arquivada ou
+// apagada sai da lista). Cursor das mensagens em fn_config (k = 'tarefas_state').
+async function sincronizaAcoes(ops: (body: Row) => Promise<Row>, forcar = false){
+  const st = await getConf('tarefas_state');
+  if (!forcar && Date.now() - (Date.parse(st.sync || '') || 0) < 30 * 60e3) return 0;
+  const abertas = await sql`select codigo, ops_id from fn_tarefas where status in ('pendente', 'em_andamento') order by codigo limit 300`;
+  if (abertas.length) {
+    const r = await ops({op: 'tarefas_status', ids: abertas.map((a: Row) => String(a.ops_id))});
+    const porId = new Map((Array.isArray(r.tarefas) ? r.tarefas : []).map((t: Row) => [String(t.id), t]));
+    for (const a of abertas) {
+      const t = porId.get(String(a.ops_id));
+      const status = !t ? 'sumiu' : t.arquivada ? 'arquivada' : String(t.status || 'pendente');
+      await sql`update fn_tarefas set status = ${status}, prazo = ${t && t.prazo ? String(t.prazo).slice(0, 10) : null}, titulo = coalesce(${t ? String(t.titulo || '') || null : null}, titulo),
+        concluida_em = case when ${status} = 'concluida' and concluida_em is null then now() else concluida_em end, sincronizada_em = now() where codigo = ${a.codigo}`;
+    }
+  }
+  await setConf('tarefas_state', {...st, sync: brIso(Date.now())});
+  return abertas.length;
+}
+async function acoes(c: Row){
+  const ops = await opsReunioes(), grupo = String((c.groups || {}).operacional || '');
+  if (!ops || !grupo) return {skipped: 'sem OPS ou sem o grupo operacional'};
+  const st = await getConf('tarefas_state'), now = Date.now();
+  const desde = Number(st.cursor) || Math.floor(now / 1000);
+  const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: grupo, limit: 40});
+  const msgs = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && typeof m.ts === 'number' && m.ts > desde && (m.type === 'in' || m.type === 'agent') && typeof m.content === 'string').sort((a: Row, b: Row) => a.ts - b.ts);
+  let concluidas = 0, maxTs = desde;
+  for (const m of msgs) {
+    maxTs = Math.max(maxTs, m.ts);
+    const codigo = avFeito(m.content);
+    if (!codigo) continue;
+    const g = grpMsg(m), por = m.type === 'agent' ? 'Renan' : String((g && g.author) || '').split(/\s+-\s+/)[0].trim();
+    const [t] = await sql`select codigo, ops_id, titulo, status from fn_tarefas where codigo = ${codigo}`;
+    let texto: string;
+    if (!t) texto = `⚠️ Ação #${codigo} não existe. Confira o número no resumo das 9h.`;
+    else {
+      const r = await ops({op: 'concluir_tarefa', id: String(t.ops_id), por});
+      if (r.ok || r.motivo === 'já estava concluída') {
+        await sql`update fn_tarefas set status = 'concluida', concluida_em = coalesce(concluida_em, now()), concluida_por = coalesce(concluida_por, ${por || null}) where codigo = ${codigo}`;
+        texto = r.ok ? avAcaoConcluidaText(codigo, String(r.titulo || t.titulo), por) : `ℹ️ Ação #${codigo} já estava concluída: ${String(t.titulo).slice(0, 140)}`;
+        if (r.ok) concluidas++;
+      } else {
+        await sql`update fn_tarefas set status = 'sumiu' where codigo = ${codigo}`;
+        texto = `⚠️ Ação #${codigo} ${String(r.motivo || 'não foi encontrada no OPS')}.`;
+      }
+    }
+    await queue([{id: `feito:${m.mid || m.id || m.ts}`, canal: 'operacional', tipo: 'acao_concluida', texto}]);
+  }
+  await setConf('tarefas_state', {...(await getConf('tarefas_state')), cursor: maxTs});
+  const sincronizadas = await sincronizaAcoes(ops);
+  return {lidas: msgs.length, concluidas, sincronizadas};
+}
+// 8. Resumo das 9h (seg a sex) no AVISOS - OPERACIONAIS: uma mensagem por gestor, marcando ele, só com as lojas dele. Do estado
 // desta rodada: atendimento pendente, grupo parado, reunião a marcar; da fila (canal 'resumo'): reuniões registradas ou não no
 // OPS desde o último resumo. fn_config avisos.resumo = {ligado, hora: '09:00', dias: [1..5]}; o dia enviado fica em resumo_state.
 async function resumo(c: Row, ctx: Ctx){
@@ -762,11 +840,22 @@ async function resumo(c: Row, ctx: Ctx){
     if (e.parado) add(e.gestores, {tipo: 'parado', grupo: e.grupo, texto: e.parado});
     if (e.reuniao30) add(e.gestores, {tipo: 'reuniao30', grupo: e.grupo, texto: e.reuniao30});
   }
+  // Ações das reuniões (aba Ações): situação fresca do OPS antes de montar.
+  const opsR = await opsReunioes();
+  if (opsR) { try { await sincronizaAcoes(opsR, true) } catch (e) { console.error('sincroniza ações', errText(e)) } }
+  const hoje = brIso(now).slice(0, 10), novasIds: number[] = [];
+  for (const t of await sql`select codigo, titulo, cliente, responsavel, prazo::text as prazo, anunciada_em from fn_tarefas where status in ('pendente', 'em_andamento') order by prazo nulls last, codigo`) {
+    const p = String(t.prazo || ''), tipo: AvResumoItem['tipo'] | null = p && p < hoje ? 'vencida' : p === hoje ? 'hoje' : !t.anunciada_em ? 'nova' : null;
+    if (!tipo) continue;
+    if (!t.anunciada_em) novasIds.push(Number(t.codigo));
+    add(t.responsavel ? [t.responsavel] : [], {tipo, grupo: String(t.cliente || 'Sem cliente'), texto: avAcaoLinha({codigo: Number(t.codigo), titulo: String(t.titulo), prazo: p}, hoje)});
+  }
   const fila = await sql`select id, grupo, gestores, texto from fn_avisos where canal = 'resumo' and sent_at is null and tries < 3 order by created_at`;
   for (const f of fila) if (!avForaDosAvisos(f.grupo, c.gruposIgnorados, c.gruposForaPrefixo) && !avIgnorado(f.texto, c.gruposIgnorados)) add(f.gestores || [], {tipo: 'ops', grupo: String(f.grupo || ''), texto: String(f.texto)});
   const rows: AvRow[] = [...porGestor.values()].map(g => ({id: `resumo:${dia}:${g.nome.toLowerCase().replace(/\W+/g, '-')}`, canal: 'operacional', tipo: 'resumo', texto: avResumoText(ctx.marca(g.nome), g.itens, now)}));
   const queued = await queue(rows);
   if (fila.length) await sql`update fn_avisos set sent_at = now() where id = any(${fila.map((f: Row) => String(f.id))})`;
+  if (novasIds.length) await sql`update fn_tarefas set anunciada_em = now() where codigo = any(${novasIds})`;
   await setConf('resumo_state', {dia, at: brIso(now), gestores: rows.length});
   return {dia, gestores: rows.length, queued, fila: fila.length};
 }
@@ -829,7 +918,10 @@ async function manha(c: Row, contacts: Row[]){
       }),
     });
   }
-  const pacote = {dia, geradoEm: brIso(now), notas, agenda, sugeridas, rotinas: avRotinasDoDia(cfg.rotinas, now), conversas};
+  // Ações das reuniões que estão com o Renan (aba Ações do OPS), abertas.
+  const acoesRenan = (await sql`select codigo, titulo, cliente, prazo::text as prazo from fn_tarefas where status in ('pendente', 'em_andamento') and responsavel ilike 'renan%' order by prazo nulls last limit 20`)
+    .map((t: Row) => ({numero: t.codigo, acao: t.titulo, cliente: t.cliente, prazo: t.prazo}));
+  const pacote = {dia, geradoEm: brIso(now), notas, agenda, sugeridas, rotinas: avRotinasDoDia(cfg.rotinas, now), acoes: acoesRenan, conversas};
   await setConf('manha_pacote', pacote);
   return {dia, notas: notas.length, agenda: agenda.length, sugeridas: sugeridas.length, conversas: conversas.length};
 }
@@ -898,6 +990,7 @@ async function run(){
     await step('grupos', () => grupos(c, list, sink, ctx));
     await step('pedidos', () => pedidos(sink, ctx));
     await step('reunioesOps', () => reunioesOps(ctx, c.gruposIgnorados, c));
+    await step('acoes', () => acoes(c));
     await step('resumo', () => resumo(c, ctx));
     await step('manha', () => manha(c, list));
     await step('agenda', () => agenda(c, list, prev));

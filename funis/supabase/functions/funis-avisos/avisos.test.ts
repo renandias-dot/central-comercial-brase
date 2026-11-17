@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -426,4 +426,19 @@ Deno.test('janela do AVISOS - OPERACIONAIS: das 8h às 20h, à noite espera', ()
   assert(avNaJanela(at('08:00')) && avNaJanela(at('19:59')) && avNaJanela(at('12:30')));
   assert(!avNaJanela(at('20:00')) && !avNaJanela(at('23:40')) && !avNaJanela(at('07:59')));
   assert(avNaJanela(at('23:00'), '22:00', '06:00') && !avNaJanela(at('12:00'), '22:00', '06:00'));
+});
+
+Deno.test('ações das reuniões: "feito 12" no grupo, linha no resumo e confirmação', () => {
+  for (const [t, n] of [['feito 12', 12], ['Feito #12', 12], ['👤 Felipe Araújo:\nconcluída 7', 7], ['pronto 3', 3], ['✅ 45', 45], ['#9 feito', 9], ['✅ feito 10', 10]] as [string, number][]) assertEquals(avFeito(t), n, t);
+  for (const t of ['feito', 'Já foi feito o cardápio', 'Ação #12 concluída por Felipe: x', '🛠 *Alteração feita no iFood*', 'tem 12 feito?']) assertEquals(avFeito(t), null, t);
+  const hoje = '2026-11-18';
+  assertEquals(avAcaoLinha({codigo: 12, titulo: 'Pedir custos de produto dele', prazo: '2026-11-17'}, hoje), '#12 Pedir custos de produto dele (venceu ter 17/11)');
+  assertEquals(avAcaoLinha({codigo: 13, titulo: 'Marcar reunião', prazo: '2026-11-18'}, hoje), '#13 Marcar reunião');
+  assertEquals(avAcaoLinha({codigo: 14, titulo: 'Revisar preços', prazo: '2026-11-20'}, hoje), '#14 Revisar preços (até sex 20/11)');
+  assertEquals(avAcaoConcluidaText(12, 'Pedir custos', 'Felipe'), '✅ Ação #12 concluída por Felipe: Pedir custos');
+  const txt = avResumoText('5521995848478', [
+    {tipo: 'vencida', grupo: "Rock's Crepes e Wraps", texto: '#12 Pedir custos de produto dele (venceu ter 17/11)'},
+    {tipo: 'nova', grupo: 'NC Pizza', texto: '#14 Revisar preços (até sex 20/11)'},
+  ], Date.parse('2026-11-18T09:01:00-03:00'));
+  assertEquals(txt, "☀️ *Resumo de qua 18/11* · @5521995848478\n\n⏰ *Ações vencidas*\n• Rock's Crepes e Wraps: #12 Pedir custos de produto dele (venceu ter 17/11)\n\n📋 *Ações novas das reuniões*\n• NC Pizza: #14 Revisar preços (até sex 20/11)\n\nPara concluir uma ação, escreva aqui: feito <número> (ex.: feito 12).");
 });

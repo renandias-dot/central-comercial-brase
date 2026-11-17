@@ -231,6 +231,14 @@ A função `funis-avisos` (separada da `funis-api`, para mexer nela sem tocar no
   - as rotinas do dia (`manha.rotinas`; padrão: segunda e quarta, enviar os relatórios).
 
   Às 6h53, a rotina do Claude "Resumo do dia do Renan", que roda pela assinatura, lê o pacote e escreve a mensagem no formato das anotações dele ("Hoje:" e uma tarefa por linha). Depois põe a mensagem em `fn_avisos` com canal `renan` (migration `20261117020000_avisos_canal_renan.sql`), e a função manda no grupo (`groups.renan`). A trava do Texas não vale para esse canal. Configuração em `fn_config` avisos `manha = {ligado, de, ate, rotinas}`.
+- **Ações das reuniões (aba Ações do OPS):**
+  - **Origem:** o que foi combinado nas reuniões com cliente e nas reuniões do time (Anotações do Gemini, lidas pela rotina) vira ação na aba Ações do OPS, pela função `reunioes-clientes`: `op reuniao` e `op reuniao_interna`. Nunca vira tarefa do Comando.
+  - **Prazo:** toda ação tem um, o dito na reunião ou 2 dias úteis depois dela.
+  - **Número:** cada ação ganha um número em `fn_tarefas` (migration `20261117030000_tarefas_reunioes.sql`).
+  - **Resumo das 9h:** traz para cada responsável as ações vencidas, as que vencem hoje e as novas.
+  - **Concluir:** o gestor escreve no AVISOS - OPERACIONAIS "feito 12" (também valem "concluída #12", "pronto 12", "✅ 12" e "#12 feito"). O passo `acoes` lê o grupo, conclui a ação no OPS (`op concluir_tarefa`) e responde "✅ Ação #12 concluída por …".
+  - **Situação:** a cada 30 min, e sempre antes do resumo, a situação vem do OPS (`op tarefas_status`). Ação concluída ou apagada lá sai da lista.
+  - **Resumo das 7h do Renan:** recebe as ações que estão com ele.
 - **Nada vai para o grupo do cliente:** a função só envia para os dois grupos AVISOS (achados pelo nome); se o destino for um grupo de cliente (`fn_grupos`), o envio é bloqueado e fica o erro no `fn_avisos`. O que é feito no iFood a pedido do cliente aparece só no AVISOS - OPERACIONAIS (decisão do dono).
 - **Reunião com o cliente (AVISOS - OPERACIONAIS):** link do Meet num grupo de cliente vira reunião "provável" em `fn_reunioes_clientes`; a rotina "Leitor dos grupos dos clientes" confirma (realizada / não realizada) pelas mensagens e pelas Anotações do Gemini, corrige o dia e acrescenta reuniões sem link. 30 dias depois da última reunião (às 9h), sai 📆 "Hora de marcar a próxima".
 - **Configuração:** `fn_config` (k = `avisos`): `{mode, since, flow, groups, com: {horarios, reunioes, renan}, op: {semRespostaMin, expediente: {inicio, fim, dias}, risco, silencioDias, equipeGrupos, reuniao30, reuniaoDias}, team, ignore, gestoresGrupo}`. `mode` = `off`, `preview` (põe na fila sem enviar) ou `on`. Nada antes de `since` vira aviso; a 1ª rodada com a chave grava o horário. Os grupos de aviso são achados pelo nome e guardados em `groups`.

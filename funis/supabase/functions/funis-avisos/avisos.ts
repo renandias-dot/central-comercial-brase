@@ -376,8 +376,9 @@ export function avAtendimentoText(group: string, w: GrpMsg, pedido: string, msUt
 // Resumo das 9h (seg a sex): uma mensagem por gestor, marcando ele, só com as lojas dele. Atendimento ainda pendente, grupo
 // parado e reunião a marcar saem do estado do momento (repetem enquanto não resolver); reunião registrada ou não no OPS vem
 // da fila (canal 'resumo'). Gestor sem pendência não recebe nada.
-export type AvResumoItem = {tipo: 'atendimento' | 'parado' | 'reuniao30' | 'ops'; grupo: string; texto: string};
-const AV_RESUMO_SECAO: [AvResumoItem['tipo'], string][] = [['atendimento', '🙋 *Atendimento pendente*'], ['parado', '😶 *Grupo parado*'], ['reuniao30', '📆 *Marcar reunião*'], ['ops', '📝 *Reuniões no OPS*']];
+export type AvResumoItem = {tipo: 'atendimento' | 'vencida' | 'hoje' | 'nova' | 'parado' | 'reuniao30' | 'ops'; grupo: string; texto: string};
+const AV_RESUMO_SECAO: [AvResumoItem['tipo'], string][] = [['atendimento', '🙋 *Atendimento pendente*'], ['vencida', '⏰ *Ações vencidas*'], ['hoje', '📌 *Ações que vencem hoje*'],
+  ['nova', '📋 *Ações novas das reuniões*'], ['parado', '😶 *Grupo parado*'], ['reuniao30', '📆 *Marcar reunião*'], ['ops', '📝 *Reuniões no OPS*']];
 export function avResumoText(marca: string, itens: AvResumoItem[], nowMs: number){
   const dia = avWhen(brIso(nowMs)).replace(/ às .*/, '');
   const linhas = [`☀️ *Resumo de ${dia}* · @${marca}`];
@@ -385,6 +386,7 @@ export function avResumoText(marca: string, itens: AvResumoItem[], nowMs: number
     const daqui = [...new Set(itens.filter(x => x.tipo === tipo).map(x => `• ${x.grupo}: ${x.texto}`))];
     if (daqui.length) linhas.push('', titulo, ...daqui);
   }
+  if (itens.some(x => x.tipo === 'vencida' || x.tipo === 'hoje' || x.tipo === 'nova')) linhas.push('', 'Para concluir uma ação, escreva aqui: feito <número> (ex.: feito 12).');
   return linhas.join('\n');
 }
 // O resumo sai na 1ª rodada a partir das 9h (Brasília) de um dia útil, uma vez por dia, e só até 3 h depois (publicar ou
@@ -723,3 +725,18 @@ export function avNaJanela(nowMs: number, de = '08:00', ate = '20:00'){
   const b = new Date(nowMs - 3 * 3600e3), agora = b.getUTCHours() * 60 + b.getUTCMinutes(), d = avMin(de, 480), a = avMin(ate, 1200);
   return d <= a ? agora >= d && agora < a : agora >= d || agora < a;
 }
+
+// Ações das reuniões (aba Ações do OPS) no AVISOS - OPERACIONAIS: cada uma tem um número; o gestor conclui escrevendo
+// "feito 12" (também "concluída #12", "pronto 12", "✅ 12" ou "#12 feito"). Devolve o número ou null.
+export function avFeito(texto: unknown): number | null {
+  const t = fold(String(texto ?? '').replace(/^\s*👤[^\n]*\n?/u, '')).trim();
+  const m = /^(?:✅\s*)?(?:feito|feita|conclu[ií]d[oa]|conclui|pronto|pronta|ok feito|✅)\s*#?\s*(\d{1,5})(?!\d)/.exec(t) || /^#?(\d{1,5})\s*(?:feito|feita|concluid[oa]|pronto|pronta|ok|✅)(?![a-z])/.exec(t);
+  return m ? Number(m[1]) : null;
+}
+// Linha da ação no resumo: "#12 Pedir custos de produto dele (até qui 19/11)".
+export function avAcaoLinha(t: {codigo: number; titulo: string; prazo?: string | null}, hoje: string){
+  const p = String(t.prazo || '').slice(0, 10), quando = p ? avWhen(p + 'T12:00').replace(/ às .*/, '') : '';
+  const sufixo = !p ? '' : p < hoje ? ` (venceu ${quando})` : p === hoje ? '' : ` (até ${quando})`;
+  return `#${t.codigo} ${String(t.titulo).replace(/\s+/g, ' ').trim().slice(0, 120)}${sufixo}`;
+}
+export const avAcaoConcluidaText = (codigo: number, titulo: string, por: string) => `✅ Ação #${codigo} concluída${por ? ' por ' + por : ''}: ${String(titulo).slice(0, 140)}`;
