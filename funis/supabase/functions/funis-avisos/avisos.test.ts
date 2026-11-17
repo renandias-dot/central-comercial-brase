@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -330,4 +330,10 @@ Deno.test('pré-análise: roteiro com o que deu para ver e colchetes para o rest
   assert(r.includes('Percebi também que a loja tem poucas avaliações'));
   assert(r.includes('[outro erro, se tiver: produto isca, cardápio ou fotos]'));
   assert(r.endsWith('ou é só delivery?'));
+});
+
+Deno.test('Texas nunca aparece nos avisos (decisão do dono)', () => {
+  assert(avIgnorado('G: Gestão IFood - Texas Burguer') && avIgnorado('⏰ *Sem resposta*\nTEXAS BURGER - Recanto') && avIgnorado('texas'));
+  assert(!avIgnorado('D.I - Liz Café') && !avIgnorado('BRASE - Shinkai & Sky_Pokee'));
+  assert(avIgnorado('BRASE - Outra Loja', ['outra loja']) && !avIgnorado('BRASE - Outra Loja', ['x']));
 });
