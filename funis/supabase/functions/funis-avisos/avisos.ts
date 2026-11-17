@@ -658,3 +658,24 @@ export function avLojaPendente(l: any, desde: number): boolean {
   const chegou = Date.parse((l.wa && l.wa.ifoodLinkAt) || l.linkAt || '') || 0;
   return chegou >= desde;
 }
+
+// Resumo do dia do Renan (rotina das 6h53, pela assinatura do Claude): às 6h15 a funis-avisos junta um pacote com as anotações,
+// as conversas, a agenda, os horários sugeridos sem confirmação e as rotinas do dia. Uma vez por dia, só dentro da janela.
+const avMin = (s: unknown, d: number) => { const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? '').trim()); return m ? +m[1] * 60 + +m[2] : d };
+export function avManhaDue(nowMs: number, ultimoDia: unknown, de = '06:15', ate = '06:50'){
+  const b = new Date(nowMs - 3 * 3600e3), dia = b.toISOString().slice(0, 10), agora = b.getUTCHours() * 60 + b.getUTCMinutes();
+  if (agora < avMin(de, 375) || agora >= avMin(ate, 410) || String(ultimoDia || '') === dia) return null;
+  return dia;
+}
+// Rotinas fixas do dia (fn_config avisos.manha.rotinas = [{dias: [1, 3], texto}], 0 = domingo). Padrão: segunda e quarta,
+// enviar os relatórios.
+export const AV_ROTINAS_PADRAO = [{dias: [1, 3], texto: 'Enviar os relatórios semanais dos clientes'}];
+export function avRotinasDoDia(rotinas: unknown, nowMs: number): string[] {
+  const wd = new Date(nowMs - 3 * 3600e3).getUTCDay(), lista = Array.isArray(rotinas) && rotinas.length ? rotinas : AV_ROTINAS_PADRAO;
+  return lista.filter((r: any) => r && Array.isArray(r.dias) && r.dias.map(Number).includes(wd) && String(r.texto || '').trim()).map((r: any) => String(r.texto).trim());
+}
+// Texto de uma mensagem para o pacote: sem a linha "👤 Nome:", sem marcações cruas, até 500 caracteres.
+export function avTextoPacote(content: unknown){
+  const s = String(content ?? '').replace(/^\s*👤[^\n]*\n?/u, '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim();
+  return s.length > 500 ? s.slice(0, 499) + '…' : s;
+}

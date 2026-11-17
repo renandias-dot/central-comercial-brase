@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -374,4 +374,17 @@ Deno.test('resumo das 9h: um por gestor, seções, sem repetir linha; sai uma ve
   assertEquals(avResumoDue(Date.parse('2026-11-16T22:38:00-03:00'), ''), null);       // à noite não (caso real de 16/11)
   assertEquals(avResumoDue(Date.parse('2026-11-17T11:59:00-03:00'), ''), '2026-11-17'); // até 3 h depois das 9h
   assertEquals(avReuniaoOpsLinha('2026-11-10', {status: 'ok', reuniao: 'Adicional #1', tarefas: ['a', 'b'], proxima: '2026-12-10'}), 'reunião de 10/11 registrada (Adicional #1), 2 tarefas no Comando, próxima 10/12');
+});
+
+Deno.test('pacote do resumo do dia: janela das 6h15 às 6h50, rotinas do dia e texto limpo', () => {
+  const at = (s: string) => Date.parse(s + '-03:00');
+  assertEquals(avManhaDue(at('2026-11-17T06:17:00'), ''), '2026-11-17');
+  assertEquals(avManhaDue(at('2026-11-17T06:17:00'), '2026-11-17'), null);   // já montou hoje
+  assertEquals(avManhaDue(at('2026-11-17T06:10:00'), ''), null);             // antes da janela
+  assertEquals(avManhaDue(at('2026-11-17T22:38:00'), ''), null);             // à noite não
+  assertEquals(avManhaDue(at('2026-11-22T06:20:00'), ''), '2026-11-22');     // domingo também
+  assertEquals(avRotinasDoDia(undefined, at('2026-11-16T07:00:00')), ['Enviar os relatórios semanais dos clientes']); // segunda
+  assertEquals(avRotinasDoDia(undefined, at('2026-11-17T07:00:00')), []);                                              // terça
+  assertEquals(avRotinasDoDia([{dias: [2], texto: 'Conferir anúncios'}], at('2026-11-17T07:00:00')), ['Conferir anúncios']);
+  assertEquals(avTextoPacote('👤 Renan Dias:\nHoje:\n\nResponder Rafael @220997961691161'), 'Hoje: Responder Rafael');
 });
