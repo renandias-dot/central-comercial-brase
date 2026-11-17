@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -115,7 +115,8 @@ Deno.test('textos dos avisos operacionais', () => {
   // mensagem da noite: diz quando o cliente mandou
   const noite = Date.parse('2026-11-06T20:14:00-03:00') / 1000, seg11 = Date.parse('2026-11-09T11:00:00-03:00');
   assertEquals(avSemRespostaText('D.I - Liz Café', g('Fabiola', 'Oi?', noite), 120 * 60e3, seg11, 'Gabriel'), '⏰ *Sem resposta há 2h no horário comercial*\nD.I - Liz Café\nFabiola: “Oi?”\nMandou sex 06/11 às 20:14.\n👤 @Gabriel, responda o cliente.');
-  assertEquals(avRiscoText('D.I - Meu Croc', g('Ana', 'quero cancelar', 1), ['Felipe']), '🚨 *Atenção: possível risco*\nD.I - Meu Croc\nAna: “quero cancelar”\n👤 @Felipe, fale com o cliente hoje.');
+  assertEquals(avRiscoText('D.I - Meu Croc', g('Ana', 'quero cancelar', 1), ['Felipe']), '🚨 *Risco de cancelamento*\nD.I - Meu Croc\nAna: “quero cancelar”\n👤 @Felipe, fale com o cliente hoje.');
+  assert(avRiscoText('D.I - Meu Croc', g('Ana', 'quero cancelar', 1), ['558799049636', '5521995848478']).endsWith('👤 @558799049636 e @5521995848478, falem com o cliente hoje.'));
   assertEquals(avSilencioText('D.I - Point da Lolo', 6, []), '😶 *6 dias sem mensagem da Brase*\nD.I - Point da Lolo\n👤 Gestor não identificado no OPS: mande uma mensagem no grupo.');
   assertEquals(avGestorLinha(['Gabriel', 'Felipe', 'Gabriel', ''], 'revise.'), '👤 @Gabriel e @Felipe, revise.');
 });
@@ -336,4 +337,39 @@ Deno.test('Texas nunca aparece nos avisos (decisão do dono)', () => {
   assert(avIgnorado('G: Gestão IFood - Texas Burguer') && avIgnorado('⏰ *Sem resposta*\nTEXAS BURGER - Recanto') && avIgnorado('texas'));
   assert(!avIgnorado('D.I - Liz Café') && !avIgnorado('BRASE - Shinkai & Sky_Pokee'));
   assert(avIgnorado('BRASE - Outra Loja', ['outra loja']) && !avIgnorado('BRASE - Outra Loja', ['x']));
+});
+
+Deno.test('marcação de verdade: número do gestor; quem saiu vai para o Luis; sem gestor, o Luis', () => {
+  const tel = {Gabriel: '557196234092', Felipe: '5521995848478', Luis: '558799049636'};
+  assertEquals([avMarca('Gabriel', tel), avMarca('Gabriel Vieira', tel), avMarca('felipe', tel), avMarca('Renan', tel)], ['557196234092', '557196234092', '5521995848478', 'Renan']);
+  assertEquals(avQuemCuida(['Thalita'], {sairam: ['Thalita'], padrao: 'Luis'}), ['Luis']);
+  assertEquals(avQuemCuida(['Luis', 'Felipe', 'luis'], {}), ['Luis', 'Felipe']);
+  assertEquals(avQuemCuida([], {padrao: 'Luis'}), ['Luis']);
+});
+Deno.test('cliente precisa de atendimento: só pergunta, pedido ou problema (regra fixa de reserva)', () => {
+  // casos reais da semana que NÃO pediam resposta
+  for (const t of ['Excelente meu caro! Muito obrigado', 'Pode ser', 'Por mim tudo bem', 'Tô chegando só reiniciar a internet aqui', 'sabado 700 e domingo 1.000', 'Sim, já no finalzinho do dia acabou alguns insumos aí tive que pausar'])
+    assertEquals(avPrecisaPeloTexto([t]), 0, t);
+  for (const t of ['Consegue ver o combo pra mim?', 'Bom dia, consegue ver o cardápio?', 'Preciso mudar o preço do hambúrguer', 'Não está aparecendo a promoção', 'Quando sai o relatório?'])
+    assertEquals(avPrecisaPeloTexto([t]), 1, t);
+  assertEquals(avPrecisaPeloTexto(['Pode ser', 'E o combo de temaki, como faço?']), 2);
+  // marcação crua do WhatsApp sai da citação
+  const noite = Date.parse('2026-11-14T18:13:00-03:00') / 1000, seg11 = Date.parse('2026-11-16T11:00:00-03:00');
+  assertEquals(avAtendimentoText('D.I - Point da Lolo', g('Patrick', '@220997961691161 como fica a promoção de hoje?', noite), 'saber como fica a promoção', 120 * 60e3, seg11, ['5521995848478']),
+    '🙋 *Cliente precisa de atendimento*\nD.I - Point da Lolo\nPatrick: “como fica a promoção de hoje?”\nO que precisa: saber como fica a promoção\nEsperando há 2h no horário comercial (mandou sáb 14/11 às 18:13).\n👤 @5521995848478, responda o cliente.');
+});
+Deno.test('resumo das 9h: um por gestor, seções, sem repetir linha; sai uma vez por dia útil', () => {
+  const t9 = Date.parse('2026-11-17T09:02:00-03:00');
+  const txt = avResumoText('5521995848478', [
+    {tipo: 'parado', grupo: 'D.I - Oficial Frango Frito', texto: '6 dias sem mensagem da Brase'},
+    {tipo: 'atendimento', grupo: 'D.I - Meu Croc', texto: 'esperando desde seg 16/11 às 15:00'},
+    {tipo: 'ops', grupo: 'BRASE - Shinkai & Sky_Pokee', texto: 'reunião de 13/11 não registrada no OPS (o grupo não bate com uma loja só): marque à mão'},
+    {tipo: 'ops', grupo: 'BRASE - Shinkai & Sky_Pokee', texto: 'reunião de 13/11 não registrada no OPS (o grupo não bate com uma loja só): marque à mão'},
+  ], t9);
+  assertEquals(txt, '☀️ *Resumo de ter 17/11* · @5521995848478\n\n🙋 *Atendimento pendente*\n• D.I - Meu Croc: esperando desde seg 16/11 às 15:00\n\n😶 *Grupo parado*\n• D.I - Oficial Frango Frito: 6 dias sem mensagem da Brase\n\n📝 *Reuniões no OPS*\n• BRASE - Shinkai & Sky_Pokee: reunião de 13/11 não registrada no OPS (o grupo não bate com uma loja só): marque à mão');
+  assertEquals(avResumoDue(t9, ''), '2026-11-17');
+  assertEquals(avResumoDue(t9, '2026-11-17'), null);                                  // já saiu hoje
+  assertEquals(avResumoDue(Date.parse('2026-11-17T08:58:00-03:00'), ''), null);       // antes das 9h
+  assertEquals(avResumoDue(Date.parse('2026-11-21T10:00:00-03:00'), ''), null);       // sábado
+  assertEquals(avReuniaoOpsLinha('2026-11-10', {status: 'ok', reuniao: 'Adicional #1', tarefas: ['a', 'b'], proxima: '2026-12-10'}), 'reunião de 10/11 registrada (Adicional #1), 2 tarefas no Comando, próxima 10/12');
 });
