@@ -115,6 +115,13 @@ export function avReuniaoText(l: any, kind: 'nova' | 'remarcada' | 'horario', se
 // Grupos dos clientes: no NicoChat o nome chega como "G: BRASE - Loja", "G: D.I - Loja" (também "DI Loja") ou
 // "G: Gestão IFood - Loja". Os grupos de aviso ficam de fora.
 export const avClientGroup = (name: unknown) => /^g:\s*(brase\s*-|d\.?\s?i\.?(\s|-)|gest[aã]o\s+ifood\b)/i.test(String(name || '').trim()) && !/avisos/i.test(String(name || ''));
+// Grupos que NUNCA aparecem nos avisos (decisão do dono, 17/11: o Texas Burguer). Vale para qualquer texto que cite o nome:
+// o grupo não é lido para avisos e o envio barra qualquer aviso que fale dele. Mais nomes em fn_config avisos.gruposIgnorados.
+export const AV_IGNORADOS = ['texas'];
+export function avIgnorado(texto: unknown, extra: unknown = []){
+  const t = fold(texto), lista = [...AV_IGNORADOS, ...(Array.isArray(extra) ? extra : [])].map(x => fold(x).trim()).filter(x => x.length >= 3);
+  return lista.some(k => t.includes(k));
+}
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").

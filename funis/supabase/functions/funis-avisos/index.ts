@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avSemRespostaText, avSilencioText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -388,7 +388,8 @@ async function gestoresDosGrupos(nomes: string[]): Promise<{de: Gestores; st: Ro
 async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []}){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
   const waitMin = Number(op.semRespostaMin) || 120, quietDays = Number(op.silencioDias) || 5, minGroups = Number(op.equipeGrupos) || 4;
-  const groups = contacts.filter(x => avClientGroup(x.name));
+  // Grupo fora dos avisos (o Texas, decisão do dono): nem é lido.
+  const groups = contacts.filter(x => avClientGroup(x.name) && !avIgnorado(x.name, c.gruposIgnorados));
   const ns = groups.map(x => String(x.user_ns));
   const known = new Map<string, Row>((ns.length ? await sql`select user_ns, last_message_at, facts from fn_grupos where user_ns = any(${ns})` : []).map((r: Row) => [String(r.user_ns), r]));
   const changed = groups.filter(x => { const at = nicoTime(x.last_message_at), k = known.get(String(x.user_ns)); return at > 0 && at > (k && k.last_message_at ? new Date(k.last_message_at).getTime() : 0) })
@@ -409,7 +410,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: {gestores:
     if (meets.length) await sql`insert into fn_reunioes_clientes ${sql(meets as unknown as Row[], 'id', 'group_ns', 'grupo', 'dia', 'link_at', 'meet', 'autor')} on conflict (id) do nothing`;
   }
   // Equipe: a lista guardada + quem escreve em 4 ou mais grupos de clientes (dono com 3 lojas continua sendo cliente).
-  const all = await sql`select user_ns, nome, facts from fn_grupos where flow_ns = ${flow}`;
+  const all = (await sql`select user_ns, nome, facts from fn_grupos where flow_ns = ${flow}`).filter((r: Row) => !avIgnorado(r.nome, c.gruposIgnorados));
   const count = new Map<string, number>();
   for (const r of all) for (const a of new Set<string>((r.facts && r.facts.authors) || [])) count.set(a, (count.get(a) || 0) + 1);
   const team = [...(c.team || []), ...[...count].filter(([, n]) => n >= minGroups).map(([a]) => a)], ignore = c.ignore || [];
@@ -459,7 +460,7 @@ const CONTEXTO_VALE = 14 * 864e5;
 async function agenda(c: Row, contacts: Row[], prev: Row){
   if (c.com && c.com.renan === false) return {skipped: 'desligado'};
   const now = Date.now(), cursor = Math.max(Date.parse(prev.renanCursor || '') || 0, c.sinceMs);
-  const list = contacts.filter(x => (avClientGroup(x.name) || !/^\s*g:/i.test(String(x.name || ''))) && nicoTime(x.last_message_at) > cursor)
+  const list = contacts.filter(x => (avClientGroup(x.name) || !/^\s*g:/i.test(String(x.name || ''))) && !avIgnorado(x.name, c.gruposIgnorados) && nicoTime(x.last_message_at) > cursor)
     .sort((a, b) => nicoTime(a.last_message_at) - nicoTime(b.last_message_at)).slice(0, AG_READ_MAX);
   let found = 0, queued = 0, blocked = 0, ignored = 0, maxAt = cursor, contexto = 0;
   const porContexto: Row = {}, modelo = String((c.op && c.op.audioQuemModelo) || 'openai/gpt-oss-20b');
@@ -573,7 +574,7 @@ async function pedidos(sink: Row[], gestores: Gestores){
 // AVISOS - COMERCIAIS (lead). Até 3 de cada por rodada. Usa a mesma chave da whatsapp-pedidos (fn_config ops_pedidos).
 const REUNIOES_MAX = 3;
 class OpsAusente extends Error {}
-async function reunioesOps(gestores: Gestores){
+async function reunioesOps(gestores: Gestores, ignorados: unknown = []){
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS (fn_config ops_pedidos)'};
   const url = String(conf.urlReunioes || String(conf.url).replace(/whatsapp-pedidos\/?$/, 'reunioes-clientes'));
@@ -589,6 +590,7 @@ async function reunioesOps(gestores: Gestores){
     // (a) Reuniões confirmadas pela rotina (dos últimos 45 dias).
     const reais = await sql`select id, grupo, dia::text as dia from fn_reunioes_clientes where status = 'realizada' and ops_at is null and dia >= current_date - 45 order by dia limit ${REUNIOES_MAX}`;
     for (const m of reais) {
+      if (avIgnorado(m.grupo, ignorados)) { await sql`update fn_reunioes_clientes set ops_status = 'ignorado', ops_at = now() where id = ${m.id}`; continue }
       let r: Row;
       try { r = await ops({op: 'reuniao', id: 'meet:' + m.id, grupo: m.grupo, dia: m.dia, fonte: 'rotina dos grupos'}) }
       catch (e) { if (e instanceof OpsAusente) throw e; await sql`update fn_reunioes_clientes set ops_status = 'erro', ops_info = ${errText(e).slice(0, 300)} where id = ${m.id}`; continue }
@@ -602,7 +604,7 @@ async function reunioesOps(gestores: Gestores){
     for (const n of notas) {
       const dia = n.dia instanceof Date ? n.dia.toISOString().slice(0, 10) : String(n.dia).slice(0, 10);
       try {
-        if (n.tipo === 'interna') { await sql`update fn_reunioes_notas set status = 'ignorado', updated_at = now() where id = ${n.id}`; continue }
+        if (n.tipo === 'interna' || avIgnorado([n.grupo, n.titulo, n.lead_hint].join(' '), ignorados)) { await sql`update fn_reunioes_notas set status = 'ignorado', updated_at = now() where id = ${n.id}`; continue }
         if (n.tipo === 'cliente') {
           if (!n.grupo) { await sql`update fn_reunioes_notas set status = 'sem_destino', erro = 'sem o grupo do cliente', updated_at = now() where id = ${n.id}`; continue }
           const r = await ops({op: 'reuniao', id: 'gemini:' + n.id, grupo: n.grupo, dia, fonte: 'Anotações do Gemini', participantes: n.participantes || undefined,
@@ -645,7 +647,7 @@ async function targets(c: Row){
   await sql`update fn_config set v = jsonb_set(v, '{groups}', ${json(g)}), updated_at = now() where k = 'avisos'`;
   return g;
 }
-async function send(groups: Row, mode: string){
+async function send(groups: Row, mode: string, ignorados: unknown = []){
   if (mode !== 'on') return {sent: 0, pending: Number((await sql`select count(*)::int as n from fn_avisos where sent_at is null and tries < 3`)[0].n)};
   const rows = await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 order by created_at, id limit ${SEND_MAX}`;
   if (!rows.length) return {sent: 0, failed: 0};
@@ -653,6 +655,8 @@ async function send(groups: Row, mode: string){
   const clientes = new Set((await sql`select user_ns from fn_grupos`).map((r: Row) => String(r.user_ns)));
   let sent = 0, failed = 0;
   for (const r of rows) {
+    // Trava: aviso que cita grupo fora dos avisos (o Texas) nunca sai, venha de onde vier.
+    if (avIgnorado(r.texto, ignorados)) { await sql`update fn_avisos set tries = 99, erro = 'não enviado: cita grupo fora dos avisos' where id = ${r.id}`; continue }
     const to = groups[r.canal];
     if (!to || clientes.has(String(to))) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = ${to ? 'destino é grupo de cliente: bloqueado' : 'grupo de aviso não encontrado'} where id = ${r.id}`; continue }
     try { await nicoSend(String(to), String(r.texto)); sent++; await sql`update fn_avisos set sent_at = now(), erro = null where id = ${r.id}` }
@@ -689,11 +693,11 @@ async function run(){
     const sink: Row[] = [], ctx: {gestores: Gestores} = {gestores: () => []};
     await step('grupos', () => grupos(c, list, sink, ctx));
     await step('pedidos', () => pedidos(sink, ctx.gestores));
-    await step('reunioesOps', () => reunioesOps(ctx.gestores));
+    await step('reunioesOps', () => reunioesOps(ctx.gestores, c.gruposIgnorados));
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }
-  await step('envio', () => send(groups, mode));
+  await step('envio', () => send(groups, mode, c.gruposIgnorados));
   st.waCursor = (st.horarios && st.horarios.cursor) || prev.waCursor || null;
   st.renanCursor = (st.agenda && st.agenda.cursor) || prev.renanCursor || null;
   st.crmCursor = (st.reunioes && st.reunioes.cursor) || prev.crmCursor || null;
