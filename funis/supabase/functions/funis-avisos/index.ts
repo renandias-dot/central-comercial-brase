@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -727,6 +727,69 @@ async function resumo(c: Row, ctx: Ctx){
   await setConf('resumo_state', {dia, at: brIso(now), gestores: rows.length});
   return {dia, gestores: rows.length, queued, fila: fila.length};
 }
+// 8. Pacote do resumo do dia do Renan. A rotina do Claude "Resumo do dia do Renan" (6h53, pela assinatura) lê o pacote,
+// escreve a mensagem no formato das anotações dele e põe na fila com canal 'renan', que sai no grupo "Organização - BRASE"
+// (fn_config avisos.groups.renan). Aqui só se junta o que ela precisa, das 6h15 às 6h50, uma vez por dia, em fn_config
+// (k = 'manha_pacote'): as anotações do grupo Organização dos últimos 7 dias; as conversas com mensagem nas últimas 24 h
+// (privados, grupos de cliente e grupos em que o Renan escreveu; nunca os grupos AVISOS), até 20 mensagens de 48 h cada; a
+// agenda do dia na Central; os horários sugeridos que ainda não viraram reunião marcada; e as rotinas do dia.
+const MANHA_CONVERSAS = 45;
+async function manha(c: Row, contacts: Row[]){
+  const cfg = c.manha || {};
+  if (cfg.ligado === false) return {skipped: 'desligado'};
+  const now = Date.now(), prev = await getConf('manha_pacote');
+  const dia = avManhaDue(now, prev.dia, String(cfg.de || '06:15'), String(cfg.ate || '06:50'));
+  if (!dia) return {skipped: 'fora da hora'};
+  const grupos = c.groups || {}, notasNs = String(grupos.renan || ''), avisos = new Set([grupos.comercial, grupos.operacional].filter(Boolean).map(String));
+  const quando = (ts: number) => brIso(ts * 1000).slice(5, 16).replace('T', ' ');
+  // Anotações do Renan (o que ele manda para si mesmo).
+  let notas: Row[] = [];
+  if (notasNs) {
+    const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: notasNs, limit: 60});
+    notas = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && m.type === 'agent' && typeof m.ts === 'number' && m.ts * 1000 > now - 7 * 864e5 && typeof m.content === 'string')
+      .sort((a: Row, b: Row) => a.ts - b.ts).map((m: Row) => ({quando: quando(m.ts), texto: avTextoPacote(m.content)})).filter((n: Row) => n.texto);
+  }
+  // Central: leads (telefone → card), agenda do dia e horários bloqueados pelo que o Renan sugeriu.
+  const docs: Row[] = (await crmCall({op: 'load'})).docs || [];
+  const idx = leadIndex(docs);
+  const leads = docs.filter(d => d && d.col === 'leads' && !d.deleted && d.data);
+  const agenda = leads.filter(d => String(d.data.meetingAt || '').startsWith(dia)).map(d => ({hora: String(d.data.meetingAt).slice(11, 16), lead: d.data.name || '', empresa: d.data.company || '', etapa: d.data.stage || ''}))
+    .concat(docs.filter(d => d && d.col === 'holds' && !d.deleted && d.data && String(d.data.start || '').startsWith(dia)).map(d => ({hora: String(d.data.start).slice(11, 16), lead: '', empresa: String(d.data.label || 'bloqueio'), etapa: 'bloqueio na agenda'})))
+    .sort((a, b) => a.hora.localeCompare(b.hora));
+  const ate7 = brIso(now + 7 * 864e5).slice(0, 16), agoraBr = brIso(now).slice(0, 16);
+  const sugeridas: Row[] = docs.filter(d => d && d.col === 'holds' && !d.deleted && d.data && d.data.by === 'avisos' && String(d.data.start || '') > agoraBr && String(d.data.start || '') <= ate7)
+    .map(d => ({quem: 'Renan', quando: String(d.data.start).replace('T', ' '), onde: String(d.data.label || '').replace(/^Renan:\s*/, '')}));
+  for (const a of await sql`select texto, created_at from fn_avisos where tipo = 'horario_sdr' and created_at > now() - interval '3 days' order by created_at`)
+    sugeridas.push({quem: 'Lipe (SDR)', quando: brIso(new Date(a.created_at).getTime()).slice(0, 16).replace('T', ' '), aviso: String(a.texto).replace(/\n/g, ' | ')});
+  // Conversas das últimas 24 h.
+  const conversas: Row[] = [];
+  const lista = contacts.filter(x => !avisos.has(String(x.user_ns)) && String(x.user_ns) !== notasNs && !/avisos/i.test(String(x.name || '')))
+    .sort((a, b) => nicoTime(b.last_message_at) - nicoTime(a.last_message_at)).slice(0, 80);
+  for (const x of lista) {
+    if (conversas.length >= MANHA_CONVERSAS) break;
+    const grupo = /^\s*g:/i.test(String(x.name || '')), cliente = avClientGroup(x.name);
+    const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: String(x.user_ns), limit: 30});
+    const msgs = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && (m.type === 'in' || m.type === 'agent') && typeof m.ts === 'number').sort((a: Row, b: Row) => a.ts - b.ts);
+    // Grupo que não é de cliente só entra se o Renan escreveu nele nos últimos 7 dias (os de promoção ficam de fora).
+    if (grupo && !cliente && !msgs.some((m: Row) => m.type === 'agent' && m.ts * 1000 > now - 7 * 864e5)) continue;
+    const recentes = msgs.filter((m: Row) => m.ts * 1000 > now - 48 * 3600e3).slice(-20);
+    if (!recentes.length) continue;
+    const mids = recentes.map((m: Row) => String(m.mid || m.id || m.ts));
+    const aud = new Map((await sql`select mid, texto from fn_audios where mid = any(${mids}) and status = 'ok'`).map((r: Row) => [String(r.mid), String(r.texto || '')]));
+    const lead = grupo ? null : idx.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
+    conversas.push({
+      conversa: avGroupLabel(x.name) || 'Contato sem nome', tipo: cliente ? 'grupo de cliente' : grupo ? 'grupo' : lead ? 'lead da Central' : 'privado',
+      lead: lead ? {nome: lead.data.name || '', empresa: lead.data.company || '', etapa: lead.data.stage || '', reuniao: lead.data.meetingAt || null} : undefined,
+      mensagens: recentes.map((m: Row) => {
+        const g = grpMsg(m), mid = String(m.mid || m.id || m.ts), a = aud.get(mid);
+        return {quem: m.type === 'agent' ? 'Renan' : (g && g.author) || avGroupLabel(x.name) || 'Contato', quando: quando(m.ts), texto: a ? '🎤 ' + a.slice(0, 500) : avTextoPacote(m.content) || (g ? g.text : '')};
+      }),
+    });
+  }
+  const pacote = {dia, geradoEm: brIso(now), notas, agenda, sugeridas, rotinas: avRotinasDoDia(cfg.rotinas, now), conversas};
+  await setConf('manha_pacote', pacote);
+  return {dia, notas: notas.length, agenda: agenda.length, sugeridas: sugeridas.length, conversas: conversas.length};
+}
 // Acha os grupos de aviso pelo nome ("AVISOS - COMERCIAIS" e "AVISOS - OPERACIONAIS") e guarda o id deles na configuração.
 async function targets(c: Row){
   const g = {...(c.groups || {})};
@@ -750,7 +813,7 @@ async function send(groups: Row, mode: string, ignorados: unknown = []){
   let sent = 0, failed = 0;
   for (const r of rows) {
     // Trava: aviso que cita grupo fora dos avisos (o Texas) nunca sai, venha de onde vier.
-    if (avIgnorado(r.texto, ignorados)) { await sql`update fn_avisos set tries = 99, erro = 'não enviado: cita grupo fora dos avisos' where id = ${r.id}`; continue }
+    if (r.canal !== 'renan' && avIgnorado(r.texto, ignorados)) { await sql`update fn_avisos set tries = 99, erro = 'não enviado: cita grupo fora dos avisos' where id = ${r.id}`; continue }
     const to = groups[r.canal];
     if (!to || clientes.has(String(to))) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = ${to ? 'destino é grupo de cliente: bloqueado' : 'grupo de aviso não encontrado'} where id = ${r.id}`; continue }
     try { await nicoSend(String(to), String(r.texto)); sent++; await sql`update fn_avisos set sent_at = now(), erro = null where id = ${r.id}` }
@@ -789,6 +852,7 @@ async function run(){
     await step('pedidos', () => pedidos(sink, ctx));
     await step('reunioesOps', () => reunioesOps(ctx, c.gruposIgnorados, c));
     await step('resumo', () => resumo(c, ctx));
+    await step('manha', () => manha(c, list));
     await step('agenda', () => agenda(c, list, prev));
     await step('agendaFila', () => agendaFila(c));
   }
