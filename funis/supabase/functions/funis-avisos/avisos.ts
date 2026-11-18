@@ -235,12 +235,16 @@ export function avQuemMandou(m: GrpMsg, msgs: GrpMsg[], team: string[] = []): {q
   const comNome = (x: GrpMsg) => x.own || (!!x.author && x.author !== AV_AUDIO_CLIENTE && x.author !== AV_AUDIO_SEM_AUTOR);
   const clientes = [...new Set(sorted.filter(x => comNome(x) && !daEquipe(x)).map(x => x.author))];
   const umCliente = clientes.length === 1 ? clientes[0] : undefined;
-  // Autor de uma mensagem citada: o nome dela, ou (foto/áudio sem nome) o de quem escreveu logo antes ou logo depois (1 min).
+  // Autor de uma mensagem citada: o nome dela, ou (foto/áudio sem nome) o de quem escreveu até 1 min antes ou depois do MESMO
+  // tipo de aparelho (jeito do id). Se esses vizinhos são dos dois lados (equipe e cliente), não decide. Caso real: a foto do
+  // Patrick (iPhone) ficou com o Felipe (WhatsApp Web), que escreveu segundos antes.
   const autorDe = (x: GrpMsg | undefined): GrpMsg | null => {
     if (!x) return null;
     if (comNome(x)) return x;
-    const viz = sorted.filter(y => y.mid !== x.mid && comNome(y) && Math.abs(y.ts - x.ts) <= 60).sort((a, b) => Math.abs(a.ts - x.ts) - Math.abs(b.ts - x.ts));
-    return viz[0] || null;
+    const k = avMidChave(x.mid);
+    const viz = sorted.filter(y => y.mid !== x.mid && comNome(y) && Math.abs(y.ts - x.ts) <= 60 && avMidChave(y.mid) === k);
+    if (!viz.length || (viz.some(daEquipe) && viz.some(y => !daEquipe(y)))) return null;
+    return viz.sort((a, b) => Math.abs(a.ts - x.ts) - Math.abs(b.ts - x.ts))[0];
   };
   if (m.reply) {
     const citado = autorDe(sorted.find(x => x.mid === m.reply));

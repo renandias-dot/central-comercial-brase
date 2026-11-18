@@ -448,8 +448,10 @@ Deno.test('áudio do Luis no Point da Lolo (17/11): respondeu a foto do cliente,
   const m = (mid: string, hh: string, author: string, text = 'x', kind = 'text', reply?: string): GrpMsg => ({mid, ts: at(hh), own: false, author, text, kind, ...(reply ? {reply} : {})});
   const msgs = [
     m('3A85CEC9779CF39C78C9', '15:38', 'Patrick William', 'Boa tarde!'), m('3EB03AA589EB4690CFECD6', '15:38', 'Felipe Araújo', 'Boa tarde, Patrick!!'),
-    m('3A80AC615C838360ECD7', '15:40', '', '[imagem]', 'image'), m('3A607D6C78592DC08894', '15:40', 'Patrick William', 'Sabem o q pode estar acontecendo?'),
-    m('3AA505CF9F92045321EB', '15:41', 'Luis - Gestão Performance', 'Manutenção, tão com muitos erros'),
+    // o Felipe (WhatsApp Web) escreveu segundos antes da foto do Patrick (iPhone): a foto não pode ficar com ele
+    {...m('3EB00BCB44FCB8AE7F2D56', '15:40', 'Felipe Araújo', 'Vamos criar os combos para já estarem disponíveis amanhã'), ts: at('15:40') - 5},
+    {...m('3A80AC615C838360ECD7', '15:40', '', '[imagem]', 'image'), ts: at('15:40') + 10}, {...m('3A607D6C78592DC08894', '15:40', 'Patrick William', 'Sabem o q pode estar acontecendo?'), ts: at('15:40') + 21},
+    {...m('3AA505CF9F92045321EB', '15:41', 'Luis - Gestão Performance', 'Manutenção, tão com muitos erros'), ts: at('15:41') + 16},
     m('3AD94873E743AFF24FE0', '15:43', '', '[áudio]', 'audio', '3A80AC615C838360ECD7'),
     m('3AA7122EA9D69F30877C', '15:47', 'Patrick William', 'Top'),
   ];
