@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, avReais, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -411,13 +411,76 @@ Deno.test('quem mandou pelo jeito do id: caso real do Point da Lolo (14/11)', ()
   // um cliente só com aquele jeito de id: o áudio é dele
   assertEquals(avQuemPeloMid('3A99', [m('3A11', 1, 'Ana'), m('3A22', 2, 'Ana'), m('2A33', 3, 'Felipe Araújo')], team), {quem: 'cliente', autor: 'Ana'});
 });
-Deno.test('grupos BRASE (só do Luis), Texas e Liz Café ficam fora dos avisos', () => {
-  for (const g of ['G: BRASE - Bella Capri', 'BRASE - Shinkai & Sky_Pokee', 'brase- Marmita Moxuara', 'Gestão IFood - Texas Burguer']) assert(avForaDosAvisos(g), g);
-  assert(avForaDosAvisos('D.I - Liz Café', ['Liz Café']));
-  for (const g of ['D.I - Point da Lolo', 'G: Organização - BRASE 🎯', 'D.I - Kero+Açaí']) assert(!avForaDosAvisos(g), g);
-  assert(avTextoFora('🙋 *Cliente precisa de atendimento*\nBRASE - Shinkai & Sky_Pokee\nRafael: “oi”'));
-  assert(avTextoFora('☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Bella Capri: 5 dias sem mensagem da Brase'));
-  assert(!avTextoFora('⏰ *Sem resposta*\nD.I - Meu Croc\n👤 @Felipe, 5 dias sem mensagem da Brase'));
+Deno.test('destino do grupo: assessoria fora, assistida no grupo do Renan, o resto nos avisos', () => {
+  const cfg = avGruposCfg({gruposIgnorados: ['Liz Café']}, ['Texas Burger', 'Açaí Zupa / Majestade', 'Parada 13']);
+  for (const g of ['G: BRASE - Bella Capri', 'BRASE - Shinkai & Sky_Pokee', 'BRASE - Santa Marta Pizzas / Baila Burger', 'BRASE - Amazon Sushi', 'D.I - Liz Café']) assertEquals(avDestino(g, cfg), 'fora', g);
+  for (const g of ['BRASE - Loja Nova', 'Gestão IFood - Texas Burguer', 'D.I - Parada 13', 'G: Açaí Zupa / Majestade']) assertEquals(avDestino(g, cfg), 'assistida', g);
+  // OPS achou a loja e ela não é da assistida: vale mais que o "BRASE - " (Moxuara é continuação do Intense, com o Felipe)
+  assertEquals(avDestino('BRASE - Marmita Moxuara', cfg, false), 'avisos');
+  assertEquals(avDestino('BRASE - Marmita Moxuara', cfg, null), 'assistida');
+  assertEquals(avDestino('BRASE - Shinkai & Sky_Pokee', cfg, false), 'fora');
+  assertEquals(avDestino('Gestão IFood - Texas Burguer', cfg, false), 'assistida');
+  for (const g of ['D.I - Point da Lolo', 'G: Organização - BRASE 🎯', 'D.I - Kero+Açaí', 'D.I - Rock\'s Crepes & Wraps']) assertEquals(avDestino(g, cfg), 'avisos', g);
+  // o OPS disse que a loja do grupo é da assistida (serviço "reservado")
+  assertEquals(avDestino('D.I - Outra Loja', cfg, true), 'assistida');
+  // configuração própria: sem o prefixo BRASE, a Moxuara volta para os avisos
+  assertEquals(avDestino('BRASE - Marmita Moxuara', avGruposCfg({assistida: {prefixos: ['assistida']}})), 'avisos');
+});
+Deno.test('trava do envio: nada da assessoria nem da assistida sai nos grupos AVISOS', () => {
+  const cfg = avGruposCfg({}, ['Parada 13']);
+  assert(avTextoFora('🙋 *Cliente precisa de atendimento*\nBRASE - Shinkai & Sky_Pokee\nRafael: “oi”', cfg));
+  assert(avTextoFora('☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Bella Capri: 5 dias sem mensagem da Brase', cfg));
+  assert(avTextoFora('🛠 *Alteração feita no iFood*\nD.I - Parada 13\n✅ pausado', cfg));
+  assert(avTextoFora('⏰ *Ações vencidas*\n• Texas Burger: #3 mandar relatório', cfg));
+  assert(avTextoFora('🛠 *Pedido*\nG: Grupo Novo\n…', cfg, ['G: Grupo Novo']));
+  assert(!avTextoFora('⏰ *Sem resposta*\nD.I - Meu Croc\n👤 @Felipe, 5 dias sem mensagem da Brase', cfg));
+  assert(!avTextoFora('🙋 *Cliente precisa de atendimento*\nD.I - Point da Lolo\nO que precisa: parar a campanha', cfg));
+  // grupo BRASE que o OPS diz que é dos avisos (Moxuara) passa; os outros BRASE continuam barrados
+  const moxu = '☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Marmita Moxuara: 5 dias sem mensagem da Brase';
+  assert(avTextoFora(moxu, cfg));
+  assert(!avTextoFora(moxu, cfg, [], ['BRASE - Marmita Moxuara']));
+  assert(avTextoFora(moxu + '\n• BRASE - Loja Nova: 6 dias', cfg, [], ['BRASE - Marmita Moxuara']));
+  assert(avTextoFora('🛠 *Pedido*\nBRASE - Bella Capri\n…', cfg, [], ['BRASE - Bella Capri']));
+});
+Deno.test('aviso da assistida: sem marcar gestor', () => {
+  assertEquals(avParaAssistida('🙋 *Cliente precisa de atendimento*\nBRASE - Loja\n👤 Gestor não identificado no OPS: responda o cliente.'),
+    '🙋 *Cliente precisa de atendimento*\nBRASE - Loja\n👤 Assistida: responda o cliente.');
+  assertEquals(avParaAssistida('x\n👤 @5571999, revise a alteração no OPS.'), 'x\n👤 Assistida: revise a alteração no OPS.');
+});
+Deno.test('placar da semana: segunda a partir das 8h, uma vez, da semana anterior', () => {
+  const seg = Date.parse('2026-11-23T08:10:00-03:00');
+  assertEquals(avPlacarDue(seg, ''), '2026-11-16');
+  assertEquals(avPlacarDue(seg, '2026-11-16'), null);
+  assertEquals(avPlacarDue(Date.parse('2026-11-23T07:59:00-03:00'), ''), null);
+  assertEquals(avPlacarDue(Date.parse('2026-11-23T11:01:00-03:00'), ''), null);
+  assertEquals(avPlacarDue(Date.parse('2026-11-24T08:10:00-03:00'), ''), null);
+  assertEquals(avMediana([30, 10, 20]), 20);
+  assertEquals(avMediana([10, 20]), 15);
+  assertEquals(avMediana([]), null);
+  assertEquals(avReais(1234.5), 'R$ 1.234,50');
+  assertEquals(avReais(280.52), 'R$ 280,52');
+  const team = ['Felipe Araújo'];
+  const msgs: GrpMsg[] = [
+    {mid: 'a', ts: 100, own: false, author: 'Dono', text: 'pode ver?', kind: 'text'},
+    {mid: 'b', ts: 200, own: false, author: 'Dono', text: 'oi?', kind: 'text'},
+    {mid: 'c', ts: 300, own: false, author: 'Felipe Araújo', text: 'vejo sim', kind: 'text'},
+  ];
+  assertEquals(avRespostaDepois(msgs, 'a', team), 300000);
+  assertEquals(avRespostaDepois(msgs, 'c', team), null);
+  assertEquals(avRespostaDepois(msgs, 'zz', team), null);
+  const txt = avPlacarText({ini: '2026-11-16', fim: '2026-11-22', comercial: {gasto: 280.52, leads: 9, marcadas: 2, feitas: 2, vendas: 1, valor: 1097},
+    anterior: {gasto: 250, leads: 7, marcadas: 1, feitas: 1, vendas: 0, valor: 0},
+    atendimento: {avisos: 5, respondidos: 4, medianaMs: 80 * 60e3}, riscos: 1, pedidos: {total: 7, feitos: 5, mao: 2},
+    acoes: {criadas: 12, concluidas: 5, vencidas: [{responsavel: 'Felipe', n: 2}, {responsavel: 'Gabriel', n: 1}]},
+    envios: [{canal: 'operacional', tipo: 'atendimento', n: 5}, {canal: 'operacional', tipo: 'pedido_ifood', n: 7}, {canal: 'comercial', tipo: 'horario_sdr', n: 3}, {canal: 'renan', tipo: 'manha', n: 7}]});
+  assert(txt.startsWith('📊 *Placar da semana* · 16/11 a 22/11'), txt);
+  assert(txt.includes('• Investimento R$ 280,52 · 9 leads (R$ 31,17 cada)'), txt);
+  assert(txt.includes('• Reuniões: 2 marcadas, 2 feitas (R$ 140,26 por reunião feita)'), txt);
+  assert(txt.includes('• Vendas: 1 venda, R$ 1.097,00 (R$ 280,52 de custo por venda)'), txt);
+  assert(txt.includes('5 avisos; 4 respondidos, em 1h20 depois do aviso'), txt);
+  assert(txt.includes('• 12 novas, 5 concluídas; vencidas agora: 3 (Felipe 2, Gabriel 1)'), txt);
+  assert(txt.includes('• AVISOS - OPERACIONAIS: 12 (pedido 7, atendimento 5)'), txt);
+  assert(txt.includes('• Organização: 7 (resumo da manhã 7)'), txt);
 });
 
 Deno.test('janela do AVISOS - OPERACIONAIS: das 8h às 20h, à noite espera', () => {

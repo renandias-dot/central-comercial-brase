@@ -122,15 +122,48 @@ export function avIgnorado(texto: unknown, extra: unknown = []){
   const t = fold(texto), lista = [...AV_IGNORADOS, ...(Array.isArray(extra) ? extra : [])].map(x => fold(x).trim()).filter(x => x.length >= 3);
   return lista.some(k => t.includes(k));
 }
-// Grupos que começam com "BRASE - " são só do Luis: nada deles aparece nos grupos AVISOS (decisão do dono, 17/11). Outros
-// começos em fn_config avisos.gruposForaPrefixo. Junto com avIgnorado (Texas, Liz Café…), é o que fica fora dos avisos.
-export function avForaDosAvisos(nome: unknown, ignorados: unknown = [], prefixos: unknown = ['brase']){
-  const n = fold(nome).replace(/^\s*g:\s*/, '').trim(), lista = Array.isArray(prefixos) && prefixos.length ? prefixos : ['brase'];
-  return avIgnorado(nome, ignorados) || lista.some(p => { const k = fold(p).replace(/\s*-\s*$/, '').trim(); return !!k && new RegExp('^' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-').test(n) });
+// Destino de cada grupo de cliente (decisão do dono, 19/11/2026):
+// - 'fora': a assessoria de tráfego do Luis (fn_config avisos.assessoria; padrão Shinkai, Sky Poke, Santa Marta, Baila
+//   Burguer, Amazon Sushi e Bella Capri) e os grupos de avisos.gruposIgnorados (Liz Café). Nem são lidos.
+// - 'assistida': a oferta assistida, que o Renan atende sozinho. É a loja com serviço "reservado" no OPS (op "gestores"),
+//   o Texas e o grupo "BRASE - " fora da assessoria cuja loja o OPS ainda não conhece (avisos.assistida = {prefixos:
+//   ['brase'], nomes: ['texas']}). Loja que o OPS conhece e não é "reservado" nunca é assistida, mesmo com "BRASE - " (a
+//   Marmita Moxuara é continuação do Intense, com o Felipe; decisão do dono, 19/11). Os avisos
+//   vão só para o grupo Organização - BRASE, sem marcar ninguém, e o resumo entra no pacote da manhã. Gestores e heads não
+//   veem nada da assistida.
+// - 'avisos': o resto, no AVISOS - OPERACIONAIS com o gestor.
+export const AV_ASSESSORIA = ['shinkai', 'sky poke', 'santa marta', 'baila burg', 'amazon sushi', 'bella capri'];
+export type AvDestino = 'fora' | 'assistida' | 'avisos';
+export type AvGruposCfg = {ignorados?: unknown; assessoria?: unknown; prefixos?: unknown; nomes?: unknown; lojas?: unknown};
+const avChave = (s: unknown) => ' ' + fold(s).replace(/^\s*g:\s*/, '').replace(/[^a-z0-9]+/g, ' ').trim() + ' ';
+const avLista = (v: unknown, padrao: string[]) => (Array.isArray(v) ? v : padrao).map(x => avChave(x).trim()).filter(x => x.length >= 3);
+// Algum nome da lista aparece como começo de palavra ("baila burg" acha "Baila Burger" e "Baila Burguer").
+const avTem = (texto: unknown, lista: string[]) => { const t = avChave(texto); return lista.some(k => t.includes(' ' + k)) };
+// cfg vem de avGruposCfg(fn_config avisos, lojas da assistida no OPS). ops = o que o OPS disse da loja do grupo: true (é da
+// assistida), false (achou a loja e ela não é da assistida) ou null (não achou a loja).
+export function avDestino(nome: unknown, cfg: AvGruposCfg = {}, ops: boolean | null = null): AvDestino {
+  if (avTem(nome, [...avLista(cfg.assessoria, AV_ASSESSORIA), ...avLista(cfg.ignorados, [])])) return 'fora';
+  if (ops === true || avTem(nome, [...avLista(cfg.nomes, ['texas']), ...avLista(cfg.lojas, [])])) return 'assistida';
+  if (ops === false) return 'avisos';
+  const n = fold(nome).replace(/^\s*g:\s*/, '').trim();
+  return avLista(cfg.prefixos, ['brase']).some(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-').test(n)) ? 'assistida' : 'avisos';
 }
-// Trava do envio: aviso que cita grupo fora dos avisos numa linha própria ("BRASE - Loja", "• BRASE - Loja: …").
-export function avTextoFora(texto: unknown, ignorados: unknown = [], prefixos: unknown = ['brase']){
-  return avIgnorado(texto, ignorados) || String(texto || '').split('\n').some(l => avForaDosAvisos(l.replace(/^\s*(•|[^\p{L}\p{N}]+)\s*/u, ''), [], prefixos));
+export function avGruposCfg(avisos: any = {}, lojasAssistida: unknown = []): AvGruposCfg {
+  const a = avisos && typeof avisos.assistida === 'object' ? avisos.assistida : {};
+  return {ignorados: avisos?.gruposIgnorados, assessoria: avisos?.assessoria, prefixos: a.prefixos, nomes: a.nomes, lojas: lojasAssistida};
+}
+// Trava do envio (todo canal menos o do Renan): aviso que cita grupo ou loja que não é dos avisos (assessoria, ignorado ou
+// assistida: pelo nome, pela lista do OPS ou por uma linha que começa com "BRASE - ") nunca sai. extras = grupos classificados
+// como assistida nesta rodada; liberados = grupos "BRASE - " que o OPS diz que são dos avisos (a Marmita Moxuara).
+export function avTextoFora(texto: unknown, cfg: AvGruposCfg = {}, extras: unknown = [], liberados: unknown = []){
+  const t = String(texto || '');
+  if (avIgnorado(t) || avTem(t, [...avLista(cfg.assessoria, AV_ASSESSORIA), ...avLista(cfg.ignorados, []), ...avLista(cfg.nomes, ['texas']), ...avLista(cfg.lojas, []), ...avLista(extras, [])])) return true;
+  const ok = avLista(liberados, []);
+  return t.split('\n').some(l => { const s = l.replace(/^\s*(•|[^\p{L}\p{N}]+)\s*/u, ''); return avDestino(s, {prefixos: cfg.prefixos, assessoria: cfg.assessoria}) !== 'avisos' && !avTem(s, ok) });
+}
+// Aviso da assistida: vai para o grupo do Renan, então a linha "👤 gestor, faça…" vira "👤 Assistida: faça…".
+export function avParaAssistida(texto: string){
+  return String(texto).split('\n').map(l => l.startsWith('👤') ? l.replace(/^👤[^:,]*[:,]\s*/u, '👤 Assistida: ') : l).join('\n');
 }
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
@@ -782,3 +815,67 @@ export function avAcaoLinha(t: {codigo: number; titulo: string; prazo?: string |
   return `#${t.codigo} ${String(t.titulo).replace(/\s+/g, ' ').trim().slice(0, 120)}${sufixo}`;
 }
 export const avAcaoConcluidaText = (codigo: number, titulo: string, por: string) => `✅ Ação #${codigo} concluída${por ? ' por ' + por : ''}: ${String(titulo).slice(0, 140)}`;
+
+// Placar da semana (decisão do dono, 19/11): toda segunda, a partir das 8h e por até 3 h, uma mensagem só no grupo
+// Organização - BRASE com o que a semana anterior (seg a dom) rendeu: comercial (investimento, leads, reuniões, vendas e
+// custo de cada um), atendimento aos clientes, ações das reuniões e quantos avisos saíram de cada tipo (aviso que ninguém
+// usa pode ser desligado). Conta, não IA. Devolve a segunda da semana anterior (AAAA-MM-DD) ou null.
+export function avPlacarDue(nowMs: number, ultimaSemana: unknown, dia = 1, hora = '08:00'){
+  const b = new Date(nowMs - 3 * 3600e3), agora = b.getUTCHours() * 60 + b.getUTCMinutes(), min = avMin(hora, 480);
+  if (b.getUTCDay() !== dia || agora < min || agora >= min + 180) return null;
+  const segunda = new Date(Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate() - ((b.getUTCDay() + 6) % 7) - 7)).toISOString().slice(0, 10);
+  return String(ultimaSemana || '') === segunda ? null : segunda;
+}
+export function avMediana(v: number[]): number | null {
+  const s = v.filter(n => Number.isFinite(n)).sort((a, b) => a - b);
+  if (!s.length) return null;
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+// Primeira resposta da Brase (o número do Renan ou alguém da equipe) depois da mensagem do cliente (mid); ms ou null.
+export function avRespostaDepois(msgs: GrpMsg[], mid: string, team: string[]): number | null {
+  const alvo = msgs.find(m => m.mid === mid);
+  if (!alvo) return null;
+  const r = msgs.find(m => m.ts > alvo.ts && (m.own || (!!m.author && avNameIn(m.author, team))));
+  return r ? r.ts * 1000 : null;
+}
+export const avReais = (v: number) => 'R$ ' + (Number(v) || 0).toFixed(2).replace(/\B(?=(\d{3})+\.)/g, '.').replace(/\.(\d{2})$/, ',$1');
+export type AvComercial = {gasto: number; leads: number; marcadas: number; feitas: number; vendas: number; valor: number};
+export type AvPlacar = {
+  ini: string; fim: string;
+  comercial: AvComercial; anterior?: AvComercial | null;
+  atendimento: {avisos: number; respondidos: number; medianaMs: number | null};
+  riscos: number;
+  pedidos: {total: number; feitos: number; mao: number};
+  acoes: {criadas: number; concluidas: number; vencidas: {responsavel: string; n: number}[]};
+  envios: {canal: string; tipo: string; n: number}[];
+};
+const AV_TIPO_NOME: Record<string, string> = {atendimento: 'atendimento', pedido_ifood: 'pedido', pedido_agendado: 'hora marcada', resumo: 'resumo das 9h', risco: 'risco',
+  acao_concluida: 'feito', horario_sdr: 'horário do Lipe', horario_lead: 'horário do lead', agenda_renan: 'sua agenda', reuniao_nova: 'reunião marcada', reuniao_horario: 'reunião remarcada',
+  reuniao_lead: 'reunião de venda', loja: 'loja nova', manha: 'resumo da manhã', placar: 'placar', sem_resposta: 'sem resposta', silencio: 'grupo parado'};
+const AV_CANAL_NOME: Record<string, string> = {operacional: 'AVISOS - OPERACIONAIS', comercial: 'AVISOS - COMERCIAIS', renan: 'Organização'};
+export function avPlacarText(p: AvPlacar){
+  const dm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`, c = p.comercial, plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um : varios}`;
+  const por = (v: number, n: number, rotulo: string) => n > 0 && v > 0 ? ` (${avReais(v / n)} ${rotulo})` : '';
+  const linhas = [`📊 *Placar da semana* · ${dm(p.ini)} a ${dm(p.fim)}`, '', '*Comercial*',
+    `• Investimento ${avReais(c.gasto)} · ${plural(c.leads, 'lead', 'leads')}${por(c.gasto, c.leads, 'cada')}`,
+    `• Reuniões: ${c.marcadas} marcadas, ${c.feitas} feitas${por(c.gasto, c.feitas, 'por reunião feita')}`,
+    `• Vendas: ${c.vendas ? `${plural(c.vendas, 'venda', 'vendas')}, ${avReais(c.valor)}${por(c.gasto, c.vendas, 'de custo por venda')}` : 'nenhuma'}`];
+  if (p.anterior) linhas.push(`• Semana anterior: ${avReais(p.anterior.gasto)} · ${plural(p.anterior.leads, 'lead', 'leads')} · ${p.anterior.feitas} feitas · ${plural(p.anterior.vendas, 'venda', 'vendas')}`);
+  const a = p.atendimento;
+  linhas.push('', '*Atendimento aos clientes*',
+    `• Cliente precisa de atendimento: ${plural(a.avisos, 'aviso', 'avisos')}${a.avisos ? `; ${a.respondidos} respondidos${a.medianaMs != null ? `, em ${avDur(a.medianaMs)} depois do aviso (mediana, horário comercial)` : ''}` : ''}`,
+    `• Risco de cancelamento: ${p.riscos}`,
+    `• Pedidos no grupo: ${p.pedidos.total}${p.pedidos.total ? ` (${p.pedidos.feitos} feitos no iFood, ${p.pedidos.mao} para fazer à mão)` : ''}`);
+  const v = p.acoes.vencidas.filter(x => x.n > 0), totalV = v.reduce((s, x) => s + x.n, 0);
+  linhas.push('', '*Ações das reuniões*', `• ${p.acoes.criadas} novas, ${p.acoes.concluidas} concluídas; vencidas agora: ${totalV}${totalV ? ` (${v.map(x => `${x.responsavel} ${x.n}`).join(', ')})` : ''}`);
+  const canais = ['operacional', 'comercial', 'renan'].map(k => ({k, itens: p.envios.filter(e => e.canal === k && e.n > 0)})).filter(x => x.itens.length);
+  if (canais.length) {
+    linhas.push('', '*Avisos enviados*');
+    for (const {k, itens} of canais) {
+      const total = itens.reduce((s, e) => s + e.n, 0), det = [...itens].sort((x, y) => y.n - x.n).map(e => `${AV_TIPO_NOME[e.tipo] || e.tipo} ${e.n}`).join(', ');
+      linhas.push(`• ${AV_CANAL_NOME[k]}: ${total} (${det})`);
+    }
+  }
+  return linhas.join('\n');
+}
