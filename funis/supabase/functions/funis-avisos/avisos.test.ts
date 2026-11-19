@@ -414,7 +414,12 @@ Deno.test('quem mandou pelo jeito do id: caso real do Point da Lolo (14/11)', ()
 Deno.test('destino do grupo: assessoria fora, assistida no grupo do Renan, o resto nos avisos', () => {
   const cfg = avGruposCfg({gruposIgnorados: ['Liz Café']}, ['Texas Burger', 'Açaí Zupa / Majestade', 'Parada 13']);
   for (const g of ['G: BRASE - Bella Capri', 'BRASE - Shinkai & Sky_Pokee', 'BRASE - Santa Marta Pizzas / Baila Burger', 'BRASE - Amazon Sushi', 'D.I - Liz Café']) assertEquals(avDestino(g, cfg), 'fora', g);
-  for (const g of ['brase- Marmita Moxuara', 'BRASE - Loja Nova', 'Gestão IFood - Texas Burguer', 'D.I - Parada 13', 'G: Açaí Zupa / Majestade']) assertEquals(avDestino(g, cfg), 'assistida', g);
+  for (const g of ['BRASE - Loja Nova', 'Gestão IFood - Texas Burguer', 'D.I - Parada 13', 'G: Açaí Zupa / Majestade']) assertEquals(avDestino(g, cfg), 'assistida', g);
+  // OPS achou a loja e ela não é da assistida: vale mais que o "BRASE - " (Moxuara é continuação do Intense, com o Felipe)
+  assertEquals(avDestino('BRASE - Marmita Moxuara', cfg, false), 'avisos');
+  assertEquals(avDestino('BRASE - Marmita Moxuara', cfg, null), 'assistida');
+  assertEquals(avDestino('BRASE - Shinkai & Sky_Pokee', cfg, false), 'fora');
+  assertEquals(avDestino('Gestão IFood - Texas Burguer', cfg, false), 'assistida');
   for (const g of ['D.I - Point da Lolo', 'G: Organização - BRASE 🎯', 'D.I - Kero+Açaí', 'D.I - Rock\'s Crepes & Wraps']) assertEquals(avDestino(g, cfg), 'avisos', g);
   // o OPS disse que a loja do grupo é da assistida (serviço "reservado")
   assertEquals(avDestino('D.I - Outra Loja', cfg, true), 'assistida');
@@ -430,6 +435,12 @@ Deno.test('trava do envio: nada da assessoria nem da assistida sai nos grupos AV
   assert(avTextoFora('🛠 *Pedido*\nG: Grupo Novo\n…', cfg, ['G: Grupo Novo']));
   assert(!avTextoFora('⏰ *Sem resposta*\nD.I - Meu Croc\n👤 @Felipe, 5 dias sem mensagem da Brase', cfg));
   assert(!avTextoFora('🙋 *Cliente precisa de atendimento*\nD.I - Point da Lolo\nO que precisa: parar a campanha', cfg));
+  // grupo BRASE que o OPS diz que é dos avisos (Moxuara) passa; os outros BRASE continuam barrados
+  const moxu = '☀️ *Resumo*\n\n😶 *Grupo parado*\n• BRASE - Marmita Moxuara: 5 dias sem mensagem da Brase';
+  assert(avTextoFora(moxu, cfg));
+  assert(!avTextoFora(moxu, cfg, [], ['BRASE - Marmita Moxuara']));
+  assert(avTextoFora(moxu + '\n• BRASE - Loja Nova: 6 dias', cfg, [], ['BRASE - Marmita Moxuara']));
+  assert(avTextoFora('🛠 *Pedido*\nBRASE - Bella Capri\n…', cfg, [], ['BRASE - Bella Capri']));
 });
 Deno.test('aviso da assistida: sem marcar gestor', () => {
   assertEquals(avParaAssistida('🙋 *Cliente precisa de atendimento*\nBRASE - Loja\n👤 Gestor não identificado no OPS: responda o cliente.'),

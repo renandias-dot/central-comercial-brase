@@ -126,7 +126,9 @@ export function avIgnorado(texto: unknown, extra: unknown = []){
 // - 'fora': a assessoria de tráfego do Luis (fn_config avisos.assessoria; padrão Shinkai, Sky Poke, Santa Marta, Baila
 //   Burguer, Amazon Sushi e Bella Capri) e os grupos de avisos.gruposIgnorados (Liz Café). Nem são lidos.
 // - 'assistida': a oferta assistida, que o Renan atende sozinho. É a loja com serviço "reservado" no OPS (op "gestores"),
-//   o grupo "BRASE - " fora da assessoria e o Texas (avisos.assistida = {prefixos: ['brase'], nomes: ['texas']}). Os avisos
+//   o Texas e o grupo "BRASE - " fora da assessoria cuja loja o OPS ainda não conhece (avisos.assistida = {prefixos:
+//   ['brase'], nomes: ['texas']}). Loja que o OPS conhece e não é "reservado" nunca é assistida, mesmo com "BRASE - " (a
+//   Marmita Moxuara é continuação do Intense, com o Felipe; decisão do dono, 19/11). Os avisos
 //   vão só para o grupo Organização - BRASE, sem marcar ninguém, e o resumo entra no pacote da manhã. Gestores e heads não
 //   veem nada da assistida.
 // - 'avisos': o resto, no AVISOS - OPERACIONAIS com o gestor.
@@ -137,10 +139,12 @@ const avChave = (s: unknown) => ' ' + fold(s).replace(/^\s*g:\s*/, '').replace(/
 const avLista = (v: unknown, padrao: string[]) => (Array.isArray(v) ? v : padrao).map(x => avChave(x).trim()).filter(x => x.length >= 3);
 // Algum nome da lista aparece como começo de palavra ("baila burg" acha "Baila Burger" e "Baila Burguer").
 const avTem = (texto: unknown, lista: string[]) => { const t = avChave(texto); return lista.some(k => t.includes(' ' + k)) };
-// cfg vem de avGruposCfg(fn_config avisos, lojas da assistida no OPS); opsAssistida = o OPS disse que a loja do grupo é da assistida.
-export function avDestino(nome: unknown, cfg: AvGruposCfg = {}, opsAssistida = false): AvDestino {
+// cfg vem de avGruposCfg(fn_config avisos, lojas da assistida no OPS). ops = o que o OPS disse da loja do grupo: true (é da
+// assistida), false (achou a loja e ela não é da assistida) ou null (não achou a loja).
+export function avDestino(nome: unknown, cfg: AvGruposCfg = {}, ops: boolean | null = null): AvDestino {
   if (avTem(nome, [...avLista(cfg.assessoria, AV_ASSESSORIA), ...avLista(cfg.ignorados, [])])) return 'fora';
-  if (opsAssistida || avTem(nome, [...avLista(cfg.nomes, ['texas']), ...avLista(cfg.lojas, [])])) return 'assistida';
+  if (ops === true || avTem(nome, [...avLista(cfg.nomes, ['texas']), ...avLista(cfg.lojas, [])])) return 'assistida';
+  if (ops === false) return 'avisos';
   const n = fold(nome).replace(/^\s*g:\s*/, '').trim();
   return avLista(cfg.prefixos, ['brase']).some(p => new RegExp('^' + p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*-').test(n)) ? 'assistida' : 'avisos';
 }
@@ -150,11 +154,12 @@ export function avGruposCfg(avisos: any = {}, lojasAssistida: unknown = []): AvG
 }
 // Trava do envio (todo canal menos o do Renan): aviso que cita grupo ou loja que não é dos avisos (assessoria, ignorado ou
 // assistida: pelo nome, pela lista do OPS ou por uma linha que começa com "BRASE - ") nunca sai. extras = grupos classificados
-// como assistida nesta rodada.
-export function avTextoFora(texto: unknown, cfg: AvGruposCfg = {}, extras: unknown = []){
+// como assistida nesta rodada; liberados = grupos "BRASE - " que o OPS diz que são dos avisos (a Marmita Moxuara).
+export function avTextoFora(texto: unknown, cfg: AvGruposCfg = {}, extras: unknown = [], liberados: unknown = []){
   const t = String(texto || '');
   if (avIgnorado(t) || avTem(t, [...avLista(cfg.assessoria, AV_ASSESSORIA), ...avLista(cfg.ignorados, []), ...avLista(cfg.nomes, ['texas']), ...avLista(cfg.lojas, []), ...avLista(extras, [])])) return true;
-  return t.split('\n').some(l => avDestino(l.replace(/^\s*(•|[^\p{L}\p{N}]+)\s*/u, ''), {prefixos: cfg.prefixos, assessoria: cfg.assessoria}) !== 'avisos');
+  const ok = avLista(liberados, []);
+  return t.split('\n').some(l => { const s = l.replace(/^\s*(•|[^\p{L}\p{N}]+)\s*/u, ''); return avDestino(s, {prefixos: cfg.prefixos, assessoria: cfg.assessoria}) !== 'avisos' && !avTem(s, ok) });
 }
 // Aviso da assistida: vai para o grupo do Renan, então a linha "👤 gestor, faça…" vira "👤 Assistida: faça…".
 export function avParaAssistida(texto: string){

@@ -375,7 +375,7 @@ const GESTORES_TTL = 30 * 60e3;
 type Gestores = (grupo: unknown) => string[];
 // O OPS também diz quais lojas são da oferta assistida (serviço "reservado"): por grupo (assistida: true) e a lista de nomes,
 // guardados junto ({at, grupos, assistida}).
-async function gestoresDosGrupos(nomes: string[], avisosConf: Row = {}): Promise<{de: Gestores; st: Row; assistida: (grupo: unknown) => boolean; lojas: string[]}> {
+async function gestoresDosGrupos(nomes: string[], avisosConf: Row = {}): Promise<{de: Gestores; st: Row; assistida: (grupo: unknown) => boolean | null; lojas: string[]}> {
   const lista = [...new Set(nomes.map(n => String(n || '').trim()).filter(Boolean))];
   const cache = await getConf('ops_gestores');
   let mapa: Row = cache.grupos && typeof cache.grupos === 'object' ? cache.grupos : {};
@@ -406,20 +406,27 @@ async function gestoresDosGrupos(nomes: string[], avisosConf: Row = {}): Promise
   // Sem gestor, ou gestor que saiu da operação: vai para o gestor padrão (o Luis).
   const de: Gestores = (grupo) => avQuemCuida(bruto(grupo), cfgGestores(avisosConf));
   st.semGestor = lista.filter(n => !bruto(n).length);
-  const assistida = (grupo: unknown) => { const g = mapa[String(grupo || '').trim()]; return !!(g && g.assistida) };
+  const assistida = (grupo: unknown) => opsAssistida(mapa, grupo);
   return {de, st, assistida, lojas};
+}
+// O que o OPS disse da loja do grupo: true (assistida), false (achou a loja e não é assistida) ou null (não achou loja).
+function opsAssistida(mapa: Row, grupo: unknown): boolean | null {
+  const g = mapa[String(grupo || '').trim()];
+  if (!g) return null;
+  if (g.assistida) return true;
+  return Array.isArray(g.lojas) && g.lojas.length ? false : null;
 }
 // Quem cuida e como marcar: fn_config avisos.gestoresTelefone ({"Gabriel": "557196234092"}), gestoresSairam (["Thalita"]) e
 // gestorPadrao ("Luis"). "@<número>" vira a marcação de verdade no WhatsApp; sem número, "@Nome" em texto.
 const cfgGestores = (c: Row) => ({sairam: c.gestoresSairam || [], padrao: c.gestorPadrao || 'Luis'});
 // destino(grupo): 'fora' (assessoria e ignorados), 'assistida' (vai para o grupo do Renan) ou 'avisos'. Começa com o que
 // ficou guardado do OPS e é atualizado no passo "grupos", depois de perguntar ao OPS.
-type Ctx = {gestores: Gestores; marca: (nome: unknown) => string; estado: Row[]; gruposOk: boolean; gcfg: AvGruposCfg; destino: (grupo: unknown) => AvDestino; assistidaGrupos: string[]; team: string[]};
+type Ctx = {gestores: Gestores; marca: (nome: unknown) => string; estado: Row[]; gruposOk: boolean; gcfg: AvGruposCfg; destino: (grupo: unknown) => AvDestino; assistidaGrupos: string[]; avisosGrupos: string[]; team: string[]};
 function novoCtx(c: Row, opsCache: Row = {}): Ctx {
   const tel = c.gestoresTelefone || {}, mapa: Row = opsCache.grupos || {};
   const gcfg = avGruposCfg(c, Array.isArray(opsCache.assistida) ? opsCache.assistida : []);
   return {gestores: () => avQuemCuida([], cfgGestores(c)), marca: (nome) => avMarca(avQuemCuida(nome, cfgGestores(c))[0], tel), estado: [], gruposOk: false,
-    gcfg, destino: (g) => avDestino(g, gcfg, !!(mapa[String(g || '').trim()] || {}).assistida), assistidaGrupos: [], team: [...(c.team || [])]};
+    gcfg, destino: (g) => avDestino(g, gcfg, opsAssistida(mapa, g)), assistidaGrupos: [], avisosGrupos: [], team: [...(c.team || [])]};
 }
 // Aviso de grupo da assistida: canal do Renan e sem marcar ninguém.
 const paraOnde = (ctx: Ctx, grupo: unknown, canal: 'operacional' | 'resumo' = 'operacional') => ctx.destino(grupo) === 'assistida' ? 'renan' as const : canal;
@@ -542,7 +549,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
     const st = avGroupState(msgsA, team, ignore), quem = assist ? [] : gest.de(name), marcas = quem.map(ctx.marca);
     const texto = (t: string) => assist ? avParaAssistida(t) : t;
     const estado: Row = {grupo: name, gestores: assist ? ['Renan'] : quem, assistida: assist};
-    if (assist) ctx.assistidaGrupos.push(name);
+    if (assist) ctx.assistidaGrupos.push(name); else ctx.avisosGrupos.push(name);
     // 30 dias sem reunião e grupo parado: só no resumo das 9h (repetem enquanto não resolver).
     const lm = lastMeet.get(ns);
     if (op.reuniao30 !== false && lm && avReuniao30Due(lm.dia, now, meetDays)) estado.reuniao30 = `última reunião em ${lm.dia.slice(8, 10)}/${lm.dia.slice(5, 7)}${lm.status === 'realizada' ? '' : ' (link do Meet no grupo)'}`;
@@ -917,7 +924,7 @@ async function resumo(c: Row, ctx: Ctx){
     add(t.responsavel ? [t.responsavel] : [], {tipo, grupo: String(t.cliente || 'Sem cliente'), texto: avAcaoLinha({codigo: Number(t.codigo), titulo: String(t.titulo), prazo: p}, hoje)});
   }
   const fila = await sql`select id, grupo, gestores, texto from fn_avisos where canal = 'resumo' and sent_at is null and tries < 3 order by created_at`;
-  for (const f of fila) if (ctx.destino(f.grupo) === 'avisos' && !avTextoFora(f.texto, ctx.gcfg, ctx.assistidaGrupos)) add(f.gestores || [], {tipo: 'ops', grupo: String(f.grupo || ''), texto: String(f.texto)});
+  for (const f of fila) if (ctx.destino(f.grupo) === 'avisos' && !avTextoFora(f.texto, ctx.gcfg, ctx.assistidaGrupos, ctx.avisosGrupos)) add(f.gestores || [], {tipo: 'ops', grupo: String(f.grupo || ''), texto: String(f.texto)});
   const rows: AvRow[] = [...porGestor.values()].map(g => ({id: `resumo:${dia}:${g.nome.toLowerCase().replace(/\W+/g, '-')}`, canal: 'operacional', tipo: 'resumo', texto: avResumoText(ctx.marca(g.nome), g.itens, now)}));
   const queued = await queue(rows);
   if (fila.length) await sql`update fn_avisos set sent_at = now() where id = any(${fila.map((f: Row) => String(f.id))})`;
@@ -1086,7 +1093,7 @@ async function send(groups: Row, mode: string, ctx: Ctx, op: Row = {}){
   for (const r of rows) {
     // Trava: aviso que cita grupo fora dos avisos (assessoria, ignorado) ou da assistida (Texas, BRASE -, lojas "reservado"
     // do OPS) nunca sai nos grupos AVISOS, venha de onde vier. No grupo do Renan pode.
-    if (r.canal !== 'renan' && avTextoFora(r.texto, ctx.gcfg, ctx.assistidaGrupos)) { await sql`update fn_avisos set tries = 99, erro = 'não enviado: cita grupo fora dos avisos ou da assistida' where id = ${r.id}`; continue }
+    if (r.canal !== 'renan' && avTextoFora(r.texto, ctx.gcfg, ctx.assistidaGrupos, ctx.avisosGrupos)) { await sql`update fn_avisos set tries = 99, erro = 'não enviado: cita grupo fora dos avisos ou da assistida' where id = ${r.id}`; continue }
     const to = groups[r.canal];
     if (!to || clientes.has(String(to))) { failed++; await sql`update fn_avisos set tries = tries + 1, erro = ${to ? 'destino é grupo de cliente: bloqueado' : 'grupo de aviso não encontrado'} where id = ${r.id}`; continue }
     try { await nicoSend(String(to), String(r.texto)); sent++; await sql`update fn_avisos set sent_at = now(), erro = null where id = ${r.id}` }
