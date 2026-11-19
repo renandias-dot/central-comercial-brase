@@ -2,7 +2,7 @@
 // As funções de telefone, trecho, horário e etapa são cópias das de funis-api/logic.ts, para esta função ser publicada sozinha.
 // deno-lint-ignore-file no-explicit-any
 
-export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string; payload?: {url?: unknown} | null};
+export type WaMsg = {id?: number | string; mid?: string; type?: string; msg_type?: string; content?: unknown; ts?: number; username?: string; payload?: {url?: unknown; reply_to_mid?: unknown} | null};
 export function normPhone(v: unknown){
   const d = String(v ?? '').replace(/\D/g, '');
   if ((d.length === 12 || d.length === 13) && d.startsWith('55')) return d;
@@ -135,7 +135,7 @@ export function avTextoFora(texto: unknown, ignorados: unknown = [], prefixos: u
 export const avGroupLabel = (name: unknown) => String(name || '').replace(/^\s*g:\s*/i, '').trim();
 // Mensagem de grupo do canal Operacional → quem escreveu e o texto. type "agent" = o número do Renan (é da Brase);
 // "in" = outro participante, com o nome na 1ª linha ("👤 Nome:").
-export type GrpMsg = {mid: string; ts: number; own: boolean; author: string; text: string; kind: string; meet?: string};
+export type GrpMsg = {mid: string; ts: number; own: boolean; author: string; text: string; kind: string; meet?: string; reply?: string};
 // Link do Meet (meet.google.com/abc-defg-hij): o código fica na mensagem, lido do texto inteiro (o trecho é cortado em 140).
 const AV_MEET = /meet\.google\.com\/([a-z]{3}-[a-z]{4}-[a-z]{3})/i;
 export function grpMsg(m: WaMsg): GrpMsg | null {
@@ -145,6 +145,9 @@ export function grpMsg(m: WaMsg): GrpMsg | null {
   const body = hit ? raw.slice(hit[0].length) : raw, meet = AV_MEET.exec(body);
   const g: GrpMsg = {mid: String(m.mid || m.id || m.ts), ts: m.ts, own: m.type === 'agent', author: hit ? hit[1].trim() : m.type === 'agent' ? 'Renan' : '', text: waSnippet({...m, content: body}), kind: String(m.msg_type || 'text')};
   if (meet) g.meet = meet[1].toLowerCase();
+  // Resposta (citação) a outra mensagem: ajuda a saber de quem é o áudio sem nome (quem responde o cliente é a equipe).
+  const reply = m.payload && typeof m.payload === 'object' ? m.payload.reply_to_mid : null;
+  if (reply) g.reply = String(reply);
   return g;
 }
 // Mensagem que não pede resposta: "ok", "obrigado", "bom dia", só emoji, figurinha, reação.
@@ -185,11 +188,9 @@ export function avGroupState(msgs: GrpMsg[], team: string[], ignore: string[] = 
   for (const m0 of [...(msgs || [])].sort((a, b) => a.ts - b.ts)) {
     let m = m0;
     if (!m.own && !m.author) {
-      if (!prev || prev.own || !prev.author || m.ts - prev.ts > 900) {
-        // Áudio transcrito sem autor: não abre espera (pode ser da equipe), mas sinal de risco no que foi dito aparece.
-        if (avIsAudio(m) && avIsRisk(m.text)) risks.push({...m, author: AV_AUDIO_SEM_AUTOR});
-        continue;
-      }
+      // Áudio sem autor (incerto ou não transcrito) não conta para nada: áudio só vale quando se sabe que é do cliente
+      // (decisão do dono, 17/11: "os áudios pra ler não pode ser de ninguém da nossa equipe").
+      if (avIsAudio(m) || !prev || prev.own || !prev.author || m.ts - prev.ts > 900) continue;
       m = {...m, author: prev.author};
     }
     prev = m;
@@ -222,7 +223,48 @@ export type AvAudio = {texto: string; quem?: string | null};
 // são da equipe, é da equipe; se são todas de uma pessoa só do cliente, é ela. Misturado ou pouca amostra: não decide.
 // Caso real (Point da Lolo, 14/11): os áudios do Felipe ("2A…") contavam como do cliente e a resposta dele não contava.
 export const avMidChave = (mid: unknown) => { const m = String(mid || ''); return /^3EB0/i.test(m) ? '3EB0' : m.slice(0, 2).toUpperCase() + ':' + m.length };
-export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = []): {quem: 'equipe' | 'cliente'; autor?: string} | null {
+// Quem mandou a mensagem sem nome, juntando os sinais (o primeiro que decide vale): o jeito do id; a citação (responder a
+// mensagem do cliente = equipe; responder a mensagem da equipe = cliente); e o "sanduíche" (a equipe escreveu até 5 min antes
+// e o cliente reagiu até 10 min depois = equipe, e o contrário = cliente). Caso real (Point da Lolo, 17/11): o Luis e o
+// Patrick usam iPhone ("3A…"), o áudio do Luis respondia à foto do Patrick e foi lido como do cliente.
+export function avQuemMandou(m: GrpMsg, msgs: GrpMsg[], team: string[] = [], chavesEquipe?: Set<string>): {quem: 'equipe' | 'cliente'; autor?: string; por: string} | null {
+  const pm = avQuemPeloMid(m.mid, msgs, team, chavesEquipe);
+  if (pm) return {...pm, por: 'tipo de id'};
+  const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
+  const daEquipe = (x: GrpMsg) => x.own || avNameIn(x.author, team) || /brase/i.test(x.author) || x.author === AV_AUDIO_EQUIPE;
+  const comNome = (x: GrpMsg) => x.own || (!!x.author && x.author !== AV_AUDIO_CLIENTE && x.author !== AV_AUDIO_SEM_AUTOR);
+  const clientes = [...new Set(sorted.filter(x => comNome(x) && !daEquipe(x)).map(x => x.author))];
+  const umCliente = clientes.length === 1 ? clientes[0] : undefined;
+  // Autor de uma mensagem citada: o nome dela, ou (foto/áudio sem nome) o de quem escreveu até 1 min antes ou depois do MESMO
+  // tipo de aparelho (jeito do id). Se esses vizinhos são dos dois lados (equipe e cliente), não decide. Caso real: a foto do
+  // Patrick (iPhone) ficou com o Felipe (WhatsApp Web), que escreveu segundos antes.
+  const autorDe = (x: GrpMsg | undefined): GrpMsg | null => {
+    if (!x) return null;
+    if (comNome(x)) return x;
+    const k = avMidChave(x.mid);
+    const viz = sorted.filter(y => y.mid !== x.mid && comNome(y) && Math.abs(y.ts - x.ts) <= 60 && avMidChave(y.mid) === k);
+    if (!viz.length || (viz.some(daEquipe) && viz.some(y => !daEquipe(y)))) return null;
+    return viz.sort((a, b) => Math.abs(a.ts - x.ts) - Math.abs(b.ts - x.ts))[0];
+  };
+  if (m.reply) {
+    const citado = autorDe(sorted.find(x => x.mid === m.reply));
+    if (citado) return daEquipe(citado) ? {quem: 'cliente', autor: umCliente, por: 'respondeu a equipe'} : clientes.length <= 1 ? {quem: 'equipe', por: 'respondeu o cliente'} : null;
+  }
+  const antes = [...sorted].reverse().find(x => x.ts < m.ts && comNome(x)), depois = sorted.find(x => x.ts > m.ts && comNome(x));
+  if (antes && depois && m.ts - antes.ts <= 300 && depois.ts - m.ts <= 600) {
+    if (daEquipe(antes) && !daEquipe(depois)) return {quem: 'equipe', por: 'equipe antes, cliente depois'};
+    if (!daEquipe(antes) && daEquipe(depois) && antes.author === umCliente) return {quem: 'cliente', autor: umCliente, por: 'cliente antes, equipe depois'};
+  }
+  return null;
+}
+// Jeitos de id que alguém da equipe usa em QUALQUER grupo: com eles, o jeito do id nunca conclui "cliente" (o Luis usa iPhone
+// como o Patrick; no Point da Lolo, as mensagens dele saíram da janela guardada e o áudio dele voltou como do cliente).
+export function avChavesDaEquipe(listas: GrpMsg[][], team: string[] = []){
+  const out = new Set<string>();
+  for (const l of listas || []) for (const m of l || []) if (m && m.mid && (m.own || (m.author && (avNameIn(m.author, team) || /brase/i.test(m.author))))) out.add(avMidChave(m.mid));
+  return out;
+}
+export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = [], chavesEquipe?: Set<string>): {quem: 'equipe' | 'cliente'; autor?: string} | null {
   const k = avMidChave(mid);
   const autores = (msgs || []).filter(m => m.mid !== String(mid) && avMidChave(m.mid) === k && (m.own || (m.author && m.author !== AV_AUDIO_EQUIPE && m.author !== AV_AUDIO_CLIENTE && m.author !== AV_AUDIO_SEM_AUTOR)))
     .map(m => m.own ? '' : m.author);
@@ -230,17 +272,17 @@ export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = [])
   const daEquipe = (a: string) => !a || avNameIn(a, team) || /brase/i.test(a);
   if (autores.every(daEquipe)) return {quem: 'equipe'};
   const doCliente = [...new Set(autores.filter(a => !daEquipe(a)))];
-  return autores.some(daEquipe) || doCliente.length !== 1 ? null : {quem: 'cliente', autor: doCliente[0]};
+  return autores.some(daEquipe) || doCliente.length !== 1 || (chavesEquipe && chavesEquipe.has(k)) ? null : {quem: 'cliente', autor: doCliente[0]};
 }
 // Põe a transcrição no lugar de "[áudio]" (mapa mid → {texto, quem}). Equipe: vira mensagem da Brase, sem o conteúdo.
 // Cliente: o nome é o da mensagem anterior de alguém do cliente (até 15 min antes), senão "Cliente (áudio)". Sem
 // classificação ainda: fica sem autor (só conta para o sinal de risco).
-export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: string[] = []){
+export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: string[] = [], chavesEquipe?: Set<string>){
   const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
   return sorted.map((m, i) => {
     const a = avIsAudio(m) ? audios.get(m.mid) : undefined;
     // Sem nome: o jeito do id decide antes de tudo (vale também para áudio não transcrito e imagem).
-    const pm = !m.own && !m.author ? avQuemPeloMid(m.mid, sorted, team) : null;
+    const pm = !m.own && !m.author ? avQuemMandou(m, sorted, team, chavesEquipe) : null;
     if (pm && pm.quem === 'equipe') return {...m, author: AV_AUDIO_EQUIPE, text: avIsAudio(m) ? '🎤 (áudio da equipe)' : m.text};
     if (pm && pm.quem === 'cliente') return {...m, author: pm.autor || AV_AUDIO_CLIENTE, text: a ? avAudioTexto(a.texto) : m.text};
     if (!a) return m;

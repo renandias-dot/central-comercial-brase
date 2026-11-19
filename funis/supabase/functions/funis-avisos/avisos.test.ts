@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -251,13 +251,12 @@ Deno.test('áudio: link só de outro participante, transcrição no lugar de [á
   const aut = avAutores(msgs);
   assertEquals([aut.get('x1'), aut.get('x2'), aut.get('x3'), aut.get('x4')], ['Carla', 'Carla', undefined, 'Felipe Araújo']);
 });
-Deno.test('áudio transcrito sem autor: não abre espera, mas risco aparece', () => {
+Deno.test('áudio sem autor (incerto) não conta para nada: pode ser da equipe', () => {
   const solto: GrpMsg = {mid: 'y1', ts: t('10:00'), own: false, author: '', text: '🎤 tô pensando em cancelar o serviço de vocês', kind: 'audio'};
   const s = avGroupState([solto], []);
   assertEquals(s.waiting, null);
-  assertEquals(s.risks.length, 1);
-  assertEquals(s.risks[0].author, AV_AUDIO_SEM_AUTOR);
-  assertEquals(avGroupState([{...solto, text: '[áudio]'}], []).risks.length, 0);
+  assertEquals(s.risks.length, 0);
+  assertEquals(avGroupState([g('Carla', 'Oi', t('09:59')), solto], []).risks.length, 0); // nem herdando o autor anterior
 });
 
 Deno.test('áudio classificado: equipe vira resposta da Brase sem conteúdo; cliente leva o nome de quem é do cliente', () => {
@@ -441,4 +440,41 @@ Deno.test('ações das reuniões: "feito 12" no grupo, linha no resumo e confirm
     {tipo: 'nova', grupo: 'NC Pizza', texto: '#14 Revisar preços (até sex 20/11)'},
   ], Date.parse('2026-11-18T09:01:00-03:00'));
   assertEquals(txt, "☀️ *Resumo de qua 18/11* · @5521995848478\n\n⏰ *Ações vencidas*\n• Rock's Crepes e Wraps: #12 Pedir custos de produto dele (venceu ter 17/11)\n\n📋 *Ações novas das reuniões*\n• NC Pizza: #14 Revisar preços (até sex 20/11)\n\nPara concluir uma ação, escreva aqui: feito <número> (ex.: feito 12).");
+});
+
+Deno.test('áudio do Luis no Point da Lolo (17/11): respondeu a foto do cliente, então é da equipe', () => {
+  const team = ['Felipe Araújo', 'Luis - Gestão Performance'];
+  const at = (hh: string) => Date.parse(`2026-11-17T${hh}:00-03:00`) / 1000;
+  const m = (mid: string, hh: string, author: string, text = 'x', kind = 'text', reply?: string): GrpMsg => ({mid, ts: at(hh), own: false, author, text, kind, ...(reply ? {reply} : {})});
+  const msgs = [
+    m('3A85CEC9779CF39C78C9', '15:38', 'Patrick William', 'Boa tarde!'), m('3EB03AA589EB4690CFECD6', '15:38', 'Felipe Araújo', 'Boa tarde, Patrick!!'),
+    // o Felipe (WhatsApp Web) escreveu segundos antes da foto do Patrick (iPhone): a foto não pode ficar com ele
+    {...m('3EB00BCB44FCB8AE7F2D56', '15:40', 'Felipe Araújo', 'Vamos criar os combos para já estarem disponíveis amanhã'), ts: at('15:40') - 5},
+    {...m('3A80AC615C838360ECD7', '15:40', '', '[imagem]', 'image'), ts: at('15:40') + 10}, {...m('3A607D6C78592DC08894', '15:40', 'Patrick William', 'Sabem o q pode estar acontecendo?'), ts: at('15:40') + 21},
+    {...m('3AA505CF9F92045321EB', '15:41', 'Luis - Gestão Performance', 'Manutenção, tão com muitos erros'), ts: at('15:41') + 16},
+    m('3AD94873E743AFF24FE0', '15:43', '', '[áudio]', 'audio', '3A80AC615C838360ECD7'),
+    m('3AA7122EA9D69F30877C', '15:47', 'Patrick William', 'Top'),
+  ];
+  const audio = msgs.find(x => x.kind === 'audio')!;
+  assertEquals(avQuemMandou(audio, msgs, team), {quem: 'equipe', por: 'respondeu o cliente'});
+  // sem a citação, o "sanduíche" decide: o Luis escreveu antes e o Patrick reagiu depois
+  assertEquals(avQuemMandou({...audio, reply: undefined}, msgs, team), {quem: 'equipe', por: 'equipe antes, cliente depois'});
+  // a IA tinha dito "cliente": com a regra nova o áudio vira da equipe e o cliente não fica esperando
+  const comAudio = avComAudios(msgs, new Map([['3AD94873E743AFF24FE0', {texto: 'Está basicamente tudo normal…', quem: 'cliente'}]]), team);
+  assertEquals(comAudio.find(x => x.mid === audio.mid)!.author, AV_AUDIO_EQUIPE);
+  assertEquals(avGroupState(comAudio, team).waiting, null);
+  // o cliente respondendo a mensagem da equipe com áudio é do cliente
+  const resp = m('3A11111111111111111A', '15:42', '', '[áudio]', 'audio', '3AA505CF9F92045321EB');
+  assertEquals(avQuemMandou(resp, [...msgs, resp], team), {quem: 'cliente', autor: 'Patrick William', por: 'respondeu a equipe'});
+});
+
+Deno.test('jeito do id: se alguém da equipe usa o mesmo aparelho em outro grupo, não conclui "cliente"', () => {
+  const team = ['Luis - Gestão Performance'];
+  const m = (mid: string, ts: number, author: string): GrpMsg => ({mid, ts, own: false, author, text: 'x', kind: 'text'});
+  const grupo = [m('3A11111111111111111A', 1, 'Patrick William'), m('3A22222222222222222B', 2, 'Patrick William')];
+  const outro = [m('3A33333333333333333C', 1, 'Luis - Gestão Performance')];
+  assertEquals(avQuemPeloMid('3AD94873E743AFF24FE0', grupo, team), {quem: 'cliente', autor: 'Patrick William'});
+  const chaves = avChavesDaEquipe([grupo, outro], team);
+  assert(chaves.has('3A:20'));
+  assertEquals(avQuemPeloMid('3AD94873E743AFF24FE0', grupo, team, chaves), null);
 });
