@@ -850,7 +850,7 @@ export type AvPlacar = {
   acoes: {criadas: number; concluidas: number; vencidas: {responsavel: string; n: number}[]};
   envios: {canal: string; tipo: string; n: number}[];
 };
-const AV_TIPO_NOME: Record<string, string> = {atendimento: 'atendimento', pedido_ifood: 'pedido', pedido_agendado: 'hora marcada', resumo: 'resumo das 9h', risco: 'risco',
+const AV_TIPO_NOME: Record<string, string> = {cobranca: 'mensalidade atrasada', atendimento: 'atendimento', pedido_ifood: 'pedido', pedido_agendado: 'hora marcada', resumo: 'resumo das 9h', risco: 'risco',
   acao_concluida: 'feito', horario_sdr: 'horário do Lipe', horario_lead: 'horário do lead', agenda_renan: 'sua agenda', reuniao_nova: 'reunião marcada', reuniao_horario: 'reunião remarcada',
   reuniao_lead: 'reunião de venda', loja: 'loja nova', manha: 'resumo da manhã', placar: 'placar', sem_resposta: 'sem resposta', silencio: 'grupo parado'};
 const AV_CANAL_NOME: Record<string, string> = {operacional: 'AVISOS - OPERACIONAIS', comercial: 'AVISOS - COMERCIAIS', renan: 'Organização'};
@@ -878,4 +878,11 @@ export function avPlacarText(p: AvPlacar){
     }
   }
   return linhas.join('\n');
+}
+
+// Mensalidade da assistida vencida e não paga (espelho do Asaas no OPS, op "cobrancas_assistida"): um aviso por cobrança,
+// só no grupo do Renan.
+export function avCobrancaText(a: {contrato: string; valor: number; vencimento: string; dias: number}){
+  const v = String(a.vencimento || '');
+  return `💸 *Mensalidade atrasada*\n${a.contrato}\n${avReais(a.valor)} venceu ${v.slice(8, 10)}/${v.slice(5, 7)} (${a.dias} ${a.dias === 1 ? 'dia' : 'dias'})\n👤 Assistida: cobre o cliente.`;
 }

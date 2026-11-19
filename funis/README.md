@@ -240,7 +240,8 @@ A função `funis-avisos` (separada da `funis-api`, para mexer nela sem tocar no
   - a agenda do dia na Central (reuniões marcadas e bloqueios);
   - os horários sugeridos que ainda não viraram reunião: os bloqueios que o Renan sugeriu nos próximos 7 dias e os horários que o Lipe sugeriu nos últimos 3 dias;
   - as rotinas do dia (`manha.rotinas`; padrão: segunda e quarta, enviar os relatórios);
-  - a **assistida** (desde 19/11): as lojas da assistida no OPS, a situação de cada grupo (atendimento pendente, parado, 30 dias sem reunião), os avisos que saíram no Organização nas últimas 24 h e as ações abertas dessas lojas.
+  - a **assistida** (desde 19/11): as lojas da assistida no OPS, a situação de cada grupo (atendimento pendente, parado, 30 dias sem reunião), os avisos que saíram no Organização nas últimas 24 h, as ações abertas dessas lojas e as mensalidades atrasadas.
+- **Mensalidade atrasada da assistida (só no Organização - BRASE):** de hora em hora o passo `cobrancas` pergunta ao OPS (`op cobrancas_assistida` da `whatsapp-pedidos`) quais cobranças do Asaas dos contratos da assistida venceram sem pagamento (contrato com o cliente do Asaas ligado na tela Assistida). Cada cobrança vira um aviso 💸 uma vez só (id `cobranca:<id da cobrança>`), das 8h às 20h. A lista do momento fica em `fn_config` (k = `cobrancas_state`).
 
   Às 6h53, a rotina do Claude "Resumo do dia do Renan", que roda pela assinatura, lê o pacote e escreve a mensagem no formato das anotações dele ("Hoje:" e uma tarefa por linha, com uma parte "Assistida"). Depois põe a mensagem em `fn_avisos` com canal `renan` (migration `20261117020000_avisos_canal_renan.sql`), e a função manda no grupo (`groups.renan`). A trava do envio não vale para esse canal. Configuração em `fn_config` avisos `manha = {ligado, de, ate, rotinas}`.
 - **Ações das reuniões (aba Ações do OPS):**
