@@ -1077,7 +1077,8 @@ async function send(groups: Row, mode: string, ctx: Ctx, op: Row = {}){
   const opAberto = avNaJanela(Date.now(), String(op.envioDe || '08:00'), String(op.envioAte || '20:00'));
   const rows = opAberto
     ? await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal <> 'resumo' order by created_at, id limit ${SEND_MAX}`
-    : await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal not in ('resumo', 'operacional') order by created_at, id limit ${SEND_MAX}`;
+    // Fora da janela também esperam os avisos da assistida no grupo do Renan; só o resumo da manhã (6h53) sai antes das 8h.
+    : await sql`select id, canal, texto from fn_avisos where sent_at is null and tries < 3 and canal not in ('resumo', 'operacional') and not (canal = 'renan' and tipo <> 'manha') order by created_at, id limit ${SEND_MAX}`;
   if (!rows.length) return {sent: 0, failed: 0};
   // Trava: só sai mensagem para os grupos AVISOS. Nada é enviado no grupo do cliente (decisão do dono).
   const clientes = new Set((await sql`select user_ns from fn_grupos`).map((r: Row) => String(r.user_ns)));
