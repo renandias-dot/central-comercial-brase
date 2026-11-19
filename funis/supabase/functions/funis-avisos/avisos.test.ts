@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, avReais, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, avReais, avCobrancaText, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -540,4 +540,10 @@ Deno.test('jeito do id: se alguém da equipe usa o mesmo aparelho em outro grupo
   const chaves = avChavesDaEquipe([grupo, outro], team);
   assert(chaves.has('3A:20'));
   assertEquals(avQuemPeloMid('3AD94873E743AFF24FE0', grupo, team, chaves), null);
+});
+
+Deno.test('mensalidade atrasada da assistida: aviso só com o contrato, o valor e o atraso', () => {
+  assertEquals(avCobrancaText({contrato: 'Texas Burguer (2 lojas)', valor: 1097, vencimento: '2026-11-10', dias: 9}),
+    '💸 *Mensalidade atrasada*\nTexas Burguer (2 lojas)\nR$ 1.097,00 venceu 10/11 (9 dias)\n👤 Assistida: cobre o cliente.');
+  assert(avCobrancaText({contrato: 'X', valor: 10, vencimento: '2026-11-18', dias: 1}).includes('(1 dia)'));
 });

@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avCobrancaText, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -1005,10 +1005,26 @@ async function manha(c: Row, contacts: Row[], ctx: Ctx){
       .map((a: Row) => ({quando: brIso(new Date(a.created_at).getTime()).slice(5, 16).replace('T', ' '), tipo: a.tipo, grupo: a.grupo, texto: String(a.texto).replace(/\n/g, ' | ').slice(0, 600)})),
     acoes: (await sql`select codigo, titulo, cliente, responsavel, prazo::text as prazo from fn_tarefas where status in ('pendente', 'em_andamento') order by prazo nulls last limit 200`)
       .filter(doAssist).map((t: Row) => ({numero: t.codigo, acao: t.titulo, cliente: t.cliente, responsavel: t.responsavel, prazo: t.prazo})),
+    // Mensalidades vencidas e não pagas (espelho do Asaas, consultado de hora em hora).
+    mensalidadesAtrasadas: ((await getConf('cobrancas_state')).lista || []).map((a: Row) => ({contrato: a.contrato, valor: a.valor, vencimento: a.vencimento, dias: a.dias})),
   };
   const pacote = {dia, geradoEm: brIso(now), notas, agenda, sugeridas, rotinas: avRotinasDoDia(cfg.rotinas, now), acoes: acoesRenan, assistida, conversas};
   await setConf('manha_pacote', pacote);
   return {dia, notas: notas.length, agenda: agenda.length, sugeridas: sugeridas.length, assistida: assistida.grupos.length, conversas: conversas.length};
+}
+// Mensalidades atrasadas da assistida (OPS, op "cobrancas_assistida"): no máximo uma consulta por hora; cada cobrança
+// vencida vira um aviso só no grupo do Renan (o id da cobrança não deixa repetir). A lista do momento fica em
+// fn_config (k = 'cobrancas_state') e entra no pacote da manhã.
+async function cobrancas(){
+  const st = await getConf('cobrancas_state');
+  if (Date.now() - (Date.parse(st.at || '') || 0) < 60 * 60e3) return {skipped: 'consultado há menos de 1 h'};
+  const conf = await getConf('ops_pedidos');
+  if (!conf.url || !conf.key) return {skipped: 'sem a configuração do OPS'};
+  const r = await opsPedidos(conf, {op: 'cobrancas_assistida'});
+  const lista = (Array.isArray(r.atrasadas) ? r.atrasadas : []).filter((a: Row) => a && a.id);
+  const queued = await queue(lista.map((a: Row) => ({id: 'cobranca:' + a.id, canal: 'renan' as const, tipo: 'cobranca', texto: avCobrancaText({contrato: String(a.contrato), valor: Number(a.valor) || 0, vencimento: String(a.vencimento), dias: Number(a.dias) || 0}), grupo: String(a.contrato)})));
+  await setConf('cobrancas_state', {at: brIso(Date.now()), lista});
+  return {atrasadas: lista.length, queued};
 }
 // 9. Placar da semana (segunda, a partir das 8h; fn_config avisos.placar = {ligado, dia: 1, hora: '08:00'}): conta o que a
 // semana anterior rendeu e manda só no grupo do Renan (canal 'renan'). A semana enviada fica em fn_config placar_state.
@@ -1135,6 +1151,7 @@ async function run(){
     await step('acoes', () => acoes(c, ctx));
     await step('resumo', () => resumo(c, ctx));
     await step('placar', () => placar(c, ctx));
+    await step('cobrancas', () => cobrancas());
     await step('manha', () => manha(c, list, ctx));
     await step('agenda', () => agenda(c, list, prev, ctx));
     await step('agendaFila', () => agendaFila(c));
