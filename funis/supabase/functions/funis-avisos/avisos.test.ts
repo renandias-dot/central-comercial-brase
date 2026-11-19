@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -466,4 +466,15 @@ Deno.test('áudio do Luis no Point da Lolo (17/11): respondeu a foto do cliente,
   // o cliente respondendo a mensagem da equipe com áudio é do cliente
   const resp = m('3A11111111111111111A', '15:42', '', '[áudio]', 'audio', '3AA505CF9F92045321EB');
   assertEquals(avQuemMandou(resp, [...msgs, resp], team), {quem: 'cliente', autor: 'Patrick William', por: 'respondeu a equipe'});
+});
+
+Deno.test('jeito do id: se alguém da equipe usa o mesmo aparelho em outro grupo, não conclui "cliente"', () => {
+  const team = ['Luis - Gestão Performance'];
+  const m = (mid: string, ts: number, author: string): GrpMsg => ({mid, ts, own: false, author, text: 'x', kind: 'text'});
+  const grupo = [m('3A11111111111111111A', 1, 'Patrick William'), m('3A22222222222222222B', 2, 'Patrick William')];
+  const outro = [m('3A33333333333333333C', 1, 'Luis - Gestão Performance')];
+  assertEquals(avQuemPeloMid('3AD94873E743AFF24FE0', grupo, team), {quem: 'cliente', autor: 'Patrick William'});
+  const chaves = avChavesDaEquipe([grupo, outro], team);
+  assert(chaves.has('3A:20'));
+  assertEquals(avQuemPeloMid('3AD94873E743AFF24FE0', grupo, team, chaves), null);
 });

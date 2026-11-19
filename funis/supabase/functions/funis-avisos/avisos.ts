@@ -227,8 +227,8 @@ export const avMidChave = (mid: unknown) => { const m = String(mid || ''); retur
 // mensagem do cliente = equipe; responder a mensagem da equipe = cliente); e o "sanduíche" (a equipe escreveu até 5 min antes
 // e o cliente reagiu até 10 min depois = equipe, e o contrário = cliente). Caso real (Point da Lolo, 17/11): o Luis e o
 // Patrick usam iPhone ("3A…"), o áudio do Luis respondia à foto do Patrick e foi lido como do cliente.
-export function avQuemMandou(m: GrpMsg, msgs: GrpMsg[], team: string[] = []): {quem: 'equipe' | 'cliente'; autor?: string; por: string} | null {
-  const pm = avQuemPeloMid(m.mid, msgs, team);
+export function avQuemMandou(m: GrpMsg, msgs: GrpMsg[], team: string[] = [], chavesEquipe?: Set<string>): {quem: 'equipe' | 'cliente'; autor?: string; por: string} | null {
+  const pm = avQuemPeloMid(m.mid, msgs, team, chavesEquipe);
   if (pm) return {...pm, por: 'tipo de id'};
   const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
   const daEquipe = (x: GrpMsg) => x.own || avNameIn(x.author, team) || /brase/i.test(x.author) || x.author === AV_AUDIO_EQUIPE;
@@ -257,7 +257,14 @@ export function avQuemMandou(m: GrpMsg, msgs: GrpMsg[], team: string[] = []): {q
   }
   return null;
 }
-export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = []): {quem: 'equipe' | 'cliente'; autor?: string} | null {
+// Jeitos de id que alguém da equipe usa em QUALQUER grupo: com eles, o jeito do id nunca conclui "cliente" (o Luis usa iPhone
+// como o Patrick; no Point da Lolo, as mensagens dele saíram da janela guardada e o áudio dele voltou como do cliente).
+export function avChavesDaEquipe(listas: GrpMsg[][], team: string[] = []){
+  const out = new Set<string>();
+  for (const l of listas || []) for (const m of l || []) if (m && m.mid && (m.own || (m.author && (avNameIn(m.author, team) || /brase/i.test(m.author))))) out.add(avMidChave(m.mid));
+  return out;
+}
+export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = [], chavesEquipe?: Set<string>): {quem: 'equipe' | 'cliente'; autor?: string} | null {
   const k = avMidChave(mid);
   const autores = (msgs || []).filter(m => m.mid !== String(mid) && avMidChave(m.mid) === k && (m.own || (m.author && m.author !== AV_AUDIO_EQUIPE && m.author !== AV_AUDIO_CLIENTE && m.author !== AV_AUDIO_SEM_AUTOR)))
     .map(m => m.own ? '' : m.author);
@@ -265,17 +272,17 @@ export function avQuemPeloMid(mid: unknown, msgs: GrpMsg[], team: string[] = [])
   const daEquipe = (a: string) => !a || avNameIn(a, team) || /brase/i.test(a);
   if (autores.every(daEquipe)) return {quem: 'equipe'};
   const doCliente = [...new Set(autores.filter(a => !daEquipe(a)))];
-  return autores.some(daEquipe) || doCliente.length !== 1 ? null : {quem: 'cliente', autor: doCliente[0]};
+  return autores.some(daEquipe) || doCliente.length !== 1 || (chavesEquipe && chavesEquipe.has(k)) ? null : {quem: 'cliente', autor: doCliente[0]};
 }
 // Põe a transcrição no lugar de "[áudio]" (mapa mid → {texto, quem}). Equipe: vira mensagem da Brase, sem o conteúdo.
 // Cliente: o nome é o da mensagem anterior de alguém do cliente (até 15 min antes), senão "Cliente (áudio)". Sem
 // classificação ainda: fica sem autor (só conta para o sinal de risco).
-export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: string[] = []){
+export function avComAudios(msgs: GrpMsg[], audios: Map<string, AvAudio>, team: string[] = [], chavesEquipe?: Set<string>){
   const sorted = [...(msgs || [])].sort((a, b) => a.ts - b.ts);
   return sorted.map((m, i) => {
     const a = avIsAudio(m) ? audios.get(m.mid) : undefined;
     // Sem nome: o jeito do id decide antes de tudo (vale também para áudio não transcrito e imagem).
-    const pm = !m.own && !m.author ? avQuemMandou(m, sorted, team) : null;
+    const pm = !m.own && !m.author ? avQuemMandou(m, sorted, team, chavesEquipe) : null;
     if (pm && pm.quem === 'equipe') return {...m, author: AV_AUDIO_EQUIPE, text: avIsAudio(m) ? '🎤 (áudio da equipe)' : m.text};
     if (pm && pm.quem === 'cliente') return {...m, author: pm.autor || AV_AUDIO_CLIENTE, text: a ? avAudioTexto(a.texto) : m.text};
     if (!a) return m;

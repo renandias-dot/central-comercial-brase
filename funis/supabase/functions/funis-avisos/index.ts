@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avForaDosAvisos, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -283,7 +283,7 @@ Responda em JSON: {"tipo": "lead" | "cliente" | "equipe" | "pessoal" | "incerto"
 // equipe) e manda para o passo "pedidos" só os do cliente que parecem pedido de alteração. Devolve o mapa mid → {texto, quem}
 // dos últimos 3 dias para os avisos de risco e de espera (áudio da equipe só conta como "a Brase respondeu").
 type Lido = {ns: string; name: string; raw: Row[]; msgs: GrpMsg[]};
-async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], sink: Row[]){
+async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], sink: Row[], chaves?: Set<string>){
   const op = c.op || {}, now = Date.now(), desde = Math.max(c.sinceMs, now - AUDIO_JANELA);
   const novos: Row[] = [];
   for (const l of lidos) for (const r of l.raw) {
@@ -327,7 +327,7 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
         let quem: string, motivo: string;
         // O jeito do id da mensagem (aparelho de quem mandou) decide antes da IA, que errava com áudio da equipe.
         const eu = msgs.find(x => x.mid === String(a.mid));
-        const pm = eu ? avQuemMandou(eu, msgs, team) : null;
+        const pm = eu ? avQuemMandou(eu, msgs, team, chaves) : null;
         if (pm) { quem = pm.quem; motivo = 'pela conversa: ' + pm.por + (pm.autor ? ' (' + pm.autor + ')' : '') }
         else try { ({quem, motivo} = await quemFalou(String(a.texto || ''), antes, team, clientes, String(op.audioQuemModelo || 'openai/gpt-oss-20b'))) }
         catch (e) {
@@ -349,7 +349,7 @@ async function audios(c: Row, lidos: Lido[], team: string[], ignore: string[], s
     const ns = [...new Set(cand.map(a => String(a.group_ns)))];
     const fatos = new Map<string, GrpMsg[]>((await sql`select user_ns, facts->'msgs' as msgs from fn_grupos where user_ns = any(${ns})`).map((r: Row) => [String(r.user_ns), r.msgs || []]));
     for (const a of cand) {
-      const msgs = avComAudios((lidos.find(l => l.ns === String(a.group_ns)) || {msgs: fatos.get(String(a.group_ns)) || []}).msgs, mapa, team);
+      const msgs = avComAudios((lidos.find(l => l.ns === String(a.group_ns)) || {msgs: fatos.get(String(a.group_ns)) || []}).msgs, mapa, team, chaves);
       const eu = msgs.find(x => x.mid === String(a.mid));
       const autor = (eu && eu.author) || AV_AUDIO_SEM_AUTOR;
       const contexto = msgs.filter(x => x.ts < Number(a.ts)).slice(-8).map(x => ({autor: x.own ? 'Renan (Brase)' : x.author || 'não identificado', texto: x.text, quando: brIso(x.ts * 1000)}));
@@ -480,12 +480,15 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
     if (meets.length) await sql`insert into fn_reunioes_clientes ${sql(meets as unknown as Row[], 'id', 'group_ns', 'grupo', 'dia', 'link_at', 'meet', 'autor')} on conflict (id) do nothing`;
   }
   // Equipe: a lista guardada + quem escreve em 4 ou mais grupos de clientes (dono com 3 lojas continua sendo cliente).
-  const all = (await sql`select user_ns, nome, facts from fn_grupos where flow_ns = ${flow}`).filter((r: Row) => !avForaDosAvisos(r.nome, c.gruposIgnorados, c.gruposForaPrefixo));
+  const todos = await sql`select user_ns, nome, facts from fn_grupos where flow_ns = ${flow}`;
+  const all = todos.filter((r: Row) => !avForaDosAvisos(r.nome, c.gruposIgnorados, c.gruposForaPrefixo));
   const count = new Map<string, number>();
   for (const r of all) for (const a of new Set<string>((r.facts && r.facts.authors) || [])) count.set(a, (count.get(a) || 0) + 1);
   const team = [...(c.team || []), ...[...count].filter(([, n]) => n >= minGroups).map(([a]) => a)], ignore = c.ignore || [];
   // Áudios: transcreve e já põe no passo "pedidos" os que pedem alteração; os textos entram nos avisos abaixo.
-  const aud = await audios(c, lidos, team, ignore, sink);
+  // Jeitos de id da equipe em todos os grupos (inclusive os que ficam fora dos avisos, onde o Luis mais escreve).
+  const chaves = avChavesDaEquipe([...todos.map((r: Row) => (r.facts && r.facts.msgs) || []), ...lidos.map(l => l.msgs)], team);
+  const aud = await audios(c, lidos, team, ignore, sink, chaves);
   // Mensagens do cliente que parecem pedido de alteração no iFood: vão para o passo "pedidos" (OPS), com as anteriores de contexto.
   for (const l of lidos) for (const m of l.msgs) {
     if (m.own || !m.author || avNameIn(m.author, team) || avNameIn(m.author, ignore) || /brase/i.test(m.author) || m.ts * 1000 < Math.max(c.sinceMs, now - 6 * 3600e3)) continue;
@@ -507,7 +510,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
   // Última reunião de cada grupo (provável ou realizada), para o aviso de 30 dias.
   const lastMeet = new Map<string, Row>((await sql`select distinct on (group_ns) group_ns, dia::text as dia, status from fn_reunioes_clientes where status <> 'nao_realizada' order by group_ns, dia desc`).map((r: Row) => [String(r.group_ns), r]));
   for (const r of all) {
-    const ns = String(r.user_ns), f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), msgsA = avComAudios(f.msgs || [], aud.mapa, team);
+    const ns = String(r.user_ns), f = r.facts || {}, name = String(r.nome || f.name || 'Grupo'), msgsA = avComAudios(f.msgs || [], aud.mapa, team, chaves);
     const st = avGroupState(msgsA, team, ignore), quem = gest.de(name), marcas = quem.map(ctx.marca);
     const estado: Row = {grupo: name, gestores: quem};
     // 30 dias sem reunião e grupo parado: só no resumo das 9h (repetem enquanto não resolver).
