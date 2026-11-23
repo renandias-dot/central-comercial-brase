@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avCobrancaText, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avCobrancaText, avTelefone, avContatoConhecido, avTipoDaNota, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -610,6 +610,8 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
 //   fn_config (k = 'privados', {mapa: {user_ns: {tipo, motivo, contato, at}}}); dá para corrigir à mão ali (tipo "equipe");
 // - qualquer outro grupo: ignora.
 const CONTEXTO_MAX = 3; // conversas classificadas por rodada
+// Telefone do contato no NicoChat (o user_id do WhatsApp é o número).
+const rawDe = (x: Row) => String(x.phone || String(x.user_id || '').split('-')[0] || '');
 const CONTEXTO_VALE = 14 * 864e5;
 async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
   if (c.com && c.com.renan === false) return {skipped: 'desligado'};
@@ -623,6 +625,7 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
   const team = [...(c.team || [])];
   for (const x of list) {
     maxAt = Math.max(maxAt, nicoTime(x.last_message_at));
+    const rawTel = rawDe(x), telDoContato = /^\s*g:/i.test(String(x.name || '')) ? '' : avTelefone(rawTel);
     const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: String(x.user_ns), limit: 20});
     const mine = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && m.type === 'agent' && typeof m.ts === 'number' && m.ts * 1000 > cursor && typeof m.content === 'string')
       .map((m: Row) => ({m, slots: avParseSlots(m.content.replace(/^\s*👤[^\n]*\n?/u, ''), m.ts * 1000).filter(st => st > now)})).filter((y: Row) => y.slots.length);
@@ -639,7 +642,7 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
       else {
         leads ??= leadIndex((await crmCall({op: 'load'})).docs || []);
         const lead = leads.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
-        if (lead) { where = `Lead ${lead.data.name || ''}${lead.data.company ? ' · ' + lead.data.company : ''}, no privado`; kind = 'lead' }
+        if (lead) { where = `Lead ${lead.data.name || ''}${lead.data.company ? ' · ' + lead.data.company : ''}${telDoContato ? ' · ' + telDoContato : ''}, no privado`; kind = 'lead' }
         else {
           privados ??= (await getConf('privados')).mapa || {};
           const ns = String(x.user_ns), memo = (privados as Row)[ns];
@@ -653,7 +656,7 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
             } catch (e) { porContexto.erro = errText(e).slice(0, 200) }
           }
           if (tipo) porContexto[tipo] = (porContexto[tipo] || 0) + 1;
-          if (tipo === 'lead' || tipo === 'cliente') { where = `${x.name || 'Contato sem nome'} (${tipo} pela conversa), no privado`; kind = tipo === 'lead' ? 'lead' : 'cliente' }
+          if (tipo === 'lead' || tipo === 'cliente') { where = `${avContatoConhecido(rawTel, c.contatos) || x.name || 'Contato sem nome'}${telDoContato ? ' · ' + telDoContato : ''} (${tipo} pela conversa), no privado`; kind = tipo === 'lead' ? 'lead' : 'cliente' }
         }
       }
     }
@@ -664,7 +667,7 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
       if ((await sql`select 1 from fn_avisos where id = ${id}`).length) continue;
       let ok = true;
       for (const st of slots) {
-        try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: kind === 'di' ? AV_DI_MIN : 60, label: 'Renan: ' + where + (kind === 'di' ? ' (rápida)' : ''), by: 'avisos', at: new Date().toISOString()}}); blocked++ }
+        try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: kind === 'di' ? AV_DI_MIN : 60, label: 'Renan: ' + where + (kind === 'di' ? ' (rápida)' : ''), by: 'avisos', at: new Date().toISOString(), ...(telDoContato && !avClientGroup(x.name) ? {phone: telDoContato} : {})}}); blocked++ }
         catch { ok = false }
       }
       queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, ok)}]);
@@ -951,8 +954,16 @@ async function manha(c: Row, contacts: Row[], ctx: Ctx){
   let notas: Row[] = [];
   if (notasNs) {
     const j = await nico(OPS_KEY, 'subscriber/chat-messages', {user_ns: notasNs, limit: 60});
-    notas = (Array.isArray(j.data) ? j.data : []).filter((m: Row) => m && m.type === 'agent' && typeof m.ts === 'number' && m.ts * 1000 > now - 7 * 864e5 && typeof m.content === 'string')
-      .sort((a: Row, b: Row) => a.ts - b.ts).map((m: Row) => ({quando: quando(m.ts), texto: avTextoPacote(m.content)})).filter((n: Row) => n.texto);
+    // Tudo sai do número dele: separa o resumo da manhã e os avisos do sistema das anotações, e diz a que mensagem ele
+    // respondeu (responder ao resumo dizendo o que fez é como ele avisa que fez).
+    const doSistema = (await sql`select texto from fn_avisos where canal = 'renan' and created_at > now() - interval '8 days'`).map((r: Row) => avTextoPacote(r.texto));
+    const brutas: Row[] = Array.isArray(j.data) ? j.data : [];
+    const porMid = new Map(brutas.map((m: Row) => [String(m.mid || ''), m]));
+    notas = brutas.filter((m: Row) => m && m.type === 'agent' && typeof m.ts === 'number' && m.ts * 1000 > now - 7 * 864e5 && typeof m.content === 'string')
+      .sort((a: Row, b: Row) => a.ts - b.ts).map((m: Row) => {
+        const texto = avTextoPacote(m.content), citada = porMid.get(String((m.payload && m.payload.reply_to_mid) || ''));
+        return {quando: quando(m.ts), tipo: avTipoDaNota(texto, doSistema), texto, ...(citada && typeof citada.content === 'string' ? {responde: avTextoPacote(citada.content).slice(0, 200)} : {})};
+      }).filter((n: Row) => n.texto);
   }
   // Central: leads (telefone → card), agenda do dia e horários bloqueados pelo que o Renan sugeriu.
   const docs: Row[] = (await crmCall({op: 'load'})).docs || [];
@@ -963,7 +974,7 @@ async function manha(c: Row, contacts: Row[], ctx: Ctx){
     .sort((a, b) => a.hora.localeCompare(b.hora));
   const ate7 = brIso(now + 7 * 864e5).slice(0, 16), agoraBr = brIso(now).slice(0, 16);
   const sugeridas: Row[] = docs.filter(d => d && d.col === 'holds' && !d.deleted && d.data && d.data.by === 'avisos' && String(d.data.start || '') > agoraBr && String(d.data.start || '') <= ate7)
-    .map(d => ({quem: 'Renan', quando: String(d.data.start).replace('T', ' '), onde: String(d.data.label || '').replace(/^Renan:\s*/, '')}));
+    .map(d => ({quem: 'Renan', quando: String(d.data.start).replace('T', ' '), onde: String(d.data.label || '').replace(/^Renan:\s*/, ''), ...(d.data.phone ? {telefone: String(d.data.phone)} : {})}));
   // Só horário do Lipe com lead que tem card na Central (conversa dele com o Renan não conta).
   for (const a of await sql`select texto, created_at from fn_avisos where tipo = 'horario_sdr' and created_at > now() - interval '3 days' and texto not ilike '%sem card na Central%' order by created_at`)
     sugeridas.push({quem: 'Lipe (SDR)', quando: brIso(new Date(a.created_at).getTime()).slice(0, 16).replace('T', ' '), aviso: String(a.texto).replace(/\n/g, ' | ')});
@@ -984,7 +995,9 @@ async function manha(c: Row, contacts: Row[], ctx: Ctx){
     const aud = new Map((await sql`select mid, texto from fn_audios where mid = any(${mids}) and status = 'ok'`).map((r: Row) => [String(r.mid), String(r.texto || '')]));
     const lead = grupo ? null : idx.get(waPhoneKey(x.phone || String(x.user_id || '').split('-')[0]));
     conversas.push({
-      conversa: avGroupLabel(x.name).replace(/^[~\s]*$/, '') || `Contato sem nome (final ${String(x.phone || '').replace(/\D/g, '').slice(-4) || '?'})`, tipo: cliente ? 'grupo de cliente' : grupo ? 'grupo' : lead ? 'lead da Central' : 'privado',
+      // Privado: sempre com o telefone inteiro (o dono precisa saber quem é).
+      conversa: (grupo ? '' : avContatoConhecido(rawDe(x), c.contatos)) || avGroupLabel(x.name).replace(/^[~\s]*$/, '') || 'Contato sem nome', tipo: cliente ? 'grupo de cliente' : grupo ? 'grupo' : lead ? 'lead da Central' : 'privado',
+      ...(grupo ? {} : {telefone: avTelefone(rawDe(x)) || null}),
       lead: lead ? {nome: lead.data.name || '', empresa: lead.data.company || '', etapa: lead.data.stage || '', reuniao: lead.data.meetingAt || null} : undefined,
       mensagens: recentes.map((m: Row) => {
         const g = grpMsg(m), mid = String(m.mid || m.id || m.ts), a = aud.get(mid);
