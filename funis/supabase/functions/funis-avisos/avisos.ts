@@ -886,3 +886,23 @@ export function avCobrancaText(a: {contrato: string; valor: number; vencimento: 
   const v = String(a.vencimento || '');
   return `💸 *Mensalidade atrasada*\n${a.contrato}\n${avReais(a.valor)} venceu ${v.slice(8, 10)}/${v.slice(5, 7)} (${a.dias} ${a.dias === 1 ? 'dia' : 'dias'})\n👤 Assistida: cobre o cliente.`;
 }
+
+// Telefone inteiro para as mensagens do grupo do Renan (decisão do dono, 23/11: "final 7523" não diz quem é):
+// "553193877523" → "+55 31 9387-7523"; "5571996234092" → "+55 71 99623-4092".
+export function avTelefone(raw: unknown){
+  const d = String(raw ?? '').split('-')[0].replace(/\D/g, '');
+  if (d.startsWith('55') && (d.length === 12 || d.length === 13)) { const n = d.slice(4); return `+55 ${d.slice(2, 4)} ${n.slice(0, -4)}-${n.slice(-4)}` }
+  return d.length >= 8 ? '+' + d : '';
+}
+// Nome de quem é o número, quando o dono disse (fn_config avisos.contatos = {"553193877523": "Lipe"}).
+export function avContatoConhecido(raw: unknown, contatos: unknown){
+  const d = String(raw ?? '').split('-')[0].replace(/\D/g, ''), mapa = contatos && typeof contatos === 'object' ? contatos as Record<string, unknown> : {};
+  const v = d ? mapa[d] ?? mapa['+' + d] : undefined;
+  return typeof v === 'string' && v.trim() ? v.trim() : '';
+}
+// Mensagem do grupo Organização: anotação do Renan, resumo da manhã (sai do número dele) ou aviso do sistema.
+export function avTipoDaNota(texto: string, doSistema: string[]): 'anotacao' | 'resumo' | 'aviso' {
+  const t = String(texto || '').trim();
+  if (/^bom dia! hoje,/i.test(t)) return 'resumo';
+  return doSistema.some(s => s.length >= 20 && t.startsWith(s.slice(0, 60))) ? 'aviso' : 'anotacao';
+}
