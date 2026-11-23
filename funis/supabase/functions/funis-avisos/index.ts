@@ -635,6 +635,9 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
     // Cliente da assistida: bloqueia a agenda e avisa o comercial sem dizer qual loja (ninguém além do Renan vê a assistida).
     if (avClientGroup(x.name)) { kind = avIsDi(x.name) ? 'di' : 'cliente'; where = ctx.destino(x.name) === 'assistida' ? 'cliente da assistida' : avGroupLabel(x.name) }
     else if (avNameIn(String(x.name || ''), team.filter(n => !/^renan$/i.test(String(n).trim())))) { porContexto.equipe_nome = (porContexto.equipe_nome || 0) + 1 }
+    // Número da equipe que chega sem nome (o do Lipe; fn_config avisos.equipeTelefones): horário que o Renan passa para ele
+    // não é reunião dele com lead (o do lead chega pelo canal do SDR e pela Central).
+    else if ((Array.isArray(c.equipeTelefones) ? c.equipeTelefones : []).some((t: unknown) => String(t).replace(/\D/g, '') === rawTel.replace(/\D/g, ''))) { porContexto.equipe_telefone = (porContexto.equipe_telefone || 0) + 1 }
     else {
       clientGroups ??= (await sql`select nome, facts->'authors' as authors from fn_grupos`).map((r: Row) => ({nome: String(r.nome), authors: (r.authors || []).filter((a: string) => !avNameIn(a, team))}));
       const g = avClientOf(x.name, clientGroups);
