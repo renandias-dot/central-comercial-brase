@@ -1,6 +1,6 @@
 // deno test funis/supabase/functions/funis-avisos/avisos.test.ts
 import {assert, assertEquals} from 'jsr:@std/assert@1';
-import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, avReais, avCobrancaText, avTelefone, avContatoConhecido, avTipoDaNota, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
+import {avClientGroup, avDur, avGroupLabel, avGroupState, avHasTime, avHorarioText, avIsAck, avIsRisk, avMeetingDue, avNameIn, avReuniaoText, avSemRespostaText, avTimeOffers, avWhen, grpMsg, leadIndex, avMeetings, avReuniao30Due, avReuniao30Text, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avAutores, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, AV_AUDIO_EQUIPE, AV_AUDIO_CLIENTE, avReuniaoOpsText, avLeadDaReuniao, avIgnorado, avChavesDaEquipe, avQuemMandou, avFeito, avAcaoLinha, avAcaoConcluidaText, avNaJanela, avMidChave, avQuemPeloMid, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, avReais, avCobrancaText, avRespostaTrivial, avChaveHorario, avHorariosNovos, avLeadJaMarcou, avTelefone, avContatoConhecido, avTipoDaNota, avTextoFora, avManhaDue, avRotinasDoDia, avTextoPacote, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avExpediente, avMsUteis, avGestorLinha, avRiscoText, avSilencioText, avNotasComReuniao, avNotaLeadText, avLojaAnalise, avLojaHorario, avLojaId, avLojaPendente, avLojaRoteiro, type GrpMsg, type WaMsg} from './avisos.ts';
 
 const t = (hhmm: string, day = '2026-11-09') => Date.parse(`${day}T${hhmm}:00-03:00`) / 1000;
 const g = (author: string, text: string, at: number, own = false, kind = 'text'): GrpMsg => ({mid: 'g' + at, ts: at, own, author, text, kind});
@@ -560,4 +560,21 @@ Deno.test('grupo do Renan: telefone inteiro, nome conhecido e tipo de cada mensa
   assertEquals(avTipoDaNota('Bom dia! Hoje, dom 22/11: *Confirmar reuniões* …', sistema), 'resumo');
   assertEquals(avTipoDaNota('🛠 *Pedido de alteração NÃO aplicado* BRASE - PARADA 13 Restaurante Parada13: “🎤 Tranquilo, pode pausar”', sistema), 'aviso');
   assertEquals(avTipoDaNota('Mandar convite Zupa', sistema), 'anotacao');
+});
+
+Deno.test('atendimento: resposta, confirmação e empolgação nunca viram aviso (casos reais de 17 a 26/11)', () => {
+  for (const t of ['Feito', 'os dois', 'Não man', 'Pior que não, viu…', 'Bora pra cima', 'Pra cima marcha 🚀', 'É uma opção boa', 'Alterei já 53,99',
+    'Pode deixar sem valor adicional.', 'Vou deixar pra responder quando estiver próximo do vencimento essas 3', 'De qualquer forma tamos já organizando cmv',
+    'Não vi as mensagens', '👍', '🎤 Beleza, combinado então']) assert(avRespostaTrivial(t), t);
+  for (const t of ['Só o copo mesmo, combo me diz aí que já providenciamos as fotos e vídeos ?', '🎤 Ô Felipe, eu tô tendo um problema com um cliente lá, cara. O cara é golpista.',
+    'Poiseh no final da lista tem umas 5 promoção dessa e não tá daí do nada', 'Preciso que vocês mudem o preço do combo', 'Organizar carpido as fotos principalmente na Brendi já metemos marcha no tráfego',
+    'O cardápio não tá aparecendo pros clientes']) assert(!avRespostaTrivial(t), t);
+});
+Deno.test('comercial: horário do Lipe uma vez por lead e horário; reunião marcada não avisa', () => {
+  const s1 = Date.parse('2026-11-24T14:30:00-03:00'), s2 = Date.parse('2026-11-24T17:00:00-03:00');
+  const k = avChaveHorario('16981095480', [s1]);
+  assertEquals(avHorariosNovos('16981095480', [s1], [k]), []); // Alex Tiago, 14:30 repetido 5 vezes: só o 1º avisa
+  assertEquals(avHorariosNovos('16981095480', [s1, s2], [k]), [s2]);
+  assertEquals(avHorariosNovos('11956376022', [s1], [k]), [s1]); // outro lead, mesmo horário: avisa
+  assert(avLeadJaMarcou({stage: 'marcada'}) && avLeadJaMarcou({stage: 'feita'}) && !avLeadJaMarcou({stage: 'agendando'}) && !avLeadJaMarcou(null));
 });

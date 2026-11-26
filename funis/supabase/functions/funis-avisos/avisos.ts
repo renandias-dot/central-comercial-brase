@@ -906,3 +906,31 @@ export function avTipoDaNota(texto: string, doSistema: string[]): 'anotacao' | '
   if (/^bom dia! hoje,/i.test(t)) return 'resumo';
   return doSistema.some(s => s.length >= 20 && t.startsWith(s.slice(0, 60))) ? 'aviso' : 'anotacao';
 }
+
+// ── Avisos mais úteis (decisão do dono, 26/11: "muita coisa repetida", "coisa boba", "nem é pedido") ─────────────────
+
+// Mensagem do cliente que é só resposta, confirmação ou empolgação: nunca vira "Cliente precisa de atendimento", nem passa
+// pela IA. Casos reais: "Feito", "os dois", "Não man", "Pior que não, viu…", "Bora pra cima", "Pra cima marcha 🚀", "É uma
+// opção boa", "Alterei já 53,99", "Pode deixar sem valor adicional.", "Vou deixar pra responder quando estiver próximo
+// do vencimento essas 3". Pergunta ("?") ou pedido/problema claro nunca é trivial.
+const AV_TRIVIAL_INICIO = /^(ok|okay|okk+|blz|beleza|obrigad[oa]s?|obg|brigad[oa]|valeu|vlw|show|top|perfeito|certo|combinado|tranquilo|fechado|otimo|massa|boa|bom dia|boa tarde|boa noite|sim|nao|isso|entendi|joia|ta bom|ta otimo|tudo bem|tudo certo|maravilha|feito|pronto|alterei|alterado|mudei|coloquei|mandei|enviei|bora|vamos|pra cima|demais|top demais|pode deixar|pode ser|por mim|fechou|show de bola|e uma opcao|pior que|os dois|as duas|ambos|vou deixar|vou ver|vou verificar|depois (eu )?(respondo|te falo|vejo)|ja estamos|ja tamos|tamos|estamos (organizando|vendo|fazendo)|de qualquer (forma|jeito)|kk+|(ha)+|rs+)(?![a-z])/;
+const AV_TRIVIAL_PEDE = /(?:^|[^a-z])(pod(e|em|eria|eriam) (me|nos|ver|mudar|tirar|colocar|subir|pausar|ativar|mandar|enviar|fazer|verificar|olhar|criar|trocar|alterar|atualizar|ajudar|arrumar|corrigir|incluir|montar|lancar)|consegue|conseguem|preciso|precisamos|quero|queria|gostaria|ajuda|como (faco|fazer|funciona|fica)|me (liga|ligar|chama|retorna|manda|envia|passa)|nao (esta|ta|tao|estao) (funcionando|aparecendo|saindo|chegando|entrando)|problema|erro|urgente|reclam|cancelar|cancelamento|golpe)(?![a-z])/;
+export function avRespostaTrivial(texto: unknown){
+  const t = fold(String(texto ?? '')).replace(/^🎤\s*/u, '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim();
+  if (!t) return true;
+  if (t.includes('?') || AV_TRIVIAL_PEDE.test(t)) return false;
+  const palavras = t.replace(/[^\p{L}\p{N} ]/gu, ' ').split(/\s+/).filter(Boolean);
+  if (palavras.length <= 3) return true; // "os dois", "Não man", "Feito", só emoji
+  return AV_TRIVIAL_INICIO.test(t) && t.length <= 110;
+}
+
+// Horário que o Lipe sugeriu: um aviso por lead e horário. Repetir o mesmo horário em outra mensagem, ou falar dele
+// depois de marcada a reunião, não avisa de novo. A chave fica em fn_avisos.grupo: "h:<telefone>|<início em ms>,…".
+export const avChaveHorario = (telefone: string, slots: number[]) => `h:${telefone}|${[...slots].sort((a, b) => a - b).join(',')}`;
+export function avHorariosNovos(telefone: string, slots: number[], chavesAnteriores: string[]): number[] {
+  const ja = new Set<number>();
+  for (const k of chavesAnteriores) if (k.startsWith(`h:${telefone}|`)) for (const s of k.split('|')[1].split(',')) ja.add(Number(s));
+  return slots.filter(s => !ja.has(s));
+}
+// Lead que já tem a reunião marcada (ou já fez, fechou, não foi): o horário sugerido não é mais novidade.
+export const avLeadJaMarcou = (lead: any) => !!lead && ['marcada', 'feita', 'fechado', 'noshow'].includes(stageId(lead.stage));

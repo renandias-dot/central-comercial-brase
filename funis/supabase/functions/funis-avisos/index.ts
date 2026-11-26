@@ -11,7 +11,7 @@
 // SUPABASE_DB_URL já vem do Supabase. Função separada da funis-api para publicar e mexer sem tocar nos funis públicos.
 // deno-lint-ignore-file no-explicit-any
 import postgres from 'npm:postgres@3.4.5';
-import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avCobrancaText, avTelefone, avContatoConhecido, avTipoDaNota, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
+import {avClientGroup, avGroupLabel, avGroupState, avHorarioText, avMeetingDue, avReuniaoText, avRiscoText, avTimeOffers, brIso, grpMsg, leadIndex, nicoTime, avMeetings, avReuniao30Due, avParseSlots, avAgendaText, avHoldId, avHoldStart, avIsDi, avClientOf, avNameIn, waPhoneKey, AV_DI_MIN, avPedidoCandidato, avPedidoText, avAgendadoText, avAudioUrl, avAudioTexto, avComAudios, avQuemPeloTexto, AV_AUDIO_SEM_AUTOR, avLeadDaReuniao, avIgnorado, avMarca, avQuemCuida, avPrecisaPeloTexto, avAtendimentoText, avResumoText, avResumoDue, avReuniaoOpsLinha, avWhen, avQuemMandou, avChavesDaEquipe, avNaJanela, avFeito, avAcaoLinha, avAcaoConcluidaText, avDestino, avGruposCfg, avParaAssistida, avPlacarDue, avPlacarText, avMediana, avRespostaDepois, type AvGruposCfg, type AvDestino, type AvPlacar, type AvComercial, avTextoFora, avCobrancaText, avRespostaTrivial, avChaveHorario, avHorariosNovos, avLeadJaMarcou, avTelefone, avContatoConhecido, avTipoDaNota, avManhaDue, avRotinasDoDia, avTextoPacote, type AvResumoItem, avExpediente, avMsUteis, avNotasComReuniao, avNotaLeadText, avLojaId, avLojaAnalise, avLojaTexto, avLojaPendente, type AvAudio, type AvAgendaKind, type GrpMsg} from './avisos.ts';
 
 const env = (k: string) => Deno.env.get(k) ?? '';
 const sql = postgres(env('SUPABASE_DB_URL'), {prepare: false, max: 2, idle_timeout: 20});
@@ -97,7 +97,7 @@ async function horarios(c: Row, prev: Row){
   const ids = found.map(x => 'horario:' + x.t.mid);
   const known = new Set((ids.length ? await sql`select id from fn_avisos where id = any(${ids})` : []).map((r: Row) => String(r.id)));
   const fresh = found.filter(x => !known.has('horario:' + x.t.mid));
-  let semCard = 0;
+  let semCard = 0, repetidos = 0;
   if (fresh.length) {
     const docs = (await crmCall({op: 'load'})).docs || [];
     await sellersFrom(docs);
@@ -108,10 +108,26 @@ async function horarios(c: Row, prev: Row){
     const sem = fresh.filter(x => !comCard.includes(x));
     semCard = sem.length;
     for (const x of sem) await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${'horario:' + x.t.mid}, 'comercial', 'horario_sem_card', 'conversa sem card na Central', now()) on conflict (id) do nothing`;
-    queued = await queue(comCard.map(({phone, t}) => ({id: 'horario:' + t.mid, canal: 'comercial' as const, tipo: t.who === 'sdr' ? 'horario_sdr' : 'horario_lead',
-      texto: avHorarioText(t, (idx.get(phone) || {data: null}).data, '', String((c.com && c.com.sdrNome) || 'Lipe'))})));
+    // Um aviso por lead e horário (decisão do dono, 26/11): o mesmo horário repetido noutra mensagem, ou o lead que já tem a
+    // reunião marcada, não avisa de novo. Fica registrado sem envio, para não ser lido de novo.
+    const phones = [...new Set(comCard.map(x => x.phone).filter(Boolean))];
+    const anteriores: string[] = (phones.length ? await sql`select grupo from fn_avisos where tipo in ('horario_sdr', 'horario_lead') and grupo is not null and created_at > now() - interval '14 days'` : []).map((r: Row) => String(r.grupo));
+    const sair: AvRow[] = [];
+    for (const x of comCard) {
+      const lead = (idx.get(x.phone) || {data: null}).data, novos = avHorariosNovos(x.phone, x.t.slots, anteriores);
+      if (avLeadJaMarcou(lead) || !novos.length) {
+        repetidos++;
+        await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${'horario:' + x.t.mid}, 'comercial', 'horario_repetido', ${avLeadJaMarcou(lead) ? 'reunião já marcada' : 'horário já avisado'}, now()) on conflict (id) do nothing`;
+        continue;
+      }
+      const chave = avChaveHorario(x.phone, novos);
+      anteriores.push(chave);
+      sair.push({id: 'horario:' + x.t.mid, canal: 'comercial', tipo: x.t.who === 'sdr' ? 'horario_sdr' : 'horario_lead', grupo: chave,
+        texto: avHorarioText({...x.t, slots: novos}, lead, '', String((c.com && c.com.sdrNome) || 'Lipe'))});
+    }
+    queued = await queue(sair);
   }
-  return {read: rows.length, found: found.length, queued, semCard, cursor: new Date(rows[rows.length - 1].updated_at).toISOString()};
+  return {read: rows.length, found: found.length, queued, semCard, repetidos, cursor: new Date(rows[rows.length - 1].updated_at).toISOString()};
 }
 // 2. Reunião marcada ou remarcada: lê na Central só os documentos que mudaram (com folga de 12 min para esperar o horário).
 async function crmChanges(prev: Row){
@@ -430,41 +446,55 @@ function novoCtx(c: Row, opsCache: Row = {}): Ctx {
 }
 // Aviso de grupo da assistida: canal do Renan e sem marcar ninguém.
 const paraOnde = (ctx: Ctx, grupo: unknown, canal: 'operacional' | 'resumo' = 'operacional') => ctx.destino(grupo) === 'assistida' ? 'renan' as const : canal;
-// Cliente precisa de atendimento? A IA gratuita do Groq lê as mensagens do cliente que ainda não tiveram resposta da Brase
-// e diz se alguma pergunta, pede algo ou reclama (e qual é a primeira); agradecimento, "pode ser", aviso solto e mensagem de
-// outra agência não contam. Sem o Groq, vale a regra fixa (avPrecisaPeloTexto). A decisão fica guardada por grupo em
-// fn_config (k = 'atendimento') até chegar mensagem nova do cliente.
+// IA gratuita do Groq em JSON. Tenta o modelo maior (gpt-oss-120b, julga melhor) e, se ele recusar ou estiver no limite
+// do plano grátis, o menor (gpt-oss-20b). Cada modelo: 1º com esquema estrito, depois JSON livre. null = nenhum respondeu.
+const MODELO_GRANDE = 'openai/gpt-oss-120b';
+async function groqJson(sistema: string, usuario: string, nome: string, schema: Row, modelos: string[], valido: (o: Row) => boolean, maxTokens = 700): Promise<Row | null> {
+  if (!GROQ_KEY) return null;
+  for (const modelo of [...new Set(modelos.filter(Boolean))]) {
+    const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: maxTokens};
+    for (const body of [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: nome, strict: true, schema}}}, {...base, response_format: {type: 'json_object'}}]) {
+      try {
+        const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) { if (r.status === 400) continue; break } // 404/429/5xx: vai para o próximo modelo
+        const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
+        if (o && valido(o)) return o;
+      } catch { /* fora do formato ou rede: tenta a próxima forma */ }
+    }
+  }
+  return null;
+}
+const modelosDe = (op: Row, chave: string) => [String(op[chave] || MODELO_GRANDE), String(op.audioQuemModelo || 'openai/gpt-oss-20b')];
+
+// Cliente precisa de atendimento? Primeiro a regra fixa: se tudo o que o cliente mandou é resposta, confirmação ou
+// empolgação ("Feito", "os dois", "Bora pra cima", "É uma opção boa"), não precisa (nem pergunta à IA). Senão, a IA gratuita
+// do Groq decide com regra rígida e exemplos reais; na dúvida, não precisa. A mensagem citada no aviso nunca é uma dessas
+// respostas curtas. Sem o Groq, vale a regra fixa (avPrecisaPeloTexto). A decisão fica guardada por grupo em fn_config
+// (k = 'atendimento') até chegar mensagem nova do cliente.
 const ATEND_SCHEMA = {type: 'object', properties: {precisa: {type: 'boolean'}, desde: {type: 'integer'}, pedido: {type: 'string'}, motivo: {type: 'string'}}, required: ['precisa', 'desde', 'pedido', 'motivo'], additionalProperties: false};
 const ATEND_MAX = 4; // grupos classificados por rodada
-async function decideAtendimento(grupo: string, antes: GrpMsg[], pend: GrpMsg[], modelo: string){
-  const reserva = () => { const i = avPrecisaPeloTexto(pend.map(m => m.text)); return {precisa: i > 0, desdeMid: i > 0 ? pend[i - 1].mid : '', pedido: '', motivo: 'regra fixa', fonte: 'regra'} };
-  if (!GROQ_KEY || !pend.length) return reserva();
-  const sistema = `Você lê um grupo de WhatsApp entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante ou alguém da loja) e decide se o cliente está esperando atendimento da Brase.
-- precisa = true: o cliente perguntou algo, pediu algo (mudança no cardápio, preço, foto, combo, campanha, relatório, reunião, ajuda), relatou um problema ou reclamou, e a Brase ainda não respondeu.
-- precisa = false: agradecimento, confirmação ("ok", "pode ser", "por mim tudo bem", "combinado", "show"), aviso que não pede resposta ("tô chegando", "gravamos hoje", "acabou o insumo e pausei"), número ou informação solta que responde algo da Brase, conversa entre pessoas do cliente, mensagem de outra agência ou fornecedor que não é para a Brase.
-Responda em JSON: {"precisa": true | false, "desde": número da primeira mensagem do cliente que pede atendimento (1 = a primeira da lista; 0 se nenhuma), "pedido": o que o cliente precisa em até 12 palavras ("" se nada), "motivo": uma frase curta}.`;
+async function decideAtendimento(grupo: string, antes: GrpMsg[], pend: GrpMsg[], modelos: string[]){
+  const relevantes = pend.filter(m => !avRespostaTrivial(m.text));
+  if (!relevantes.length) return {precisa: false, desdeMid: '', pedido: '', motivo: 'só resposta, confirmação ou empolgação', fonte: 'regra'};
+  const reserva = () => { const i = avPrecisaPeloTexto(relevantes.map(m => m.text)); return {precisa: i > 0, desdeMid: i > 0 ? relevantes[i - 1].mid : '', pedido: '', motivo: 'regra fixa', fonte: 'regra'} };
+  const sistema = `Você lê um grupo de WhatsApp entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante ou alguém da loja) e decide se o cliente está ESPERANDO UMA RESPOSTA da Brase. Seja rígido: o aviso vai para o gestor parar o que está fazendo, então só marque quando deixar sem resposta for um problema.
+- precisa = true: o cliente fez uma pergunta direta à Brase, pediu uma coisa para a Brase fazer (mudança no cardápio, preço, foto, combo, campanha, relatório, reunião, ajuda), relatou um problema na loja ou no iFood pedindo ajuda, ou reclamou, e a Brase ainda não respondeu.
+- precisa = false (exemplos reais): resposta a uma pergunta da Brase ("os dois", "não man", "pior que não, viu"), confirmação ("feito", "alterei já 53,99", "pode deixar sem valor adicional", "combinado"), empolgação ("bora pra cima", "pra cima marcha 🚀"), opinião solta ("é uma opção boa"), aviso de que vai fazer ou responder depois ("vou deixar pra responder perto do vencimento", "já estamos organizando o CMV"), comentário sobre o movimento, a concorrência ou outro app, informação que a Brase pediu, conversa entre pessoas do cliente, mensagem de outra agência ou fornecedor.
+- Na dúvida, precisa = false.
+Responda em JSON: {"precisa": true | false, "desde": número da primeira mensagem do cliente que pede resposta (1 = a primeira da lista; 0 se nenhuma), "pedido": o que o cliente precisa em até 12 palavras, em português ("" se nada), "motivo": uma frase curta}.`;
   const linha = (m: GrpMsg) => `${m.own ? 'Renan (Brase)' : m.author || 'Cliente'}: ${String(m.text || '').replace(/@\d{6,}/g, '').replace(/\s+/g, ' ').trim().slice(0, 400)}`;
-  const usuario = [`Grupo: ${grupo}`, 'Antes (contexto):', ...(antes.length ? antes.map(linha) : ['(nada)']), '', 'Mensagens do cliente sem resposta da Brase:', ...pend.map((m, i) => `${i + 1}. ${linha(m)}`)].join('\n');
-  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 700};
-  const tentativas = [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'atendimento', strict: true, schema: ATEND_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}];
-  for (const body of tentativas) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) { if (r.status === 400) continue; break }
-      const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
-      if (typeof o.precisa !== 'boolean') continue;
-      const i = Number.isInteger(o.desde) && o.desde >= 1 && o.desde <= pend.length ? o.desde : 1;
-      return {precisa: o.precisa, desdeMid: o.precisa ? pend[i - 1].mid : '', pedido: String(o.pedido || '').slice(0, 160), motivo: String(o.motivo || '').slice(0, 200), fonte: 'ia'};
-    } catch { /* fora do formato ou rede: tenta a próxima forma */ }
-  }
-  return reserva();
+  const usuario = [`Grupo: ${grupo}`, 'Antes (contexto, com a última mensagem da Brase):', ...(antes.length ? antes.map(linha) : ['(nada)']), '', 'Mensagens do cliente sem resposta da Brase:', ...relevantes.map((m, i) => `${i + 1}. ${linha(m)}`)].join('\n');
+  const o = await groqJson(sistema, usuario, 'atendimento', ATEND_SCHEMA, modelos, x => typeof x.precisa === 'boolean');
+  if (!o) return reserva();
+  const i = Number.isInteger(o.desde) && o.desde >= 1 && o.desde <= relevantes.length ? o.desde : 1;
+  return {precisa: o.precisa, desdeMid: o.precisa ? relevantes[i - 1].mid : '', pedido: String(o.pedido || '').slice(0, 160), motivo: String(o.motivo || '').slice(0, 200), fonte: 'ia'};
 }
 // Risco de cancelamento: o filtro de palavras (avIsRisk) só indica; a IA gratuita do Groq lê a mensagem com o contexto e
 // confirma se o cliente está insatisfeito com a Brase, reclamando do resultado ou pensando em sair. Decisão guardada por
 // mensagem em fn_config (k = 'riscos'). Sem o Groq, vale o filtro.
 const RISCO_SCHEMA = {type: 'object', properties: {risco: {type: 'boolean'}, motivo: {type: 'string'}}, required: ['risco', 'motivo'], additionalProperties: false};
-async function confirmaRisco(grupo: string, msg: GrpMsg, antes: GrpMsg[], modelo: string): Promise<{risco: boolean; motivo: string}> {
+async function confirmaRisco(grupo: string, msg: GrpMsg, antes: GrpMsg[], modelos: string[]): Promise<{risco: boolean; motivo: string}> {
   if (!GROQ_KEY) return {risco: true, motivo: 'filtro (sem IA)'};
   const sistema = `Você lê um grupo de WhatsApp entre a Brase (agência que cuida do iFood de restaurantes) e o cliente (o dono do restaurante) e diz se uma mensagem do cliente é RISCO DE CANCELAMENTO do serviço da Brase.
 - risco = true: o cliente fala em cancelar, encerrar ou pausar o contrato ou o serviço da Brase, sair, que não está tendo resultado com a Brase, que está caro, está insatisfeito ou decepcionado com o trabalho, ou reclama forte das vendas culpando o serviço.
@@ -472,17 +502,23 @@ async function confirmaRisco(grupo: string, msg: GrpMsg, antes: GrpMsg[], modelo
 Responda em JSON: {"risco": true | false, "motivo": "uma frase curta"}.`;
   const linha = (m: GrpMsg) => `${m.own ? 'Renan (Brase)' : m.author || '?'}: ${String(m.text || '').replace(/\s+/g, ' ').trim().slice(0, 600)}`;
   const usuario = [`Grupo: ${grupo}`, 'Antes:', ...(antes.length ? antes.map(linha) : ['(nada)']), '', 'MENSAGEM: ' + linha(msg)].join('\n');
-  const base = {model: modelo, messages: [{role: 'system', content: sistema}, {role: 'user', content: usuario}], temperature: 0, max_completion_tokens: 500};
-  for (const body of [{...base, reasoning_effort: 'low', response_format: {type: 'json_schema', json_schema: {name: 'risco', strict: true, schema: RISCO_SCHEMA}}}, {...base, response_format: {type: 'json_object'}}]) {
-    try {
-      const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {method: 'POST', headers: {authorization: 'Bearer ' + GROQ_KEY, 'content-type': 'application/json'}, body: JSON.stringify(body), signal: AbortSignal.timeout(30000)});
-      const j = await r.json().catch(() => ({}));
-      if (!r.ok) { if (r.status === 400) continue; break }
-      const o = JSON.parse(String(j.choices?.[0]?.message?.content || ''));
-      if (typeof o.risco === 'boolean') return {risco: o.risco, motivo: String(o.motivo || '').slice(0, 200)};
-    } catch { /* tenta a próxima forma */ }
-  }
-  return {risco: true, motivo: 'filtro (IA não respondeu)'};
+  const o = await groqJson(sistema, usuario, 'risco', RISCO_SCHEMA, modelos, x => typeof x.risco === 'boolean', 500);
+  return o ? {risco: o.risco, motivo: String(o.motivo || '').slice(0, 200)} : {risco: true, motivo: 'filtro (IA não respondeu)'};
+}
+// Pedido de alteração? A frase só ter cara de pedido (avPedidoCandidato) não basta: a IA gratuita do Groq confirma que o
+// cliente pede à Brase uma mudança na loja do iFood antes de ir para o OPS. Comentário, ideia, desabafo sobre vendas, aviso
+// de disponibilidade e explicação não viram aviso. Sem o Groq, segue como antes (o OPS decide).
+const PEDIDO_SCHEMA = {type: 'object', properties: {pedido: {type: 'boolean'}, motivo: {type: 'string'}}, required: ['pedido', 'motivo'], additionalProperties: false};
+async function ehPedidoDeAlteracao(grupo: string, autor: string, texto: string, contexto: Row[], modelos: string[]): Promise<{pedido: boolean; motivo: string} | null> {
+  const sistema = `Você lê uma mensagem de um cliente (dono de restaurante) num grupo de WhatsApp com a Brase (agência que cuida do iFood dele) e diz se é um PEDIDO DE ALTERAÇÃO na loja do iFood para a Brase fazer: pausar ou reativar item, mudar preço, criar ou mudar promoção ou combo, incluir ou tirar item, mudar foto ou descrição, pausar ou fechar a loja num horário.
+- pedido = true só quando o cliente pede claramente que a Brase faça a mudança, agora ou numa data. Exemplos: "pausa o pão de queijo", "o X-Bacon agora é 32,90", "coloca uma promoção de 2 baguncinhas e 2 refris por 69", "inclui bife de pernil nas marmitas e tira os sucos", "fecha a loja amanhã das 12 às 15".
+- pedido = false (exemplos reais): comentário ou ideia sem pedir ("temos margem para fazer promoção e aparecer o preço verdinho"), pergunta ou desabafo sobre vendas ("o que está acontecendo, só fizemos sete entregas?"), aviso de disponibilidade ("sexta é feriado, estou tranquilo qualquer horário"), explicação ("são os preços que eu vendo mesmo", "até hoje não precisei fechar a loja"), conversa sobre outro app (99, Brendi, Black Friday da 99) sem pedir mudança no iFood, resposta a algo que a Brase já fez.
+- Na dúvida, pedido = false.
+Responda em JSON: {"pedido": true | false, "motivo": "uma frase curta"}.`;
+  const antes = (Array.isArray(contexto) ? contexto : []).slice(-6).map((m: Row) => `${m.autor || '?'}: ${String(m.texto || '').replace(/\s+/g, ' ').slice(0, 300)}`);
+  const usuario = [`Grupo: ${grupo}`, 'Antes:', ...(antes.length ? antes : ['(nada)']), '', `MENSAGEM de ${autor || 'Cliente'}: ${String(texto).replace(/\s+/g, ' ').slice(0, 1500)}`].join('\n');
+  const o = await groqJson(sistema, usuario, 'pedido', PEDIDO_SCHEMA, modelos, x => typeof x.pedido === 'boolean', 500);
+  return o ? {pedido: o.pedido, motivo: String(o.motivo || '').slice(0, 200)} : null;
 }
 async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novoCtx(c)){
   const flow = String(c.flow || 'f316913'), op = c.op || {}, now = Date.now();
@@ -533,7 +569,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
   // Assistida: pelo que o OPS acabou de dizer (loja com serviço "reservado") e pela configuração (BRASE - fora da assessoria, Texas).
   ctx.gcfg = avGruposCfg(c, gest.lojas);
   ctx.destino = (g) => avDestino(g, ctx.gcfg, gest.assistida(g));
-  const atend: Row = (await getConf('atendimento')).grupos || {}, modelo = String(op.audioQuemModelo || 'openai/gpt-oss-20b');
+  const atend: Row = (await getConf('atendimento')).grupos || {};
   let classificados = 0, atendMudou = false;
   // Espera que começou antes de ligar o aviso novo (op.atendimentoDesde) não dispara na hora: vai só para o resumo das 9h.
   const atendDesde = Date.parse(op.atendimentoDesde || '') || c.sinceMs;
@@ -564,7 +600,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
       let d = atend[ns];
       if ((!d || d.ultimo !== ultimo) && classificados < ATEND_MAX) {
         classificados++;
-        d = {ultimo, ...(await decideAtendimento(name, msgsA.filter(m => m.ts < st.waiting!.ts).slice(-6), pend.length ? pend : [st.waiting], modelo)), at: brIso(now)};
+        d = {ultimo, ...(await decideAtendimento(name, msgsA.filter(m => m.ts < st.waiting!.ts).slice(-6), pend.length ? pend : [st.waiting], modelosDe(op, 'atendimentoModelo'))), at: brIso(now)};
         atend[ns] = d; atendMudou = true;
       }
       if (d && d.ultimo === ultimo && d.precisa) {
@@ -581,7 +617,7 @@ async function grupos(c: Row, contacts: Row[], sink: Row[] = [], ctx: Ctx = novo
       if (!d) {
         if (riscosIa >= 2) continue; // o resto fica para a próxima rodada
         riscosIa++;
-        d = {...(await confirmaRisco(name, m, msgsA.filter(x => x.ts < m.ts).slice(-6), modelo)), at: brIso(now)};
+        d = {...(await confirmaRisco(name, m, msgsA.filter(x => x.ts < m.ts).slice(-6), modelosDe(op, 'riscoModelo'))), at: brIso(now)};
         riscos[m.mid] = d; riscosMudou = true;
       }
       if (d.risco) rows.push({id: `risco:${ns}:${Math.floor(m.ts / 21600)}`, canal, tipo: 'risco', grupo: name,
@@ -673,7 +709,10 @@ async function agenda(c: Row, contacts: Row[], prev: Row, ctx: Ctx){
         try { await crmCall({op: 'set', col: 'holds', id: avHoldId(st), data: {block: true, start: avHoldStart(st), dur: kind === 'di' ? AV_DI_MIN : 60, label: 'Renan: ' + where + (kind === 'di' ? ' (rápida)' : ''), by: 'avisos', at: new Date().toISOString(), ...(telDoContato && !avClientGroup(x.name) ? {phone: telDoContato} : {})}}); blocked++ }
         catch { ok = false }
       }
-      queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, ok)}]);
+      // Horário que o Renan sugere só bloqueia a agenda da Central: o aviso no comercial repetia o que o Lipe já marcou e as
+      // confirmações dele (decisão do dono, 26/11). Volta com com.avisoAgendaRenan = true.
+      if (c.com && c.com.avisoAgendaRenan === true) queued += await queue([{id, canal: 'comercial', tipo: 'agenda_renan', texto: avAgendaText(where, kind, slots, ok)}]);
+      else await sql`insert into fn_avisos (id, canal, tipo, texto, sent_at) values (${id}, 'comercial', 'agenda_bloqueio', ${avAgendaText(where, kind, slots, ok)}, now()) on conflict (id) do nothing`;
     }
   }
   if (privadosMudou && privados) await setConf('privados', {mapa: privados});
@@ -702,7 +741,7 @@ async function opsPedidos(conf: Row, body: Row){
   if (!r.ok) throw new Error('OPS respondeu ' + r.status + (j && j.error ? ': ' + String(j.error).slice(0, 200) : ''));
   return j as Row;
 }
-async function pedidos(sink: Row[], ctx: Ctx){
+async function pedidos(sink: Row[], ctx: Ctx, op: Row = {}){
   const conf = await getConf('ops_pedidos');
   if (!conf.url || !conf.key || conf.mode === 'off' || !conf.mode) return {skipped: 'desligado'};
   let enviados = 0, avisos = 0;
@@ -711,6 +750,12 @@ async function pedidos(sink: Row[], ctx: Ctx){
     const id = 'pedido:' + p.mid;
     if ((await sql`select 1 from fn_avisos where id = ${id}`).length) continue;
     enviados++;
+    // A IA gratuita confirma que é pedido de verdade; o que não é fica registrado sem aviso (e não vai ao OPS).
+    const conf2 = await ehPedidoDeAlteracao(String(p.grupo), String(p.autor || ''), String(p.texto), p.contexto, modelosDe(op, 'pedidoModelo'));
+    if (conf2 && !conf2.pedido) {
+      await sql`insert into fn_avisos (id, canal, tipo, texto, grupo, sent_at) values (${id}, 'operacional', 'pedido_nada', ${('não é pedido: ' + conf2.motivo).slice(0, 500)}, ${String(p.grupo)}, now()) on conflict (id) do nothing`;
+      continue;
+    }
     let r: Row;
     // Falha do OPS não pode sumir com o pedido: vira aviso "NÃO aplicado" com o erro, para o gestor fazer à mão.
     try { r = await opsPedidos(conf, {op: 'pedido', grupo: p.grupo, autor: p.autor, texto: p.texto, mensagem_id: p.mid, enviado_em: brIso(p.ts * 1000), contexto: p.contexto, simular: conf.mode === 'simular'}) }
@@ -1044,7 +1089,7 @@ async function cobrancas(){
 }
 // 9. Placar da semana (segunda, a partir das 8h; fn_config avisos.placar = {ligado, dia: 1, hora: '08:00'}): conta o que a
 // semana anterior rendeu e manda só no grupo do Renan (canal 'renan'). A semana enviada fica em fn_config placar_state.
-const PLACAR_SEM_ENVIO = ['pedido_nada', 'horario_sem_card', 'teste'];
+const PLACAR_SEM_ENVIO = ['pedido_nada', 'horario_sem_card', 'horario_repetido', 'agenda_bloqueio', 'teste'];
 async function comercialDaSemana(ini: string): Promise<AvComercial> {
   const [r] = await sql`with d as (select ${ini}::date as ini, ${ini}::date + 7 as fim),
     br as (select (created_at at time zone 'America/Sao_Paulo')::date c, (booked_at at time zone 'America/Sao_Paulo')::date b,
@@ -1162,7 +1207,7 @@ async function run(){
     const list: Row[] = contacts;
     const sink: Row[] = [];
     await step('grupos', () => grupos(c, list, sink, ctx));
-    await step('pedidos', () => pedidos(sink, ctx));
+    await step('pedidos', () => pedidos(sink, ctx, c.op || {}));
     await step('reunioesOps', () => reunioesOps(ctx, c));
     await step('acoes', () => acoes(c, ctx));
     await step('resumo', () => resumo(c, ctx));
